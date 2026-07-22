@@ -45,15 +45,18 @@ export function register() {
 
   /* -------------------------------- storage ------------------------------ */
 
-  const storageDriver = process.env.STORAGE_DRIVER || (process.env.BLOB_READ_WRITE_TOKEN ? 'vercel-blob' : 'local');
-  if (!['local', 'vercel-blob'].includes(storageDriver)) {
-    problems.push(`STORAGE_DRIVER is "${storageDriver}"; expected "local" or "vercel-blob".`);
-  } else if (storageDriver === 'vercel-blob' && !process.env.BLOB_READ_WRITE_TOKEN) {
-    problems.push('STORAGE_DRIVER is "vercel-blob" but BLOB_READ_WRITE_TOKEN is not set.');
+  const R2_VARS = ['R2_ENDPOINT', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET'];
+  const missingR2 = R2_VARS.filter((name) => !process.env[name]);
+  const storageDriver = process.env.STORAGE_DRIVER || (missingR2.length ? 'local' : 'r2');
+
+  if (!['local', 'r2'].includes(storageDriver)) {
+    problems.push(`STORAGE_DRIVER is "${storageDriver}"; expected "local" or "r2".`);
+  } else if (storageDriver === 'r2' && missingR2.length) {
+    problems.push(`STORAGE_DRIVER is "r2" but ${missingR2.join(', ')} ${missingR2.length > 1 ? 'are' : 'is'} not set.`);
   } else if (storageDriver === 'local' && serverless) {
     // Uploads would appear to succeed and then disappear with the instance.
     problems.push(
-      'STORAGE_DRIVER is "local" on a serverless platform. Uploaded screenshots would be lost. Connect a Blob store and set STORAGE_DRIVER="vercel-blob".',
+      'STORAGE_DRIVER is "local" on a serverless platform. Uploaded screenshots would be lost. Configure R2 and set STORAGE_DRIVER="r2".',
     );
   }
 

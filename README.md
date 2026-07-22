@@ -104,6 +104,7 @@ cd server && npm test              # all three suites below
 cd server && npm run test:api      # agent API contract
 cd server && npm run test:admin    # employee management rules + token revocation
 cd server && npm run test:hardening # rate limiting, security headers, boot validation
+cd server && npm run test:storage  # real put/get/delete round trip on the active driver
 ```
 
 `test:smoke` stubs `powerMonitor.getSystemIdleTime`, so "the employee walked away"
@@ -137,14 +138,22 @@ driver selected by `STORAGE_DRIVER`:
 | Driver | Where images go | Use for |
 |---|---|---|
 | `local` | `UPLOAD_DIR` on disk | development, or a VPS with a real disk |
-| `vercel-blob` | Vercel Blob store | Vercel and anything else serverless |
+| `r2` | Cloudflare R2 bucket | Vercel and anything else serverless |
 
-Whichever driver is active, images are only ever served back through
-`/api/image/:id`, which requires an admin session. The route streams the bytes
-itself, so the underlying storage URL never reaches the browser.
+The `r2` driver is plain S3, so AWS S3, Backblaze B2 or MinIO work by pointing
+`R2_ENDPOINT` at them.
+
+Objects stay **private**. Images are only ever served back through
+`/api/image/:id`, which requires an admin session and streams the bytes itself,
+so no storage URL ever reaches the browser and there is no public object to leak.
 
 Existing rows keep working after a driver change — the reference stored on each
-row determines how it is read back, not the current setting.
+row decides how it is read back, not the current setting. R2 references carry an
+`r2:` prefix; local ones are bare relative paths.
+
+⚠️ **Use a dedicated bucket.** `R2_PREFIX` namespaces the keys, but a
+bucket-wide delete script belonging to another app will not respect a prefix and
+would take every screenshot with it.
 
 ## Deploying to Vercel
 
@@ -153,9 +162,9 @@ The server is serverless-ready; the desktop agent is unaffected.
 1. **Database** — create a Neon or Vercel Postgres database. Set `DATABASE_URL`
    to the **pooled** connection string and `DIRECT_URL` to the unpooled one.
    Serverless functions exhaust direct Postgres connections quickly.
-2. **Storage** — add a Vercel Blob store to the project. Vercel injects
-   `BLOB_READ_WRITE_TOKEN`; set `STORAGE_DRIVER=vercel-blob`. Without this the
-   app refuses to boot, because local writes would silently disappear.
+2. **Storage** — set `STORAGE_DRIVER=r2` plus `R2_ENDPOINT`, `R2_ACCESS_KEY_ID`,
+   `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` and `R2_PREFIX`. Without this the app
+   refuses to boot, because local writes would silently disappear.
 3. **Rate limiting** — create a free Upstash Redis database and set
    `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`. Without Redis each
    serverless instance keeps its own counters, so the real limit is far higher
@@ -169,12 +178,6 @@ The server is serverless-ready; the desktop agent is unaffected.
 
 `vercel.json` runs `prisma migrate deploy` during the build, so schema changes
 ship with the deployment.
-
-One caveat worth knowing: Vercel Blob URLs are unguessable but technically
-public. Nothing hands them to the browser, so the practical exposure is small —
-but if that is unacceptable for your employees' screens, add an S3 driver with
-private objects to `src/lib/storage.js`. It only needs `put`, `get` and
-`remove`.
 
 ## API
 

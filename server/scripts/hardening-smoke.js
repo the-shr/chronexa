@@ -24,10 +24,33 @@ function check(name, ok, detail = '') {
 /* ------------------- boot-time configuration validation ----------------- */
 
 const savedEnv = { ...process.env };
+
+/**
+ * Every variable register() looks at. All of them are cleared before applying
+ * the overrides, so a real .env -- which Prisma loads on import -- cannot leak
+ * into a test that expects the variable to be absent.
+ */
+const CONFIG_VARS = [
+  'SESSION_SECRET',
+  'DATABASE_URL',
+  'DIRECT_URL',
+  'STORAGE_DRIVER',
+  'UPLOAD_DIR',
+  'R2_ENDPOINT',
+  'R2_ACCESS_KEY_ID',
+  'R2_SECRET_ACCESS_KEY',
+  'R2_BUCKET',
+  'UPSTASH_REDIS_REST_URL',
+  'UPSTASH_REDIS_REST_TOKEN',
+  'TRUST_PROXY',
+  'NODE_ENV',
+  'VERCEL',
+];
+
 function withEnv(overrides, fn) {
+  for (const key of CONFIG_VARS) delete process.env[key];
   for (const [key, value] of Object.entries(overrides)) {
-    if (value === undefined) delete process.env[key];
-    else process.env[key] = value;
+    if (value !== undefined) process.env[key] = value;
   }
   try {
     fn();
@@ -69,6 +92,13 @@ check(
 const validEnv = { SESSION_SECRET: goodSecret, DATABASE_URL: 'postgresql://u:p@host/db', STORAGE_DRIVER: 'local' };
 check('starts with a valid configuration', withEnv(validEnv, register) === null);
 
+const r2Env = {
+  R2_ENDPOINT: 'https://acct.r2.cloudflarestorage.com',
+  R2_ACCESS_KEY_ID: 'key',
+  R2_SECRET_ACCESS_KEY: 'secret',
+  R2_BUCKET: 'bucket',
+};
+
 // The failure mode this catches is nasty: uploads appear to succeed on Vercel
 // and then vanish with the instance.
 check(
@@ -76,11 +106,13 @@ check(
   Boolean(withEnv({ ...validEnv, VERCEL: '1' }, register)?.includes('serverless')),
 );
 check(
-  'refuses vercel-blob without a token',
+  'refuses r2 without credentials',
+  Boolean(withEnv({ ...validEnv, STORAGE_DRIVER: 'r2' }, register)?.includes('R2_ENDPOINT')),
+);
+check(
+  'names every missing R2 variable',
   Boolean(
-    withEnv({ ...validEnv, STORAGE_DRIVER: 'vercel-blob', BLOB_READ_WRITE_TOKEN: undefined }, register)?.includes(
-      'BLOB_READ_WRITE_TOKEN',
-    ),
+    withEnv({ ...validEnv, STORAGE_DRIVER: 'r2', R2_ENDPOINT: r2Env.R2_ENDPOINT }, register)?.includes('R2_BUCKET'),
   ),
 );
 check(
@@ -88,11 +120,8 @@ check(
   Boolean(withEnv({ ...validEnv, STORAGE_DRIVER: 'dropbox' }, register)?.includes('STORAGE_DRIVER')),
 );
 check(
-  'accepts vercel-blob on Vercel with a token',
-  withEnv(
-    { ...validEnv, VERCEL: '1', STORAGE_DRIVER: 'vercel-blob', BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_test' },
-    register,
-  ) === null,
+  'accepts r2 on a serverless platform',
+  withEnv({ ...validEnv, ...r2Env, VERCEL: '1', STORAGE_DRIVER: 'r2' }, register) === null,
 );
 
 /* --------------------- rate limiter behaviour (unit) -------------------- */

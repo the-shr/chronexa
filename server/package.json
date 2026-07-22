@@ -11,15 +11,16 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "node scripts/seed.js",
     "setup": "prisma migrate deploy && node scripts/seed.js",
-    "test": "npm run test:api && npm run test:admin && npm run test:hardening",
+    "test": "npm run test:api && npm run test:admin && npm run test:hardening && npm run test:storage",
     "test:api": "node scripts/api-smoke.js",
     "test:admin": "node scripts/admin-smoke.js",
-    "test:hardening": "node scripts/hardening-smoke.js"
+    "test:hardening": "node scripts/hardening-smoke.js",
+    "test:storage": "node --env-file=.env scripts/storage-smoke.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1092.0",
     "@prisma/client": "^6.2.1",
     "@upstash/redis": "^1.34.3",
-    "@vercel/blob": "^0.27.0",
     "next": "^15.1.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

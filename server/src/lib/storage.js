@@ -4,19 +4,37 @@ import path from 'node:path';
 /**
  * Screenshot storage with two drivers.
  *
- *   local        — writes under UPLOAD_DIR. Fine for development or a VPS.
- *   vercel-blob  — for serverless, where the filesystem is ephemeral and any
- *                  file written during a request disappears with the instance.
+ *   local — writes under UPLOAD_DIR. Development, or a VPS with a real disk.
+ *   r2    — Cloudflare R2 (S3-compatible). Required on serverless, where the
+ *           filesystem is ephemeral and anything written during a request
+ *           disappears with the instance.
  *
- * Either way images are only ever served back through /api/image/:id, which
- * requires an admin session. Blob URLs are unguessable but technically public,
- * so never hand one to the browser -- the route streams the bytes instead.
- * If that residual risk is unacceptable, add an S3 driver with private objects;
- * the interface below is all it needs to implement.
+ * R2 objects stay private. Images are only ever served back through
+ * /api/image/:id, which requires an admin session and streams the bytes itself,
+ * so no storage URL ever reaches the browser and there is no public object to
+ * leak. Any other S3-compatible service (AWS, Backblaze, MinIO) works by
+ * pointing R2_ENDPOINT at it.
  */
 
-const AUTO = process.env.BLOB_READ_WRITE_TOKEN ? 'vercel-blob' : 'local';
-export const driver = process.env.STORAGE_DRIVER || AUTO;
+const R2_CONFIGURED = Boolean(
+  process.env.R2_ENDPOINT &&
+    process.env.R2_ACCESS_KEY_ID &&
+    process.env.R2_SECRET_ACCESS_KEY &&
+    process.env.R2_BUCKET,
+);
+
+export const driver = process.env.STORAGE_DRIVER || (R2_CONFIGURED ? 'r2' : 'local');
+export const DRIVERS = ['local', 'r2'];
+
+/**
+ * Key prefix inside the bucket. Screenshots are namespaced so the bucket can be
+ * shared with other applications without their tooling walking over this data
+ * -- though a dedicated bucket is safer still, since a bucket-wide delete
+ * script does not care about prefixes.
+ */
+export function keyPrefix() {
+  return (process.env.R2_PREFIX || 'timetracker/screenshots').replace(/^\/+|\/+$/g, '');
+}
 
 /* --------------------------------- local -------------------------------- */
 
@@ -57,51 +75,90 @@ const localDriver = {
   },
 };
 
-/* ------------------------------ vercel blob ------------------------------ */
+/* ---------------------------------- r2 ---------------------------------- */
 
-const blobDriver = {
-  async put(key, bytes) {
-    const { put } = await import('@vercel/blob');
-    // addRandomSuffix keeps the URL unguessable; the returned URL is what we
-    // store, so the driver can be swapped without rewriting existing rows.
-    const result = await put(key, bytes, {
-      access: 'public',
-      contentType: 'image/jpeg',
-      addRandomSuffix: true,
-      token: process.env.BLOB_READ_WRITE_TOKEN,
+let s3 = null;
+async function s3Client() {
+  if (!s3) {
+    const { S3Client } = await import('@aws-sdk/client-s3');
+    s3 = new S3Client({
+      region: 'auto',
+      endpoint: process.env.R2_ENDPOINT,
+      credentials: {
+        accessKeyId: process.env.R2_ACCESS_KEY_ID,
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
+      },
     });
-    return result.url;
+  }
+  return s3;
+}
+
+const r2Driver = {
+  async put(key, bytes) {
+    const { PutObjectCommand } = await import('@aws-sdk/client-s3');
+    const fullKey = `${keyPrefix()}/${key}`;
+    await (
+      await s3Client()
+    ).send(
+      new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET,
+        Key: fullKey,
+        Body: bytes,
+        ContentType: 'image/jpeg',
+        CacheControl: 'private, max-age=31536000, immutable',
+      }),
+    );
+    // The `r2:` scheme records which driver wrote this, so reads keep working
+    // even if STORAGE_DRIVER changes later.
+    return `r2:${fullKey}`;
   },
 
   async get(reference) {
-    const res = await fetch(reference);
-    if (!res.ok) return null;
-    return Buffer.from(await res.arrayBuffer());
+    const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+    try {
+      const res = await (
+        await s3Client()
+      ).send(new GetObjectCommand({ Bucket: process.env.R2_BUCKET, Key: stripScheme(reference) }));
+      if (!res.Body) return null;
+      return Buffer.from(await res.Body.transformToByteArray());
+    } catch {
+      return null;
+    }
   },
 
   async remove(reference) {
-    const { del } = await import('@vercel/blob');
-    await del(reference, { token: process.env.BLOB_READ_WRITE_TOKEN }).catch(() => {});
+    const { DeleteObjectCommand } = await import('@aws-sdk/client-s3');
+    try {
+      await (
+        await s3Client()
+      ).send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET, Key: stripScheme(reference) }));
+    } catch {
+      /* non-fatal */
+    }
   },
 };
+
+function stripScheme(reference) {
+  return reference.startsWith('r2:') ? reference.slice(3) : reference;
+}
 
 /* -------------------------------- facade -------------------------------- */
 
 function driverFor(reference) {
   // Decide from the stored value, not the current config, so rows written
   // before a driver change keep working.
-  return /^https?:\/\//.test(reference) ? blobDriver : localDriver;
+  return reference.startsWith('r2:') ? r2Driver : localDriver;
 }
 
 function activeDriver() {
-  if (driver === 'vercel-blob') return blobDriver;
+  if (driver === 'r2') return r2Driver;
   if (driver === 'local') return localDriver;
-  throw new Error(`Unknown STORAGE_DRIVER "${driver}". Use "local" or "vercel-blob".`);
+  throw new Error(`Unknown STORAGE_DRIVER "${driver}". Use one of: ${DRIVERS.join(', ')}.`);
 }
 
 /**
  * Stores one screenshot and returns the reference to persist on the row --
- * a relative path for local, an absolute URL for blob.
+ * a relative path for local, an `r2:`-prefixed object key for R2.
  */
 export async function putScreenshot(key, bytes) {
   return activeDriver().put(key, bytes);
