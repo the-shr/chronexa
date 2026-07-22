@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { useTheme, useSettings } from '../lib/hooks.js';
+import { useTheme } from '../lib/hooks.js';
 import { IconSun, IconMoon } from '../components/Icons.jsx';
 
 /**
@@ -8,22 +8,21 @@ import { IconSun, IconMoon } from '../components/Icons.jsx';
  * which was survivable for an employee whose machine IT had already set up, but
  * left an admin opening the app to an empty employee dashboard with no way in.
  *
- * One form for both roles: the server decides which, and the app follows.
+ * One form for both roles: the server decides which, and the app follows. The
+ * server address is baked into the build -- there is one deployment, so there
+ * is nothing for the employee to configure here.
  */
 export default function SignIn({ onSignedIn }) {
   const [form, setForm] = useState({ email: '', password: '' });
-  const [server, setServer] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [theme, toggleTheme] = useTheme();
-  const [settings] = useSettings();
 
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true);
     setError(null);
     try {
-      if (server?.trim()) await window.api.settings.set({ sync: { serverUrl: server.trim() } });
       await window.api.account.login(form);
       onSignedIn?.();
     } catch (err) {
@@ -72,24 +71,11 @@ export default function SignIn({ onSignedIn }) {
           />
         </label>
 
-        {server !== null && (
-          <label className="signin-field">
-            <span>Server address</span>
-            <input className="text-input" value={server} onChange={(e) => setServer(e.target.value)} />
-          </label>
-        )}
-
         {error && <p className="form-error">{error}</p>}
 
         <button className="btn primary" disabled={busy}>
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
-
-        {server === null && (
-          <button type="button" className="link-btn" onClick={() => setServer(settings?.sync.serverUrl || '')}>
-            Connect to a different server
-          </button>
-        )}
       </form>
     </div>
   );
