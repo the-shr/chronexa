@@ -2,6 +2,10 @@
  * Two themes from one set of variables. The palette below is the dark default;
  * :root[data-theme='light'] overrides only the surface and text roles, so every
  * component is written once and works in both.
+ *
+ * Layout rule for the whole app: nothing scrolls. The window is the frame, and
+ * every page is a grid that fits inside it. Lists that could outgrow their card
+ * paginate instead of scrolling -- see .pager.
  */
 :root {
   --bg: #0b0d12;
@@ -15,6 +19,7 @@
   --text-faint: #667085;
 
   --accent: #6366f1;
+  --accent-2: #8b5cf6;
   --accent-soft: rgb(99 102 241 / 0.16);
   --accent-text: #a5b4fc;
   --ok: #22c55e;
@@ -24,8 +29,9 @@
   --danger: #ef4444;
   --danger-soft: rgb(239 68 68 / 0.14);
 
-  --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.22);
-  --r-sm: 8px;
+  --shadow: 0 1px 2px rgb(0 0 0 / 0.35), 0 10px 30px rgb(0 0 0 / 0.25);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --r-sm: 9px;
   --r: 14px;
   --r-lg: 20px;
 
@@ -33,24 +39,26 @@
 }
 
 :root[data-theme='light'] {
-  --bg: #eef1f6;
+  --bg: #eef1f7;
   --surface: #ffffff;
-  --surface-2: #f6f8fb;
-  --surface-3: #eceff5;
-  --line: #e2e6ee;
-  --line-strong: #d2d8e4;
-  --text: #131722;
-  --text-dim: #5c6577;
-  --text-faint: #8a92a4;
+  --surface-2: #f5f7fb;
+  --surface-3: #eaeef6;
+  --line: #e4e8f0;
+  --line-strong: #d3dae6;
+  --text: #101527;
+  --text-dim: #5b6479;
+  --text-faint: #8b93a6;
 
   --accent: #4f46e5;
+  --accent-2: #7c3aed;
   --accent-soft: rgb(79 70 229 / 0.1);
   --accent-text: #4338ca;
   --ok-soft: rgb(34 197 94 / 0.12);
-  --warn-soft: rgb(245 158 11 / 0.14);
+  --warn-soft: rgb(245 158 11 / 0.15);
   --danger-soft: rgb(239 68 68 / 0.1);
 
-  --shadow: 0 1px 2px rgb(16 24 40 / 0.05), 0 8px 24px rgb(16 24 40 / 0.07);
+  --shadow: 0 1px 2px rgb(16 24 40 / 0.04), 0 10px 30px rgb(16 24 40 / 0.06);
+  --shadow-sm: 0 1px 2px rgb(16 24 40 / 0.05);
 
   color-scheme: light;
 }
@@ -64,6 +72,7 @@ body,
 #root {
   height: 100%;
   margin: 0;
+  overflow: hidden; /* the app never scrolls */
 }
 
 body {
@@ -71,7 +80,6 @@ body {
   color: var(--text);
   font: 14px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
-  overflow: hidden;
 }
 
 button {
@@ -92,46 +100,56 @@ button {
   color: var(--text-faint);
 }
 
-/* -------------------------------- layout -------------------------------- */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* -------------------------------- shell --------------------------------- */
 
 .app {
   display: grid;
-  grid-template-columns: 232px 1fr;
+  grid-template-columns: 224px minmax(0, 1fr);
   height: 100%;
+  overflow: hidden;
   background: var(--bg);
 }
 
 .sidebar {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 20px 14px;
+  gap: 16px;
+  padding: 18px 12px;
   background: var(--surface);
   border-right: 1px solid var(--line);
+  overflow: hidden;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 8px;
+  padding: 0 6px;
+  flex: none;
 }
 
 .brand-mark {
-  width: 28px;
-  height: 28px;
-  border-radius: 9px;
-  background: linear-gradient(140deg, var(--accent), #8b5cf6);
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: linear-gradient(140deg, var(--accent), var(--accent-2));
   display: grid;
   place-items: center;
   color: #fff;
   flex: none;
+  box-shadow: 0 4px 12px rgb(99 102 241 / 0.35);
 }
 
 .brand-name {
   font-size: 15px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-weight: 660;
+  letter-spacing: -0.015em;
   flex: 1;
 }
 
@@ -140,6 +158,7 @@ nav {
   flex-direction: column;
   gap: 2px;
   flex: 1;
+  min-height: 0;
 }
 
 .nav {
@@ -153,7 +172,7 @@ nav {
   color: var(--text-dim);
   text-align: left;
   cursor: pointer;
-  position: relative;
+  flex: none;
   transition: background 0.15s, color 0.15s;
 }
 
@@ -182,7 +201,7 @@ nav {
   background: var(--accent);
   color: #fff;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 620;
   display: grid;
   place-items: center;
 }
@@ -191,25 +210,45 @@ nav {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: none;
 }
 
 .today-card {
   border: 1px solid var(--line);
   border-radius: var(--r);
   padding: 12px 14px;
-  background: var(--surface-2);
+  background: linear-gradient(150deg, var(--surface-2), var(--surface-3));
 }
 
 .today-card span {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .today-card strong {
   display: block;
-  font-size: 20px;
-  font-weight: 650;
-  margin-top: 2px;
+  font-size: 21px;
+  font-weight: 660;
+  margin-top: 3px;
+  letter-spacing: -0.02em;
+}
+
+.today-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface);
+  margin-top: 8px;
+  overflow: hidden;
+}
+
+.today-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  transition: width 0.6s ease;
 }
 
 .user-chip {
@@ -220,18 +259,19 @@ nav {
   border: 1px solid var(--line);
   border-radius: var(--r);
   background: var(--surface-2);
+  min-width: 0;
 }
 
 .avatar {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: linear-gradient(140deg, var(--accent), #8b5cf6);
+  background: linear-gradient(140deg, var(--accent), var(--accent-2));
   color: #fff;
   display: grid;
   place-items: center;
   font-size: 12px;
-  font-weight: 650;
+  font-weight: 660;
   flex: none;
 }
 
@@ -243,18 +283,12 @@ nav {
 .user-chip strong {
   display: block;
   font-size: 13px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .user-chip small {
   display: block;
   color: var(--text-faint);
   font-size: 11px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .icon-btn {
@@ -271,34 +305,56 @@ nav {
   transition: color 0.15s, border-color 0.15s;
 }
 
-.icon-btn:hover {
+.icon-btn:hover:not(:disabled) {
   color: var(--text);
   border-color: var(--line-strong);
 }
 
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Page frame: header stays put, body takes the rest and never overflows. */
 .content {
-  overflow-y: auto;
-  padding: 26px 30px 40px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 14px;
+  padding: 20px 24px 22px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .page-head {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
-  margin-bottom: 20px;
+  min-width: 0;
 }
 
 .page-head h1 {
-  font-size: 26px;
+  font-size: 23px;
   font-weight: 680;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
   margin: 0;
 }
 
 .page-head p {
-  margin: 0;
+  margin: 2px 0 0;
   color: var(--text-dim);
+  font-size: 13px;
+}
+
+.head-main {
   flex: 1;
+  min-width: 0;
+}
+
+.page-body {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* --------------------------------- cards -------------------------------- */
@@ -307,88 +363,111 @@ nav {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
-  padding: 20px;
+  padding: 16px 18px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .card > h2 {
-  margin: 0 0 14px;
-  font-size: 13px;
-  font-weight: 600;
+  margin: 0 0 12px;
+  font-size: 12px;
+  font-weight: 620;
   color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  flex: none;
 }
 
-.grid-main {
-  display: grid;
-  grid-template-columns: minmax(280px, 320px) 1fr;
-  gap: 14px;
-  align-items: start;
+.card-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
-/* The month grid needs more room than the ring timer does. */
-.grid-cal {
-  grid-template-columns: minmax(340px, 440px) 1fr;
+/* ------------------------------- home grid ------------------------------ */
+
+.home-grid {
+  grid-template-columns: 302px minmax(0, 1.05fr) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
-/* Below this the two columns leave the stat row too narrow to read. */
-@media (max-width: 1060px) {
-  .grid-main,
-  .grid-cal {
-    grid-template-columns: 1fr;
+.home-grid .timer-card {
+  grid-row: 1 / span 2;
+}
+
+.home-grid .stat-row {
+  grid-column: 2 / span 2;
+}
+
+@media (max-width: 1080px) {
+  .home-grid {
+    grid-template-columns: 268px minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .home-grid .stat-row {
+    grid-column: 2;
+  }
+  /* The task list is the first thing to go when there is no room for it. */
+  .home-grid .home-tasks {
+    display: none;
   }
 }
 
 .stat-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .stat {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  padding: 14px 16px;
+  padding: 12px 14px;
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
 }
 
 .stat-label {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 12px;
+  font-size: 11.5px;
   color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .stat-dot {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   flex: none;
 }
 
 .stat strong {
   display: block;
-  font-size: 22px;
-  font-weight: 650;
-  margin-top: 6px;
-  letter-spacing: -0.01em;
+  font-size: 24px;
+  font-weight: 660;
+  margin-top: 5px;
+  letter-spacing: -0.025em;
   white-space: nowrap;
 }
 
 .stat small {
   display: block;
   color: var(--text-faint);
-  font-size: 12px;
-  margin-top: 2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.stat-label {
+  font-size: 11.5px;
+  margin-top: 1px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -397,31 +476,39 @@ nav {
 /* ------------------------------ ring timer ------------------------------ */
 
 .timer-card {
-  display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: center;
+  gap: 20px;
   text-align: center;
-  gap: 4px;
-  padding: 24px 20px;
+  padding: 20px 18px;
+  background: linear-gradient(170deg, var(--surface), var(--surface-2));
 }
 
 .ring {
   --progress: 0;
   --ring-color: var(--accent);
-  width: 188px;
-  height: 188px;
+  width: 100%;
+  max-width: 196px;
+  aspect-ratio: 1;
   border-radius: 50%;
   display: grid;
   place-items: center;
   position: relative;
+  flex: none;
   background: conic-gradient(var(--ring-color) calc(var(--progress) * 360deg), var(--surface-3) 0);
   transition: background 0.6s linear;
+}
+
+/* No target set: a plain track, so the ring cannot imply progress that has
+   nothing to progress towards. */
+.ring[data-target='none'] {
+  background: var(--surface-3);
 }
 
 .ring::before {
   content: '';
   position: absolute;
-  inset: 12px;
+  inset: 11px;
   border-radius: 50%;
   background: var(--surface);
 }
@@ -431,20 +518,26 @@ nav {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
 }
 
 .ring-time {
-  font-size: 30px;
-  font-weight: 650;
-  letter-spacing: -0.02em;
+  font-size: 28px;
+  font-weight: 660;
+  letter-spacing: -0.03em;
 }
 
 .ring-label {
-  font-size: 11px;
+  font-size: 10.5px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
   color: var(--text-faint);
+}
+
+.ring-target {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  margin-top: 2px;
 }
 
 .state-pill {
@@ -454,8 +547,14 @@ nav {
   padding: 5px 12px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 550;
-  margin-top: 14px;
+  font-weight: 560;
+  max-width: 100%;
+}
+
+.state-pill span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .state-pill[data-state='active'] {
@@ -483,6 +582,7 @@ nav {
   height: 7px;
   border-radius: 50%;
   background: currentColor;
+  flex: none;
 }
 
 .state-pill[data-state='active'] .pulse {
@@ -498,7 +598,6 @@ nav {
 .timer-actions {
   display: flex;
   gap: 8px;
-  margin-top: 18px;
   width: 100%;
 }
 
@@ -507,15 +606,16 @@ nav {
 }
 
 .timer-task {
-  margin-top: 14px;
   width: 100%;
-  padding: 10px 12px;
+  padding: 9px 12px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
   background: var(--surface-2);
-  font-size: 12px;
-  color: var(--text-dim);
+  font-size: 11px;
+  color: var(--text-faint);
   text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .timer-task strong {
@@ -523,6 +623,16 @@ nav {
   color: var(--text);
   font-size: 13px;
   margin-top: 2px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.timer-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
 }
 
 /* -------------------------------- buttons ------------------------------- */
@@ -534,10 +644,11 @@ nav {
   gap: 8px;
   padding: 10px 16px;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 11px;
   background: var(--surface-2);
   cursor: pointer;
-  font-weight: 550;
+  font-weight: 560;
+  white-space: nowrap;
   transition: filter 0.15s, border-color 0.15s;
 }
 
@@ -556,9 +667,10 @@ nav {
 }
 
 .btn.primary {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border-color: transparent;
   color: #fff;
+  box-shadow: 0 4px 14px rgb(99 102 241 / 0.32);
 }
 
 .btn.danger {
@@ -573,7 +685,8 @@ nav {
 
 .btn.sm {
   padding: 6px 12px;
-  font-size: 13px;
+  font-size: 12.5px;
+  border-radius: 9px;
 }
 
 /* --------------------------------- chart -------------------------------- */
@@ -581,9 +694,9 @@ nav {
 .bars {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
-  height: 150px;
-  padding-top: 8px;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
 }
 
 .bar-col {
@@ -591,19 +704,20 @@ nav {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   height: 100%;
+  min-width: 0;
 }
 
 .bar-stack {
   flex: 1;
   width: 100%;
-  max-width: 34px;
+  max-width: 30px;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   gap: 2px;
-  position: relative;
+  min-height: 0;
 }
 
 .bar-seg {
@@ -613,12 +727,12 @@ nav {
 }
 
 .bar-seg.active {
-  background: var(--accent);
+  background: linear-gradient(180deg, var(--accent-2), var(--accent));
 }
 
 .bar-seg.idle {
   background: var(--warn);
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
 .bar-empty {
@@ -630,26 +744,29 @@ nav {
 .bar-col span {
   font-size: 11px;
   color: var(--text-faint);
+  flex: none;
 }
 
 .bar-col.is-today span {
   color: var(--accent-text);
-  font-weight: 600;
+  font-weight: 620;
 }
 
 .legend {
   display: flex;
-  gap: 16px;
-  font-size: 12px;
+  gap: 12px;
+  font-size: 11px;
   color: var(--text-dim);
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .legend i {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: 3px;
   display: inline-block;
-  margin-right: 6px;
+  margin-right: 5px;
 }
 
 /* -------------------------------- tasks --------------------------------- */
@@ -657,18 +774,31 @@ nav {
 .task-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
+  flex: 1;
+  min-height: 0;
 }
 
+/* Height is pinned so usePager's arithmetic matches what is painted. Keep in
+   step with ROW in components/Pager.jsx. */
 .task {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
-  padding: 12px 14px;
+  gap: 11px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: var(--r);
   background: var(--surface-2);
   transition: border-color 0.15s;
+  flex: none;
+  height: 74px;
+  overflow: hidden;
+}
+
+/* Title plus one row of chips; the description is dropped. Tall enough that
+   nothing is clipped -- centring the content would otherwise cut the title. */
+.task.compact {
+  height: 68px;
 }
 
 .task:hover {
@@ -676,16 +806,20 @@ nav {
 }
 
 .task.done {
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
 .task.done .task-title {
   text-decoration: line-through;
 }
 
+.task.compact .task-desc {
+  display: none;
+}
+
 .check {
-  width: 20px;
-  height: 20px;
+  width: 19px;
+  height: 19px;
   border-radius: 7px;
   border: 1.5px solid var(--line-strong);
   background: transparent;
@@ -716,6 +850,7 @@ nav {
 
 .task-title {
   font-weight: 550;
+  font-size: 13.5px;
 }
 
 .task-desc {
@@ -727,21 +862,22 @@ nav {
 .task-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+  gap: 6px;
+  margin-top: 7px;
 }
 
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 9px;
+  padding: 3px 8px;
   border-radius: 999px;
-  font-size: 11px;
-  font-weight: 550;
+  font-size: 10.5px;
+  font-weight: 560;
   background: var(--surface-3);
   color: var(--text-dim);
   border: 1px solid var(--line);
+  white-space: nowrap;
 }
 
 .chip.high {
@@ -766,7 +902,7 @@ nav {
   border: 1px solid var(--line);
   background: transparent;
   color: var(--text-dim);
-  border-radius: 8px;
+  border-radius: 9px;
   padding: 5px 10px;
   font-size: 12px;
   cursor: pointer;
@@ -783,39 +919,46 @@ nav {
   cursor: not-allowed;
 }
 
-/* ------------------------------- calendar ------------------------------- */
-
-.cal-head {
+/* Paging replaces scrolling wherever a list can outgrow its card. */
+.pager {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  text-transform: none;
+  letter-spacing: 0;
 }
 
-.cal-head h2 {
-  margin: 0;
-  font-size: 15px;
-  flex: 1;
+.pager .icon-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
 }
+
+/* ------------------------------- calendar ------------------------------- */
 
 .cal-grid {
   display: grid;
   /* minmax(0, 1fr) rather than 1fr: the cells contain a duration label whose
      min-content width would otherwise push the grid wider than its card. */
   grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
   gap: 5px;
+  flex: 1;
+  min-height: 0;
 }
 
 .cal-dow {
   text-align: center;
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--text-faint);
-  padding-bottom: 4px;
+  padding-bottom: 2px;
 }
 
 .cal-day {
-  aspect-ratio: 1;
   min-width: 0;
+  min-height: 0;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -826,9 +969,10 @@ nav {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 1px;
   padding: 2px;
   font-size: 12px;
+  transition: border-color 0.15s, background 0.15s;
 }
 
 .cal-day:hover:not(.empty) {
@@ -838,18 +982,24 @@ nav {
 .cal-day.empty {
   border-color: transparent;
   background: transparent;
+  cursor: default;
 }
 
 .cal-day.today {
   border-color: var(--accent);
 }
 
+.cal-day.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
 .cal-day.future {
-  opacity: 0.4;
+  opacity: 0.35;
 }
 
 .cal-day b {
-  font-weight: 550;
+  font-weight: 560;
 }
 
 .cal-day em {
@@ -862,33 +1012,33 @@ nav {
   overflow: hidden;
 }
 
-.cal-day .dot-row {
-  display: flex;
-  gap: 2px;
+.cal-grid-head {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+  flex: none;
 }
 
-.cal-day .dot-row i {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--accent);
-  display: block;
-}
-
-/* -------------------------------- misc ---------------------------------- */
+/* --------------------------------- rows --------------------------------- */
 
 .rows {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 0;
+  padding: 0;
+  height: 52px; /* pinned: see ROW in components/Pager.jsx */
   border-bottom: 1px solid var(--line);
   font-size: 13px;
+  flex: none;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .row:last-child {
@@ -903,17 +1053,21 @@ nav {
 .empty {
   color: var(--text-faint);
   text-align: center;
-  padding: 28px 12px;
+  padding: 20px 12px;
   font-size: 13px;
+  margin: auto 0;
 }
+
+/* -------------------------------- fields -------------------------------- */
 
 .field {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 13px 0;
+  padding: 11px 0;
   border-bottom: 1px solid var(--line);
   cursor: pointer;
+  flex: none;
 }
 
 .field:last-child {
@@ -922,13 +1076,14 @@ nav {
 
 .field-text {
   flex: 1;
+  min-width: 0;
 }
 
 .field-text small {
   display: block;
   color: var(--text-dim);
-  font-size: 12px;
-  margin-top: 2px;
+  font-size: 11.5px;
+  margin-top: 1px;
 }
 
 .field input[type='checkbox'] {
@@ -938,8 +1093,8 @@ nav {
 }
 
 .switch {
-  width: 40px;
-  height: 23px;
+  width: 38px;
+  height: 22px;
   border-radius: 999px;
   background: var(--surface-3);
   border: 1px solid var(--line-strong);
@@ -953,8 +1108,8 @@ nav {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 17px;
-  height: 17px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: var(--text-faint);
   transition: transform 0.2s, background 0.2s;
@@ -966,7 +1121,7 @@ nav {
 }
 
 .field input:checked ~ .switch::after {
-  transform: translateX(17px);
+  transform: translateX(16px);
   background: #fff;
 }
 
@@ -976,7 +1131,7 @@ nav {
   border: 1px solid var(--line);
   border-radius: 10px;
   color: var(--text);
-  padding: 10px 12px;
+  padding: 9px 12px;
   font: inherit;
 }
 
@@ -988,13 +1143,13 @@ nav {
 .signin {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 9px;
   max-width: 320px;
 }
 
 .error {
   color: var(--danger);
-  font-size: 13px;
+  font-size: 12.5px;
   margin: 0;
 }
 
@@ -1004,6 +1159,7 @@ nav {
   border-radius: 10px;
   background: var(--surface-3);
   border: 1px solid var(--line);
+  flex: none;
 }
 
 .seg button {
@@ -1019,7 +1175,7 @@ nav {
 .seg button.active {
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ---------------------------- idle warning ------------------------------ */
@@ -1077,5 +1233,5 @@ nav {
 .idle-ring span {
   position: relative;
   font-size: 20px;
-  font-weight: 650;
+  font-weight: 660;
 }

@@ -31,6 +31,12 @@ const DEFAULTS = {
     countIdleAsWork: false,
     playSound: true,
   },
+  work: {
+    // Set by the organisation. 0 means no target, in which case the dashboard
+    // shows elapsed time without implying progress towards anything.
+    dailyTargetHours: 8,
+    weeklyTargetHours: 40,
+  },
   general: {
     theme: 'dark', // 'dark' | 'light'
     launchOnLogin: false,
@@ -46,6 +52,8 @@ const DEFAULTS = {
 };
 
 const RANGES = {
+  'work.dailyTargetHours': [0, 24],
+  'work.weeklyTargetHours': [0, 168],
   'screenshots.intervalMinutes': [1, 120],
   'screenshots.quality': [10, 100],
   'screenshots.maxWidth': [640, 3840],
@@ -110,6 +118,7 @@ function publicView() {
   const s = get();
   return {
     general: { ...s.general },
+    work: { ...s.work },
     idle: {
       enabled: s.idle.enabled,
       thresholdMinutes: s.idle.thresholdMinutes,

@@ -49,13 +49,13 @@ export default function Settings() {
   return (
     <>
       <header className="page-head">
-        <div>
+        <div className="head-main">
           <h1>Settings</h1>
           <p>Your preferences on this computer</p>
         </div>
       </header>
 
-      <div className="grid-main" style={{ gridTemplateColumns: '1fr 1fr' }}>
+      <div className="page-body" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gridTemplateRows: 'auto minmax(0, 1fr)' }}>
         <section className="card">
           <h2>Account</h2>
           {account.signedIn ? (
@@ -173,34 +173,46 @@ export default function Settings() {
             <span className="switch" aria-hidden="true" />
           </label>
         </section>
-      </div>
 
-      <section className="card" style={{ marginTop: 14 }}>
-        <h2>How your time is measured</h2>
-        <div className="rows">
-          <div className="row">
-            <div className="row-main">
-              <span className="muted">Marked idle after</span>
+        <section className="card" style={{ gridColumn: '1 / -1' }}>
+          <h2>
+            How your time is measured
+            <span className="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>
+              set by your organisation
+            </span>
+          </h2>
+          <div className="rows">
+            <div className="row">
+              <div className="row-main">
+                <span className="muted">Daily target</span>
+              </div>
+              <span>
+                {settings.work?.dailyTargetHours
+                  ? `${settings.work.dailyTargetHours} hours a day, ${settings.work.weeklyTargetHours} a week`
+                  : 'No target set'}
+              </span>
             </div>
-            <span>{humanDuration(settings.idle.thresholdMinutes * 60)} without mouse or keyboard</span>
-          </div>
-          <div className="row">
-            <div className="row-main">
-              <span className="muted">While idle</span>
+            <div className="row">
+              <div className="row-main">
+                <span className="muted">Marked idle after</span>
+              </div>
+              <span>{humanDuration(settings.idle.thresholdMinutes * 60)} without mouse or keyboard</span>
             </div>
-            <span>The timer pauses and resumes on its own when you come back</span>
-          </div>
-          <div className="row">
-            <div className="row-main">
-              <span className="muted">Idle time</span>
+            <div className="row">
+              <div className="row-main">
+                <span className="muted">While idle</span>
+              </div>
+              <span>The timer pauses and resumes on its own when you come back</span>
             </div>
-            <span>{settings.idle.countIdleAsWork ? 'Counts towards your hours' : 'Recorded, but not counted as work'}</span>
+            <div className="row">
+              <div className="row-main">
+                <span className="muted">Idle time</span>
+              </div>
+              <span>{settings.idle.countIdleAsWork ? 'Counts towards your hours' : 'Recorded, but not counted as work'}</span>
+            </div>
           </div>
-        </div>
-        <p className="faint" style={{ fontSize: 12, marginBottom: 0 }}>
-          These are set by your organisation.
-        </p>
-      </section>
+        </section>
+      </div>
     </>
   );
 }

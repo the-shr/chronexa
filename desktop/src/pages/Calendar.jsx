@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 
+import { usePager, ROW } from '../components/Pager.jsx';
 import { humanDuration, clockTime, isSameDay, STOP_REASONS } from '../lib/format.js';
 import { useDailyTotals, useSessions, useSettings } from '../lib/hooks.js';
 import { IconChevron } from '../components/Icons.jsx';
@@ -9,7 +10,7 @@ const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export default function Calendar() {
   const [monthOffset, setMonthOffset] = useState(0);
   const [selected, setSelected] = useState(new Date().toISOString());
-  const daily = useDailyTotals(90);
+  const daily = useDailyTotals(120);
   const sessions = useSessions(400);
   const [settings] = useSettings();
 
@@ -27,7 +28,9 @@ export default function Calendar() {
   }, [daily]);
 
   const cells = useMemo(() => buildMonth(month), [month]);
-  const daySessions = sessions.filter((s) => isSameDay(s.startedAt, selected));
+  const daySessions = useMemo(() => sessions.filter((s) => isSameDay(s.startedAt, selected)), [sessions, selected]);
+  const { ref, slice, control } = usePager(daySessions, { rowHeight: ROW.session });
+
   const selectedTotals = totalsByDay.get(new Date(selected).toDateString());
   const countIdle = settings?.idle.countIdleAsWork;
 
@@ -41,94 +44,101 @@ export default function Calendar() {
   return (
     <>
       <header className="page-head">
-        <div>
+        <div className="head-main">
           <h1>Calendar</h1>
           <p>Your tracked time, day by day</p>
         </div>
+        <button className="icon-btn" onClick={() => setMonthOffset((m) => m - 1)} title="Previous month">
+          <IconChevron width={15} height={15} style={{ transform: 'rotate(180deg)' }} />
+        </button>
+        <strong style={{ minWidth: 132, textAlign: 'center' }}>
+          {month.toLocaleDateString([], { month: 'long', year: 'numeric' })}
+        </strong>
+        <button
+          className="icon-btn"
+          onClick={() => setMonthOffset((m) => m + 1)}
+          disabled={monthOffset >= 0}
+          title="Next month"
+        >
+          <IconChevron width={15} height={15} />
+        </button>
       </header>
 
-      <div className="grid-main grid-cal">
+      <div className="page-body" style={{ gridTemplateColumns: 'minmax(360px, 1.15fr) minmax(0, 1fr)' }}>
         <section className="card">
-          <div className="cal-head">
-            <button className="icon-btn" onClick={() => setMonthOffset((m) => m - 1)} title="Previous month">
-              <IconChevron width={15} height={15} style={{ transform: 'rotate(180deg)' }} />
-            </button>
-            <h2>{month.toLocaleDateString([], { month: 'long', year: 'numeric' })}</h2>
-            <button
-              className="icon-btn"
-              onClick={() => setMonthOffset((m) => m + 1)}
-              disabled={monthOffset >= 0}
-              title="Next month"
-            >
-              <IconChevron width={15} height={15} />
-            </button>
-          </div>
-
-          <div className="cal-grid">
+          <h2>
+            {monthTotal > 0 ? `${humanDuration(monthTotal)} this month` : 'Nothing tracked this month'}
+          </h2>
+          <div className="cal-grid-head">
             {DOW.map((d) => (
               <div className="cal-dow" key={d}>
                 {d}
               </div>
             ))}
+          </div>
+          <div className="cal-grid">
             {cells.map((date, i) => {
               if (!date) return <div className="cal-day empty" key={`e${i}`} />;
               const row = totalsByDay.get(date.toDateString());
               const worked = row ? row.activeSeconds + (countIdle ? row.idleSeconds : 0) : 0;
-              const future = date > new Date();
               const classes = ['cal-day'];
+              if (date > new Date()) classes.push('future');
               if (isSameDay(date, new Date())) classes.push('today');
-              if (future) classes.push('future');
+              if (isSameDay(date, selected)) classes.push('selected');
               return (
-                <button
-                  className={classes.join(' ')}
-                  key={date.toISOString()}
-                  onClick={() => setSelected(date.toISOString())}
-                  style={
-                    isSameDay(date, selected) ? { borderColor: 'var(--accent)', background: 'var(--accent-soft)' } : undefined
-                  }
-                >
+                <button className={classes.join(' ')} key={date.toISOString()} onClick={() => setSelected(date.toISOString())}>
                   <b>{date.getDate()}</b>
-                  {worked > 0 ? <em>{humanDuration(worked)}</em> : <span className="dot-row" />}
+                  {worked > 0 && <em>{humanDuration(worked)}</em>}
                 </button>
               );
             })}
           </div>
-
-          <p className="faint" style={{ marginBottom: 0, marginTop: 14, fontSize: 12 }}>
-            {monthTotal > 0 ? `${humanDuration(monthTotal)} tracked this month` : 'Nothing tracked this month yet'}
-          </p>
         </section>
 
         <section className="card">
           <h2>
-            {new Date(selected).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}
-            {selectedTotals && (
-              <span className="faint">
-                {humanDuration(selectedTotals.activeSeconds)} active · {humanDuration(selectedTotals.idleSeconds)} idle
-              </span>
-            )}
+            {new Date(selected).toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'short' })}
+            {control}
           </h2>
+          {selectedTotals && (selectedTotals.activeSeconds > 0 || selectedTotals.idleSeconds > 0) && (
+            <div className="stat-row" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', marginBottom: 12, flex: 'none' }}>
+              <div className="stat">
+                <div className="stat-label">
+                  <span className="stat-dot" style={{ background: 'var(--accent)' }} />
+                  Active
+                </div>
+                <strong className="mono">{humanDuration(selectedTotals.activeSeconds)}</strong>
+              </div>
+              <div className="stat">
+                <div className="stat-label">
+                  <span className="stat-dot" style={{ background: 'var(--warn)' }} />
+                  Idle
+                </div>
+                <strong className="mono">{humanDuration(selectedTotals.idleSeconds)}</strong>
+              </div>
+            </div>
+          )}
 
-          {daySessions.length === 0 ? (
-            <p className="empty">No sessions on this day.</p>
-          ) : (
-            <div className="rows">
-              {daySessions.map((s) => (
+          <div className="rows" ref={ref}>
+            {slice.length === 0 ? (
+              <p className="empty">No sessions on this day.</p>
+            ) : (
+              slice.map((s) => (
                 <div className="row" key={s.id}>
-                  <span className="mono faint" style={{ width: 96 }}>
+                  <span className="mono faint" style={{ width: 104, flex: 'none' }}>
                     {clockTime(s.startedAt)} – {s.endedAt ? clockTime(s.endedAt) : 'now'}
                   </span>
                   <div className="row-main">
-                    <div>{s.taskNote || <span className="faint">No task</span>}</div>
-                    <div className="faint" style={{ fontSize: 12 }}>
+                    <div className="truncate">{s.taskNote || <span className="faint">No task</span>}</div>
+                    <div className="faint truncate" style={{ fontSize: 12 }}>
                       {STOP_REASONS[s.stopReason] || (s.endedAt ? s.stopReason : 'In progress')}
                     </div>
                   </div>
                   <span className="mono">{humanDuration(s.activeSeconds)}</span>
                 </div>
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </section>
       </div>
     </>

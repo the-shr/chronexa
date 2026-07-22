@@ -15,6 +15,7 @@ const listeners = { tracker: [], settings: [], tasks: [], sync: [] };
 // this, so neither does the mock.
 let settings = {
   general: { theme: 'dark', launchOnLogin: false, startTrackingOnLaunch: false, minimizeToTray: true },
+  work: { dailyTargetHours: 8, weeklyTargetHours: 40 },
   idle: { enabled: true, thresholdMinutes: 5, onTimeout: 'pause', countIdleAsWork: false },
 };
 

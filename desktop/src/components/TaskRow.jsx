@@ -1,7 +1,7 @@
 import { dueLabel, humanDuration } from '../lib/format.js';
 import { IconCheck } from './Icons.jsx';
 
-export default function TaskRow({ task, tasks, snapshot, disabled, onAction }) {
+export default function TaskRow({ task, tasks, snapshot, disabled, onAction, compact = false }) {
   const done = task.status === 'done';
   const due = dueLabel(task.dueAt);
   const isTracking = snapshot.session?.taskId === task.id;
@@ -18,14 +18,14 @@ export default function TaskRow({ task, tasks, snapshot, disabled, onAction }) {
     });
 
   return (
-    <div className={done ? 'task done' : 'task'}>
+    <div className={['task', done && 'done', compact && 'compact'].filter(Boolean).join(' ')}>
       <button className="check" data-checked={done} disabled={disabled} onClick={toggle} title={done ? 'Reopen' : 'Mark done'}>
         <IconCheck width={13} height={13} />
       </button>
 
       <div className="task-body">
-        <div className="task-title">{task.title}</div>
-        {task.description && <div className="task-desc">{task.description}</div>}
+        <div className="task-title truncate">{task.title}</div>
+        {task.description && <div className="task-desc truncate">{task.description}</div>}
 
         <div className="task-meta">
           {task.priority === 'high' && <span className="chip high">High priority</span>}

@@ -5,7 +5,7 @@ import Tasks from './pages/Tasks.jsx';
 import Calendar from './pages/Calendar.jsx';
 import Activity from './pages/Activity.jsx';
 import Settings from './pages/Settings.jsx';
-import { useTrackerState, useTasks, useTheme, useAccount } from './lib/hooks.js';
+import { useTrackerState, useTasks, useTheme, useAccount, useSettings } from './lib/hooks.js';
 import { humanDuration } from './lib/format.js';
 import {
   IconHome,
@@ -32,12 +32,14 @@ export default function App() {
   const tasks = useTasks();
   const [theme, toggleTheme] = useTheme();
   const [account] = useAccount();
+  const [settings] = useSettings();
 
   if (!snapshot) return null;
 
   const running = snapshot.state === 'running';
   const phase = running ? (snapshot.idlePhase === 'active' ? 'active' : 'idle') : snapshot.state;
   const name = account?.user?.name || account?.user?.email || 'Not signed in';
+  const targetSeconds = (settings?.work?.dailyTargetHours || 0) * 3600;
 
   return (
     <div className="app">
@@ -70,12 +72,17 @@ export default function App() {
           <div className="today-card">
             <span>Tracked today</span>
             <strong className="mono">{humanDuration(snapshot.today.workSeconds)}</strong>
+            {targetSeconds > 0 && (
+              <div className="today-bar" title={`${Math.round((snapshot.today.workSeconds / targetSeconds) * 100)}% of today's target`}>
+                <i style={{ width: `${Math.min(100, (snapshot.today.workSeconds / targetSeconds) * 100)}%` }} />
+              </div>
+            )}
           </div>
           <div className="user-chip">
             <span className="avatar">{initials(name)}</span>
             <div>
-              <strong>{name}</strong>
-              <small>{phaseLabel(phase)}</small>
+              <strong className="truncate">{name}</strong>
+              <small className="truncate">{phaseLabel(phase)}</small>
             </div>
           </div>
         </div>

@@ -1,11 +1,15 @@
 import { useState } from 'react';
 
 import TaskRow from '../components/TaskRow.jsx';
+import { usePager, ROW } from '../components/Pager.jsx';
 import { clockTime } from '../lib/format.js';
 
 export default function Tasks({ snapshot, tasks }) {
   const [filter, setFilter] = useState('open');
   const [busy, setBusy] = useState(false);
+
+  const rows = filter === 'open' ? tasks.open : tasks.done;
+  const { ref, slice, control } = usePager(rows, { rowHeight: ROW.task, gap: 7 });
 
   const run = async (fn) => {
     setBusy(true);
@@ -16,12 +20,10 @@ export default function Tasks({ snapshot, tasks }) {
     }
   };
 
-  const rows = filter === 'open' ? tasks.open : tasks.done;
-
   return (
     <>
       <header className="page-head">
-        <div>
+        <div className="head-main">
           <h1>My tasks</h1>
           <p>
             {tasks.open.length} open · {tasks.done.length} completed
@@ -41,25 +43,35 @@ export default function Tasks({ snapshot, tasks }) {
         </button>
       </header>
 
-      {tasks.error && (
-        <p className="empty">
-          Showing the last synced list — could not reach the server ({tasks.error}).
-        </p>
-      )}
+      <div className="page-body">
+        <section className="card">
+          <h2>
+            {filter === 'open' ? 'Assigned to you' : 'Completed'}
+            {control}
+          </h2>
+          {tasks.error && (
+            <p className="faint" style={{ fontSize: 12, margin: '0 0 10px' }}>
+              Showing the last synced list — {tasks.error}
+            </p>
+          )}
 
-      {rows.length === 0 ? (
-        <div className="card">
-          <p className="empty">
-            {filter === 'open' ? 'No open tasks. Your manager has not assigned anything yet.' : 'Nothing completed yet.'}
-          </p>
-        </div>
-      ) : (
-        <div className="task-list">
-          {rows.map((task) => (
-            <TaskRow key={task.id} task={task} tasks={tasks} snapshot={snapshot} disabled={busy} onAction={run} />
-          ))}
-        </div>
-      )}
+          {/* The container is always rendered so the pager can measure it, even
+              while the list is empty. */}
+          <div className="task-list" ref={ref}>
+            {slice.length === 0 ? (
+              <p className="empty">
+                {filter === 'open'
+                  ? 'No open tasks. Your manager has not assigned anything yet.'
+                  : 'Nothing completed yet.'}
+              </p>
+            ) : (
+              slice.map((task) => (
+                <TaskRow key={task.id} task={task} tasks={tasks} snapshot={snapshot} disabled={busy} onAction={run} />
+              ))
+            )}
+          </div>
+        </section>
+      </div>
     </>
   );
 }
