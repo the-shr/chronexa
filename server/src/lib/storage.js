@@ -27,13 +27,13 @@ export const driver = process.env.STORAGE_DRIVER || (R2_CONFIGURED ? 'r2' : 'loc
 export const DRIVERS = ['local', 'r2'];
 
 /**
- * Key prefix inside the bucket. Screenshots are namespaced so the bucket can be
- * shared with other applications without their tooling walking over this data
- * -- though a dedicated bucket is safer still, since a bucket-wide delete
- * script does not care about prefixes.
+ * Key prefix inside the bucket. Use a bucket dedicated to this app with an API
+ * token scoped to it: a prefix keeps keys tidy, but a bucket-wide delete script
+ * belonging to another app does not care about prefixes, and a shared token
+ * means a breach in either app exposes both.
  */
 export function keyPrefix() {
-  return (process.env.R2_PREFIX || 'timetracker/screenshots').replace(/^\/+|\/+$/g, '');
+  return (process.env.R2_PREFIX || 'screenshots').replace(/^\/+|\/+$/g, '');
 }
 
 /* --------------------------------- local -------------------------------- */
