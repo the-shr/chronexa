@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { useSettings, useTheme, useAccount } from '../lib/hooks.js';
+import { usePager, ROW } from '../components/Pager.jsx';
 import { clockTime, humanDuration } from '../lib/format.js';
 
 /**
@@ -27,9 +28,31 @@ export default function Settings() {
     };
   }, []);
 
-  if (!settings || !account) return null;
-
   const general = (key, value) => update({ general: { [key]: value } });
+
+  // Built before the early return so the hook order stays stable.
+  const policyRows = settings
+    ? [
+        {
+          label: 'Daily target',
+          value: settings.work?.dailyTargetHours
+            ? `${settings.work.dailyTargetHours} hours a day, ${settings.work.weeklyTargetHours} a week`
+            : 'No target set',
+        },
+        {
+          label: 'Marked idle after',
+          value: `${humanDuration(settings.idle.thresholdMinutes * 60)} without mouse or keyboard`,
+        },
+        { label: 'While idle', value: 'The timer pauses and resumes on its own when you come back' },
+        {
+          label: 'Idle time',
+          value: settings.idle.countIdleAsWork ? 'Counts towards your hours' : 'Recorded, but not counted as work',
+        },
+      ]
+    : [];
+  const policy = usePager(policyRows, { rowHeight: ROW.session });
+
+  if (!settings || !account) return null;
 
   const signIn = async (e) => {
     e.preventDefault();
@@ -180,36 +203,17 @@ export default function Settings() {
             <span className="faint" style={{ textTransform: 'none', letterSpacing: 0 }}>
               set by your organisation
             </span>
+            {policy.control}
           </h2>
-          <div className="rows">
-            <div className="row">
-              <div className="row-main">
-                <span className="muted">Daily target</span>
+          <div className="rows" ref={policy.ref}>
+            {policy.slice.map(({ label, value }) => (
+              <div className="row" key={label}>
+                <div className="row-main">
+                  <span className="muted">{label}</span>
+                </div>
+                <span className="truncate">{value}</span>
               </div>
-              <span>
-                {settings.work?.dailyTargetHours
-                  ? `${settings.work.dailyTargetHours} hours a day, ${settings.work.weeklyTargetHours} a week`
-                  : 'No target set'}
-              </span>
-            </div>
-            <div className="row">
-              <div className="row-main">
-                <span className="muted">Marked idle after</span>
-              </div>
-              <span>{humanDuration(settings.idle.thresholdMinutes * 60)} without mouse or keyboard</span>
-            </div>
-            <div className="row">
-              <div className="row-main">
-                <span className="muted">While idle</span>
-              </div>
-              <span>The timer pauses and resumes on its own when you come back</span>
-            </div>
-            <div className="row">
-              <div className="row-main">
-                <span className="muted">Idle time</span>
-              </div>
-              <span>{settings.idle.countIdleAsWork ? 'Counts towards your hours' : 'Recorded, but not counted as work'}</span>
-            </div>
+            ))}
           </div>
         </section>
       </div>

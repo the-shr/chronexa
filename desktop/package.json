@@ -13,6 +13,7 @@
     "build": "vite build",
     "test:smoke": "electron scripts/smoke-test.js",
     "test:sync": "electron scripts/sync-test.js",
+    "test:ui": "electron scripts/ui-probe.js",
     "icons": "node scripts/make-icons.js",
     "start": "npm run build && electron .",
     "pack": "npm run build && electron-builder --dir",

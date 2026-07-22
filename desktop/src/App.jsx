@@ -18,12 +18,36 @@ const TABS = [
 
 export default function App() {
   const [tab, setTab] = useState('home');
-  const snapshot = useTrackerState();
+  const { snapshot, error } = useTrackerState();
   const tasks = useTasks();
   const [theme, toggleTheme] = useTheme();
   const [account] = useAccount();
 
-  if (!snapshot) return null;
+  // Say what happened rather than showing an empty window.
+  if (error) {
+    return (
+      <div className="fallback">
+        <div className="fallback-card">
+          <h1>Chronexa could not start</h1>
+          <p>The app could not reach its own background service. Restarting usually clears it.</p>
+          <pre>{String(error.message || error)}</pre>
+          <button className="btn primary" onClick={() => window.location.reload()}>
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!snapshot) {
+    return (
+      <div className="fallback">
+        <div className="fallback-card">
+          <p className="muted">Starting…</p>
+        </div>
+      </div>
+    );
+  }
 
   const name = account?.user?.name || account?.user?.email || 'Not signed in';
 

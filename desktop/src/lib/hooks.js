@@ -1,20 +1,27 @@
 import { useCallback, useEffect, useState } from 'react';
 
-/** Live tracker snapshot, pushed from the main process every second. */
+/**
+ * Live tracker snapshot, pushed from the main process every second.
+ * Returns the error too: without it a failed IPC call left the caller with a
+ * null snapshot forever, which rendered as an empty window with no clue why.
+ */
 export function useTrackerState() {
-  const [snapshot, setSnapshot] = useState(null);
+  const [state, setState] = useState({ snapshot: null, error: null });
 
   useEffect(() => {
     let alive = true;
-    window.api.tracker.snapshot().then((s) => alive && setSnapshot(s));
-    const off = window.api.tracker.onState(setSnapshot);
+    window.api.tracker
+      .snapshot()
+      .then((s) => alive && setState({ snapshot: s, error: null }))
+      .catch((err) => alive && setState({ snapshot: null, error: err }));
+    const off = window.api.tracker.onState((s) => setState({ snapshot: s, error: null }));
     return () => {
       alive = false;
       off();
     };
   }, []);
 
-  return snapshot;
+  return state;
 }
 
 export function useSettings() {

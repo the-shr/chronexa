@@ -525,6 +525,28 @@ button {
   .profile-card {
     display: none;
   }
+
+  /* The timer cell is now wide and short, so lay it out along its long axis
+     rather than leaving the ring adrift in the middle. */
+  .timer-card {
+    flex-direction: row;
+    gap: 18px;
+    text-align: left;
+  }
+  .timer-card .ring-wrap {
+    flex: none;
+    width: auto;
+    height: 100%;
+    aspect-ratio: 1;
+  }
+  .timer-card .timer-stack {
+    flex: 1;
+    min-width: 0;
+    align-items: stretch;
+  }
+  .timer-card .state-pill {
+    align-self: flex-start;
+  }
 }
 
 /* -------------------------------- profile ------------------------------- */
@@ -803,23 +825,52 @@ button {
 .timer-card {
   align-items: center;
   justify-content: center;
-  gap: 20px;
+  gap: 14px;
   text-align: center;
   padding: 20px 18px;
   background: linear-gradient(170deg, var(--surface), var(--surface-2));
 }
 
+.ring-wrap {
+  flex: 1;
+  min-height: 84px;
+  width: 100%;
+  display: grid;
+  place-items: center;
+}
+
+/*
+ * In a short window the controls alone fill the card and the ring collapses to
+ * nothing. Drop the least important lines instead: the current task is on the
+ * Tasks card anyway, and the target is repeated in the strip at the top.
+ */
+@media (max-height: 820px) {
+  .timer-card .timer-task {
+    display: none;
+  }
+}
+
+@media (max-height: 720px) {
+  .timer-card .ring-target {
+    display: none;
+  }
+}
+
+/* Sized from the height it is given, so a short card shrinks the ring rather
+   than clipping it. container-type lets the text inside scale with it. */
 .ring {
   --progress: 0;
   --ring-color: var(--accent);
-  width: 100%;
-  max-width: 196px;
+  height: 100%;
+  width: auto;
+  max-height: 200px;
+  max-width: 100%;
   aspect-ratio: 1;
   border-radius: 50%;
   display: grid;
   place-items: center;
   position: relative;
-  flex: none;
+  container-type: size;
   background: conic-gradient(var(--ring-color) calc(var(--progress) * 360deg), var(--surface-3) 0);
   transition: background 0.6s linear;
 }
@@ -833,7 +884,7 @@ button {
 .ring::before {
   content: '';
   position: absolute;
-  inset: 11px;
+  inset: 7%;
   border-radius: 50%;
   background: var(--surface);
 }
@@ -846,14 +897,15 @@ button {
   gap: 3px;
 }
 
+/* Scales with the ring itself, so the clock stays inside it at any size. */
 .ring-time {
-  font-size: 28px;
+  font-size: 17cqmin;
   font-weight: 660;
   letter-spacing: -0.03em;
 }
 
 .ring-label {
-  font-size: 10.5px;
+  font-size: 5.4cqmin;
   text-transform: uppercase;
   letter-spacing: 0.09em;
   color: var(--text-faint);
@@ -956,8 +1008,9 @@ button {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   width: 100%;
+  flex: none;
 }
 
 /* -------------------------------- buttons ------------------------------- */
@@ -1559,4 +1612,46 @@ button {
   position: relative;
   font-size: 20px;
   font-weight: 660;
+}
+
+/* ------------------------------- fallback ------------------------------- */
+
+.fallback {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+}
+
+.fallback-card {
+  max-width: 460px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 26px;
+  text-align: center;
+}
+
+.fallback-card h1 {
+  font-size: 19px;
+  margin: 0 0 8px;
+}
+
+.fallback-card p {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin: 0 0 14px;
+}
+
+.fallback-card pre {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--danger);
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0 0 16px;
 }

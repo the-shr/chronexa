@@ -21,10 +21,14 @@ export default function RingTimer({ snapshot, settings, busy, onAction, activeTa
 
   return (
     <section className="card timer-card">
-      <div className="ring" data-target={hasTarget ? 'set' : 'none'} style={{ '--progress': progress, '--ring-color': ringColor }}>
-        <div className="ring-inner">
-          <span className="ring-time mono">{hms(session ? session.activeSeconds : 0)}</span>
-          <span className="ring-label">{session ? 'this session' : 'not started'}</span>
+      {/* The wrapper absorbs whatever height is left so the ring can shrink
+          instead of overflowing its card in a short window. */}
+      <div className="ring-wrap">
+        <div className="ring" data-target={hasTarget ? 'set' : 'none'} style={{ '--progress': progress, '--ring-color': ringColor }}>
+          <div className="ring-inner">
+            <span className="ring-time mono">{hms(session ? session.activeSeconds : 0)}</span>
+            <span className="ring-label">{session ? 'this session' : 'not started'}</span>
+          </div>
         </div>
       </div>
 
