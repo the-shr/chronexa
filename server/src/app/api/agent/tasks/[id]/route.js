@@ -6,7 +6,8 @@ const STATUSES = ['open', 'done'];
 
 /**
  * Employees may only move a task between open and done. Everything else about
- * a task -- title, assignee, due date -- belongs to the admin who created it.
+ * an assigned task -- title, assignee, due date -- belongs to the admin who
+ * created it.
  */
 export async function PATCH(request, { params }) {
   const device = await deviceFromRequest(request);
@@ -36,4 +37,23 @@ export async function PATCH(request, { params }) {
   });
 
   return Response.json({ task: serialiseTask(task) });
+}
+
+/**
+ * Only tasks the employee added themselves may be deleted. Work assigned by an
+ * admin can be completed but not made to disappear.
+ */
+export async function DELETE(request, { params }) {
+  const device = await deviceFromRequest(request);
+  if (!device) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id } = await params;
+  const existing = await prisma.task.findFirst({ where: { id, userId: device.userId } });
+  if (!existing) return Response.json({ error: 'Not found' }, { status: 404 });
+  if (existing.source !== 'self') {
+    return Response.json({ error: 'Assigned tasks cannot be deleted' }, { status: 403 });
+  }
+
+  await prisma.task.delete({ where: { id: existing.id } });
+  return Response.json({ ok: true });
 }

@@ -32,10 +32,10 @@ let session = {
 
 let tasks = {
   open: [
-    { id: 't1', title: 'Finish the onboarding flow', description: 'Sign-up, email verification and the welcome screen.', status: 'open', priority: 'high', dueAt: new Date().toISOString(), estimateMinutes: 180 },
-    { id: 't2', title: 'Review pull request #482', description: 'Payments refactor from the backend team.', status: 'open', priority: 'normal', dueAt: new Date(Date.now() + DAY).toISOString(), estimateMinutes: 45 },
-    { id: 't3', title: 'Update the client proposal', description: '', status: 'open', priority: 'normal', dueAt: new Date(Date.now() - DAY).toISOString(), estimateMinutes: 90 },
-    { id: 't4', title: 'Weekly team sync notes', description: 'Write up the actions from Monday.', status: 'open', priority: 'low', dueAt: new Date(Date.now() + 3 * DAY).toISOString(), estimateMinutes: 30 },
+    { id: 't1', title: 'Finish the onboarding flow', description: 'Sign-up, email verification and the welcome screen.', status: 'open', priority: 'high', source: 'assigned', dueAt: new Date().toISOString(), estimateMinutes: 180 },
+    { id: 't2', title: 'Review pull request #482', description: 'Payments refactor from the backend team.', status: 'open', priority: 'normal', source: 'assigned', dueAt: new Date(Date.now() + DAY).toISOString(), estimateMinutes: 45 },
+    { id: 't3', title: 'Update the client proposal', description: '', status: 'open', priority: 'normal', source: 'self', dueAt: new Date(Date.now() - DAY).toISOString(), estimateMinutes: 90 },
+    { id: 't4', title: 'Weekly team sync notes', description: 'Write up the actions from Monday.', status: 'open', priority: 'low', source: 'self', dueAt: new Date(Date.now() + 3 * DAY).toISOString(), estimateMinutes: 30 },
   ],
   done: [{ id: 't5', title: 'Fix the dashboard chart legend', description: '', status: 'done', priority: 'normal', dueAt: null, completedAt: new Date().toISOString() }],
   fetchedAt: new Date().toISOString(),
@@ -138,6 +138,22 @@ export function installMockApi() {
     tasks: {
       list: async () => tasks,
       refresh: async () => tasks,
+      add: async (title) => {
+        tasks = { ...tasks, open: [{ id: `local-${Date.now()}`, title, description: '', status: 'open', priority: 'normal', source: 'self', position: -1, dueAt: null }, ...tasks.open] };
+        emit('tasks', tasks);
+        return tasks;
+      },
+      remove: async (id) => {
+        tasks = { ...tasks, open: tasks.open.filter((t) => t.id !== id) };
+        emit('tasks', tasks);
+        return tasks;
+      },
+      reorder: async (ids) => {
+        const by = new Map(tasks.open.map((t) => [t.id, t]));
+        tasks = { ...tasks, open: ids.map((id) => by.get(id)).filter(Boolean) };
+        emit('tasks', tasks);
+        return tasks;
+      },
       setStatus: async (id, status) => {
         const from = status === 'done' ? 'open' : 'done';
         const to = status === 'done' ? 'done' : 'open';

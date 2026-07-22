@@ -74,6 +74,11 @@ model Task {
   description String    @default("")
   status      String    @default("open") // open | done
   priority    String    @default("normal") // low | normal | high
+  // "assigned" came from an admin; "self" the employee added themselves. Only
+  // self tasks may be deleted from the agent.
+  source      String    @default("assigned")
+  // The employee's own ordering of their list. Lower sorts first.
+  position    Int       @default(0)
   dueAt       DateTime?
   estimateMinutes Int?
   completedAt DateTime?

@@ -339,20 +339,34 @@
 
 /* ------------------------------- home grid ------------------------------ */
 
+/*
+ * The left column is one area holding the square profile tile and the detail
+ * list, rather than two grid rows. A grid row would stretch the tile to the
+ * row height; here it keeps its aspect ratio and the list takes what is left.
+ */
 .home-grid {
   grid-template-columns: 202px minmax(0, 1fr) minmax(0, 1fr) 238px;
   grid-template-rows: minmax(0, 1.08fr) minmax(0, 1fr);
   grid-template-areas:
-    'profile progress tracker  right'
-    'info    schedule schedule right';
+    'side progress tracker  right'
+    'side schedule schedule right';
+}
+
+.side-col {
+  grid-area: side;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
 }
 
 .profile-card {
-  grid-area: profile;
+  flex: none;
+  aspect-ratio: 1;
 }
 
 .info-card {
-  grid-area: info;
+  flex: 1;
 }
 
 .progress-card {
@@ -381,8 +395,8 @@
   .home-grid {
     grid-template-columns: 190px minmax(0, 1fr) 224px;
     grid-template-areas:
-      'profile tracker  right'
-      'info    progress right';
+      'side tracker  right'
+      'side progress right';
   }
   .schedule-card {
     display: none;
@@ -396,8 +410,7 @@
       'tracker  right'
       'progress right';
   }
-  .profile-card,
-  .info-card {
+  .side-col {
     display: none;
   }
 }
@@ -833,6 +846,52 @@
   font-weight: 640;
 }
 
+/* Adding a task of your own, alongside whatever the admin assigned. */
+.check-add {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex: none;
+}
+
+.check-add input {
+  flex: 1;
+  min-width: 0;
+  background: rgb(255 255 255 / 0.09);
+  border: 1px solid rgb(255 255 255 / 0.14);
+  border-radius: 10px;
+  color: #fff;
+  padding: 7px 11px;
+  font: inherit;
+  font-size: 12px;
+}
+
+.check-add input::placeholder {
+  color: rgb(255 255 255 / 0.45);
+}
+
+.check-add input:focus {
+  outline: none;
+  border-color: rgb(255 255 255 / 0.4);
+}
+
+.check-add button {
+  width: 32px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+}
+
+.check-add button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .checklist {
   display: flex;
   flex-direction: column;
@@ -853,15 +912,53 @@
   overflow: hidden;
 }
 
-.check-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
+.check-item.dragging {
+  opacity: 0.4;
+}
+
+.check-item.drop-target {
+  box-shadow: inset 0 2px 0 var(--accent);
+}
+
+/* Queued for upload: still on this machine only. */
+.check-item.pending {
+  border: 1px dashed rgb(255 255 255 / 0.25);
+}
+
+.check-grip {
+  width: 20px;
   display: grid;
   place-items: center;
-  background: rgb(255 255 255 / 0.1);
-  color: #fff;
+  color: rgb(255 255 255 / 0.4);
+  cursor: grab;
   flex: none;
+}
+
+.check-item:active .check-grip {
+  cursor: grabbing;
+}
+
+.check-remove {
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  color: rgb(255 255 255 / 0.45);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+}
+
+.check-remove:hover:not(:disabled) {
+  color: var(--danger);
+  background: rgb(255 255 255 / 0.1);
+}
+
+.check-remove:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .check-text {

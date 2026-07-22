@@ -9,6 +9,7 @@
     "build": "prisma generate && next build",
     "start": "next start -p 3000",
     "db:migrate": "prisma migrate deploy",
+    "db:new-migration": "node scripts/new-migration.js",
     "db:seed": "node scripts/seed.js",
     "setup": "prisma migrate deploy && node scripts/seed.js",
     "test": "npm run test:api && npm run test:admin && npm run test:hardening && npm run test:storage",

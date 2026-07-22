@@ -65,6 +65,9 @@ class Sync extends EventEmitter {
           if (item.type === 'session') await this.pushSession(item.payload);
           else if (item.type === 'screenshot') await this.pushScreenshot(item.payload.id);
           else if (item.type === 'task') await this.pushTask(item.payload);
+          else if (item.type === 'task-add') await this.pushNewTask(item.payload);
+          else if (item.type === 'task-delete') await this.pushTaskDelete(item.payload);
+          else if (item.type === 'task-order') await this.pushTaskOrder(item.payload);
           done.push(item.id);
         } catch (err) {
           log.warn('sync: item failed', item.id, err.message);
@@ -109,6 +112,43 @@ class Sync extends EventEmitter {
     });
     // A task deleted by the admin is not a failure worth retrying forever.
     if (res.status === 404) return;
+    if (!res.ok) throw new Error(`tasks ${res.status}`);
+  }
+
+  /**
+   * A task the employee added. The server issues the real id, which replaces
+   * the local placeholder so later edits address the right row.
+   */
+  async pushNewTask({ localId, title }) {
+    const res = await fetch(`${this.base()}/api/agent/tasks`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...auth.authHeaders() },
+      body: JSON.stringify({ title }),
+    });
+    if (!res.ok) throw new Error(`tasks ${res.status}`);
+    const { task } = await res.json();
+    // Required lazily: tasks.js already requires sync's siblings, and pulling
+    // it in at the top would close the loop.
+    require('./tasks').replaceLocalId(localId, task);
+  }
+
+  async pushTaskDelete({ id }) {
+    const res = await fetch(`${this.base()}/api/agent/tasks/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: auth.authHeaders(),
+    });
+    // Already gone, or never the employee's to remove: nothing to retry.
+    if (res.status === 404 || res.status === 403) return;
+    if (!res.ok) throw new Error(`tasks ${res.status}`);
+  }
+
+  async pushTaskOrder({ order }) {
+    if (!order.length) return;
+    const res = await fetch(`${this.base()}/api/agent/tasks`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', ...auth.authHeaders() },
+      body: JSON.stringify({ order }),
+    });
     if (!res.ok) throw new Error(`tasks ${res.status}`);
   }
 

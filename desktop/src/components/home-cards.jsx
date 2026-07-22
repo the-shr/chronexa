@@ -13,6 +13,9 @@ import {
   IconSync,
   IconList,
   IconClock,
+  IconPlus,
+  IconGrip,
+  IconTrash,
 } from './Icons.jsx';
 
 /* ------------------------------- metrics -------------------------------- */
@@ -334,8 +337,44 @@ export function TodayCard({ snapshot, settings }) {
 /* ------------------------------- checklist ------------------------------ */
 
 export function ChecklistCard({ tasks, busy, onAction, listRef, slice }) {
+  const [title, setTitle] = useState('');
+  const [dragId, setDragId] = useState(null);
+  const [overId, setOverId] = useState(null);
+
   const done = tasks.done.length;
   const total = tasks.open.length + done;
+
+  const submit = (event) => {
+    event.preventDefault();
+    const clean = title.trim();
+    if (!clean) return;
+    setTitle('');
+    onAction(() => tasks.add(clean));
+  };
+
+  /**
+   * Reordering moves the dragged task within the full open list, not just the
+   * visible page, so dropping on the last row of page one cannot silently
+   * reshuffle the rest.
+   *
+   * The id travels in the dataTransfer rather than in state: React has not
+   * necessarily re-rendered between dragstart and drop, so reading it from
+   * state can still see null.
+   */
+  const drop = (event, targetId) => {
+    const sourceId = event.dataTransfer.getData('text/plain');
+    setOverId(null);
+    setDragId(null);
+    if (!sourceId || sourceId === targetId) return undefined;
+
+    const ids = tasks.open.map((t) => t.id);
+    const from = ids.indexOf(sourceId);
+    const to = ids.indexOf(targetId);
+    if (from === -1 || to === -1) return undefined;
+
+    ids.splice(to, 0, ids.splice(from, 1)[0]);
+    return onAction(() => tasks.reorder(ids));
+  };
 
   return (
     <section className="card checklist-card">
@@ -346,23 +385,78 @@ export function ChecklistCard({ tasks, busy, onAction, listRef, slice }) {
         </strong>
       </div>
 
+      <form className="check-add" onSubmit={submit}>
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Add a task of your own"
+          maxLength={200}
+          disabled={busy}
+        />
+        <button type="submit" disabled={busy || !title.trim()} title="Add task">
+          <IconPlus width={14} height={14} />
+        </button>
+      </form>
+
       <div className="checklist" ref={listRef}>
         {slice.length === 0 ? (
-          <p className="empty">Nothing assigned right now.</p>
+          <p className="empty">Nothing here yet. Add one above, or wait for your manager to assign work.</p>
         ) : (
           slice.map((task) => {
             const due = dueLabel(task.dueAt);
+            const mine = task.source === 'self';
             return (
-              <div className="check-item" key={task.id}>
-                <span className="check-icon">
-                  <IconList width={13} height={13} />
+              <div
+                key={task.id}
+                className={[
+                  'check-item',
+                  dragId === task.id && 'dragging',
+                  overId === task.id && 'drop-target',
+                  task.pending && 'pending',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                draggable={!busy}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/plain', task.id);
+                  e.dataTransfer.effectAllowed = 'move';
+                  setDragId(task.id);
+                }}
+                onDragEnd={() => {
+                  setDragId(null);
+                  setOverId(null);
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  e.dataTransfer.dropEffect = 'move';
+                  if (overId !== task.id) setOverId(task.id);
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  drop(e, task.id);
+                }}
+              >
+                <span className="check-grip" title="Drag to reorder">
+                  <IconGrip width={13} height={13} />
                 </span>
                 <span className="check-text">
                   <span className="truncate">{task.title}</span>
                   <small className={due?.overdue ? 'overdue' : undefined}>
-                    {due ? due.text : task.priority === 'high' ? 'High priority' : 'No due date'}
+                    {due ? due.text : mine ? 'Added by you' : task.priority === 'high' ? 'High priority' : 'Assigned'}
                   </small>
                 </span>
+
+                {mine && (
+                  <button
+                    className="check-remove"
+                    disabled={busy}
+                    onClick={() => onAction(() => tasks.remove(task.id))}
+                    title="Delete this task"
+                  >
+                    <IconTrash width={12} height={12} />
+                  </button>
+                )}
+
                 <button
                   className="check-btn"
                   disabled={busy}

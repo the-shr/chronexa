@@ -203,6 +203,55 @@ check('accepts but clamps an impossible duration', absurd.ok, `HTTP ${absurd.sta
   const unauth = await patch(mine.id, { status: 'done' }, {});
   check('rejects an unauthenticated task update', unauth.status === 401, `HTTP ${unauth.status}`);
 
+  /* -------------------- adding, ordering and deleting -------------------- */
+
+  const addRes = await fetch(`${base}/api/agent/tasks`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...auth },
+    body: JSON.stringify({ title: 'Task I set myself' }),
+  });
+  check('an employee can add their own task', addRes.status === 201, `HTTP ${addRes.status}`);
+  const own = addRes.ok ? (await addRes.json()).task : null;
+  check('marks it as self-added', own?.source === 'self', own?.source);
+  check('puts it at the top of the list', own?.position < 0, String(own?.position));
+
+  const blank = await fetch(`${base}/api/agent/tasks`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...auth },
+    body: JSON.stringify({ title: '   ' }),
+  });
+  check('rejects a blank title', blank.status === 400, `HTTP ${blank.status}`);
+
+  const order = [mine.id, own.id];
+  const reordered = await fetch(`${base}/api/agent/tasks`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json', ...auth },
+    body: JSON.stringify({ order }),
+  });
+  check('saves the employee ordering', reordered.ok, `HTTP ${reordered.status}`);
+  const listed2 = await (await fetch(`${base}/api/agent/tasks`, { headers: auth })).json();
+  const ids = listed2.tasks.map((t) => t.id);
+  check('returns tasks in that order', ids.indexOf(mine.id) < ids.indexOf(own.id), ids.join(','));
+
+  // Someone else's task must not be reorderable, even mixed into a valid list.
+  const sneaky = await fetch(`${base}/api/agent/tasks`, {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json', ...auth },
+    body: JSON.stringify({ order: [theirs.id, mine.id] }),
+  });
+  const theirsAfter = await prisma.task.findUnique({ where: { id: theirs.id } });
+  check("ignores another employee's task in a reorder", sneaky.ok && theirsAfter.position === 0, String(theirsAfter.position));
+
+  const delAssigned = await fetch(`${base}/api/agent/tasks/${mine.id}`, { method: 'DELETE', headers: auth });
+  check('refuses to delete an assigned task', delAssigned.status === 403, `HTTP ${delAssigned.status}`);
+
+  const delOwn = await fetch(`${base}/api/agent/tasks/${own.id}`, { method: 'DELETE', headers: auth });
+  check('deletes a self-added task', delOwn.ok, `HTTP ${delOwn.status}`);
+  check('it is really gone', (await prisma.task.findUnique({ where: { id: own.id } })) === null);
+
+  const delTheirs = await fetch(`${base}/api/agent/tasks/${theirs.id}`, { method: 'DELETE', headers: auth });
+  check("cannot delete another employee's task", delTheirs.status === 404, `HTTP ${delTheirs.status}`);
+
   await prisma.user.deleteMany({ where: { id: other.user.id } });
 }
 

@@ -171,6 +171,9 @@ handle('history:daily', (days) => db.dailyTotals(days || 7));
 handle('tasks:list', () => tasks.list());
 handle('tasks:refresh', () => tasks.refresh());
 handle('tasks:set-status', ({ id, status }) => tasks.setStatus(id, status));
+handle('tasks:add', (title) => tasks.add(title));
+handle('tasks:remove', (id) => tasks.remove(id));
+handle('tasks:reorder', (ids) => tasks.reorder(ids || []));
 
 handle('account:get', () => {
   const { user, deviceName } = auth.get();

@@ -56,7 +56,10 @@ export function useTasks() {
 
   const setStatus = useCallback(async (id, status) => setTasks(await window.api.tasks.setStatus(id, status)), []);
   const refresh = useCallback(async () => setTasks(await window.api.tasks.refresh()), []);
-  return { ...tasks, setStatus, refresh };
+  const add = useCallback(async (title) => setTasks(await window.api.tasks.add(title)), []);
+  const remove = useCallback(async (id) => setTasks(await window.api.tasks.remove(id)), []);
+  const reorder = useCallback(async (ids) => setTasks(await window.api.tasks.reorder(ids)), []);
+  return { ...tasks, setStatus, refresh, add, remove, reorder };
 }
 
 /** Per-day active/idle totals for the bar chart and the calendar. */

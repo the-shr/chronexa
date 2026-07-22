@@ -142,3 +142,23 @@ export const IconBriefcase = (p) => (
     <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
   </svg>
 );
+
+export const IconPlus = (p) => (
+  <svg {...base} {...p}>
+    <path d="M12 5v14M5 12h14" />
+  </svg>
+);
+
+/** Drag handle. */
+export const IconGrip = (p) => (
+  <svg {...base} {...p} strokeWidth="2.4">
+    <path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01" />
+  </svg>
+);
+
+export const IconTrash = (p) => (
+  <svg {...base} {...p}>
+    <path d="M4 7h16M10 11v6M14 11v6" />
+    <path d="M6 7l1 13h10l1-13M9 7V4h6v3" />
+  </svg>
+);

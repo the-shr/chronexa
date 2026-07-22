@@ -56,8 +56,11 @@ export default function Home({ snapshot, tasks, account }) {
       <MetricRow snapshot={snapshot} settings={settings} tasks={tasks} weekSeconds={weekSeconds} />
 
       <div className="page-body home-grid">
-        <ProfileCard account={account} snapshot={snapshot} />
-        <InfoCard account={account} settings={settings} sync={sync} />
+        <div className="side-col">
+          <ProfileCard account={account} snapshot={snapshot} />
+          <InfoCard account={account} settings={settings} sync={sync} />
+        </div>
+
         <ProgressCard rows={daily} weekSeconds={weekSeconds} countIdle={countIdle} />
         <TrackerCard snapshot={snapshot} settings={settings} busy={busy} onAction={run} />
         <ScheduleCard sessions={sessions} />
