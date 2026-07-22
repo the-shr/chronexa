@@ -65,7 +65,10 @@ class Profile extends EventEmitter {
       ...options,
       headers: { ...(options.headers || {}), ...auth.authHeaders() },
     });
-    if (res.status === 401) throw new Error('Your session has expired. Sign in again.');
+    if (res.status === 401) {
+      auth.markExpired('profile request refused');
+      throw new Error('Your session has expired. Sign in again.');
+    }
     if (!res.ok) {
       const detail = await res.json().catch(() => ({}));
       throw new Error(detail.error || `Request failed (${res.status})`);

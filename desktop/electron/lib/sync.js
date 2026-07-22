@@ -95,13 +95,26 @@ class Sync extends EventEmitter {
     return settings.get().sync.serverUrl;
   }
 
+  /**
+   * A 401 is not a transient failure: retrying cannot fix a token the server has
+   * stopped accepting. Stand down and tell the employee, leaving the work queued
+   * so it uploads once they sign back in.
+   */
+  guard(res, what) {
+    if (res.status === 401) {
+      auth.markExpired(`${what} refused`);
+      throw new Error('Your session has expired.');
+    }
+    if (!res.ok) throw new Error(`${what} ${res.status}`);
+  }
+
   async pushSession(session) {
     const res = await fetch(`${this.base()}/api/agent/sessions`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...auth.authHeaders() },
       body: JSON.stringify(session),
     });
-    if (!res.ok) throw new Error(`sessions ${res.status}`);
+    this.guard(res, 'sessions');
   }
 
   async pushTask({ id, status }) {
@@ -112,7 +125,7 @@ class Sync extends EventEmitter {
     });
     // A task deleted by the admin is not a failure worth retrying forever.
     if (res.status === 404) return;
-    if (!res.ok) throw new Error(`tasks ${res.status}`);
+    this.guard(res, 'tasks');
   }
 
   /**
@@ -125,7 +138,7 @@ class Sync extends EventEmitter {
       headers: { 'content-type': 'application/json', ...auth.authHeaders() },
       body: JSON.stringify({ title }),
     });
-    if (!res.ok) throw new Error(`tasks ${res.status}`);
+    this.guard(res, 'tasks');
     const { task } = await res.json();
     // Required lazily: tasks.js already requires sync's siblings, and pulling
     // it in at the top would close the loop.
@@ -139,7 +152,7 @@ class Sync extends EventEmitter {
     });
     // Already gone, or never the employee's to remove: nothing to retry.
     if (res.status === 404 || res.status === 403) return;
-    if (!res.ok) throw new Error(`tasks ${res.status}`);
+    this.guard(res, 'tasks');
   }
 
   async pushTaskOrder({ order }) {
@@ -149,7 +162,7 @@ class Sync extends EventEmitter {
       headers: { 'content-type': 'application/json', ...auth.authHeaders() },
       body: JSON.stringify({ order }),
     });
-    if (!res.ok) throw new Error(`tasks ${res.status}`);
+    this.guard(res, 'tasks');
   }
 
   async pushScreenshot(id) {
@@ -175,7 +188,7 @@ class Sync extends EventEmitter {
       headers: auth.authHeaders(),
       body: form,
     });
-    if (!res.ok) throw new Error(`screenshots ${res.status}`);
+    this.guard(res, 'screenshots');
     const data = await res.json().catch(() => ({}));
     db.markScreenshotUploaded(id, data.url || null);
   }

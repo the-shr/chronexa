@@ -62,6 +62,10 @@ class Tasks extends EventEmitter {
 
     try {
       const res = await fetch(`${cfg.serverUrl}/api/agent/tasks`, { headers: auth.authHeaders() });
+      if (res.status === 401) {
+        auth.markExpired('tasks request refused');
+        throw new Error('Your session has expired.');
+      }
       if (!res.ok) throw new Error(`tasks ${res.status}`);
       const { tasks } = await res.json();
 

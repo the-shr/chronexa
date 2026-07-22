@@ -7,6 +7,7 @@ import Activity from './pages/Activity.jsx';
 import Settings from './pages/Settings.jsx';
 import Profile from './pages/Profile.jsx';
 import { useTrackerState, useTasks, useTheme, useAccount, useProfile } from './lib/hooks.js';
+import SessionBanner from './components/SessionBanner.jsx';
 import { IconSun, IconMoon, IconBell, IconSettings } from './components/Icons.jsx';
 
 const TABS = [
@@ -21,7 +22,7 @@ export default function App() {
   const { snapshot, error } = useTrackerState();
   const tasks = useTasks();
   const [theme, toggleTheme] = useTheme();
-  const [account] = useAccount();
+  const [account, refreshAccount] = useAccount();
   const { profile } = useProfile();
 
   // Say what happened rather than showing an empty window.
@@ -96,6 +97,8 @@ export default function App() {
           {avatar ? <img src={avatar} alt="" /> : initials(name)}
         </button>
       </header>
+
+      <SessionBanner account={account} onSignedIn={refreshAccount} />
 
       <main className="content">
         {tab === 'home' && <Home snapshot={snapshot} tasks={tasks} account={account} />}

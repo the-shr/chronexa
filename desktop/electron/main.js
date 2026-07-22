@@ -57,6 +57,10 @@ app.whenReady().then(() => {
   tasks.on('changed', (list) => windows.broadcast('tasks:changed', list));
   tasks.start();
 
+  // A rejected token used to be a log line and nothing else; the employee saw
+  // a dashboard that had quietly stopped syncing.
+  auth.on('changed', (status) => windows.broadcast('account:changed', status));
+
   profile.on('changed', (p) => windows.broadcast('profile:changed', p));
   profile.refresh().catch(() => {});
   // A task ticked offline only reaches the server on the next sync; pull the
@@ -180,10 +184,7 @@ handle('tasks:add', (title) => tasks.add(title));
 handle('tasks:remove', (id) => tasks.remove(id));
 handle('tasks:reorder', (ids) => tasks.reorder(ids || []));
 
-handle('account:get', () => {
-  const { user, deviceName } = auth.get();
-  return { user, deviceName, signedIn: auth.isSignedIn() };
-});
+handle('account:get', () => auth.status());
 handle('account:login', async (creds) => {
   const user = await auth.login(creds);
   sync.start();

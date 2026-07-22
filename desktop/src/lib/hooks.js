@@ -121,9 +121,14 @@ export function useTheme() {
 export function useAccount() {
   const [account, setAccount] = useState(null);
   const refresh = useCallback(() => window.api.account.get().then(setAccount), []);
+
   useEffect(() => {
     refresh();
+    // Pushed the moment a request is refused, rather than waiting for a poll.
+    const off = window.api.account.onChange(setAccount);
+    return off;
   }, [refresh]);
+
   return [account, refresh];
 }
 

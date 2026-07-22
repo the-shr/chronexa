@@ -56,6 +56,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   account: {
     get: () => invoke('account:get'),
+    onChange: (fn) => subscribe('account:changed', fn),
     login: (creds) => invoke('account:login', creds),
     logout: () => invoke('account:logout'),
   },

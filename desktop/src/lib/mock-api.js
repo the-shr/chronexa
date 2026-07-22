@@ -9,7 +9,23 @@
  */
 
 const DAY = 86400000;
-const listeners = { tracker: [], settings: [], tasks: [], sync: [], profile: [] };
+const listeners = { tracker: [], settings: [], tasks: [], sync: [], profile: [], account: [] };
+
+let mockAccount = {
+  signedIn: true,
+  sessionExpired: false,
+  deviceName: 'DESIGN-PREVIEW',
+  user: { name: 'Rahim Uddin', email: 'rahim@example.com' },
+};
+
+// Flip from the console to preview the signed-out banner:
+//   window.__expireSession()
+if (typeof window !== 'undefined') {
+  window.__expireSession = () => {
+    mockAccount = { ...mockAccount, signedIn: false, sessionExpired: true };
+    emit('account', mockAccount);
+  };
+}
 
 let mockProfile = {
   user: { id: 'u1', name: 'Rahim Uddin', email: 'rahim@example.com', role: 'employee', hasAvatar: false },
@@ -194,8 +210,13 @@ export function installMockApi() {
       onChange: (fn) => subscribe('profile', fn),
     },
     account: {
-      get: async () => ({ signedIn: true, deviceName: 'DESIGN-PREVIEW', user: { name: 'Rahim Uddin', email: 'rahim@example.com' } }),
-      login: async () => ({ name: 'Rahim Uddin' }),
+      get: async () => mockAccount,
+      onChange: (fn) => subscribe('account', fn),
+      login: async () => {
+        mockAccount = { ...mockAccount, signedIn: true, sessionExpired: false };
+        emit('account', mockAccount);
+        return mockAccount.user;
+      },
       logout: async () => true,
     },
     sync: {
