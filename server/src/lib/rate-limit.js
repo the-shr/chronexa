@@ -82,7 +82,7 @@ export async function rateLimit(key, policy) {
   try {
     return await redisLimit(`ratelimit:${key}`, policy);
   } catch (err) {
-    console.error('[timetracker] rate limiter unavailable, allowing request:', err.message);
+    console.error('[chronexa] rate limiter unavailable, allowing request:', err.message);
     return { allowed: true, remaining: policy.limit, retryAfterSeconds: 0 };
   }
 }

@@ -13,7 +13,7 @@ const { app, powerMonitor } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 
-app.setPath('userData', path.join(app.getPath('temp'), 'timetracker-smoke'));
+app.setPath('userData', path.join(app.getPath('temp'), 'chronexa-smoke'));
 
 let fakeIdleSeconds = 0;
 powerMonitor.getSystemIdleTime = () => fakeIdleSeconds;

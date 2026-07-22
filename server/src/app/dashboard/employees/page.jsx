@@ -27,7 +27,7 @@ export default async function EmployeesPage() {
     <>
       <header className="topbar">
         <Link href="/dashboard">
-          <strong>TimeTracker</strong>
+          <strong>Chronexa</strong>
         </Link>
         <span className="muted">/ Employees</span>
         <span className="spacer" />

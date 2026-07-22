@@ -21,7 +21,7 @@ function create(callbacks) {
   image.setTemplateImage(process.platform === 'darwin');
 
   tray = new Tray(image);
-  tray.setToolTip('TimeTracker');
+  tray.setToolTip('Chronexa');
   tray.on('click', () => handlers.onShow?.());
   return tray;
 }
@@ -34,7 +34,7 @@ function update(snapshot) {
   const idle = snapshot.idlePhase !== 'active' && running;
 
   const label = running ? (idle ? 'Idle' : 'Tracking') : paused ? 'Paused' : 'Stopped';
-  tray.setToolTip(`TimeTracker — ${label} · ${formatDuration(snapshot.todaySeconds)} today`);
+  tray.setToolTip(`Chronexa — ${label} · ${formatDuration(snapshot.todaySeconds)} today`);
 
   tray.setContextMenu(
     Menu.buildFromTemplate([
@@ -46,7 +46,7 @@ function update(snapshot) {
       { label: 'Stop tracking', enabled: running || paused, click: () => handlers.onStop?.() },
       { type: 'separator' },
       { label: 'Take screenshot now', enabled: running, click: () => handlers.onCapture?.() },
-      { label: 'Open TimeTracker', click: () => handlers.onShow?.() },
+      { label: 'Open Chronexa', click: () => handlers.onShow?.() },
       { type: 'separator' },
       { label: 'Quit', click: () => handlers.onQuit?.() },
     ]),

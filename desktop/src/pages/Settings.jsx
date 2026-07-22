@@ -159,7 +159,7 @@ export default function Settings() {
       <section className="panel">
         <h2>General</h2>
         <Toggle
-          label="Start TimeTracker when I log in"
+          label="Start Chronexa when I log in"
           checked={settings.general.launchOnLogin}
           onChange={(v) => general('launchOnLogin', v)}
         />

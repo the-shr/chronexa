@@ -1,5 +1,5 @@
 {
-  "name": "timetracker-desktop",
+  "name": "chronexa-desktop",
   "version": "0.1.0",
   "description": "Employee time tracker with interval screenshots and idle detection",
   "main": "electron/main.js",
@@ -30,8 +30,8 @@
     "wait-on": "^8.0.2"
   },
   "build": {
-    "appId": "com.brandmacros.timetracker",
-    "productName": "TimeTracker",
+    "appId": "com.brandmacros.chronexa",
+    "productName": "Chronexa",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -57,7 +57,7 @@
       ],
       "category": "public.app-category.productivity",
       "extendInfo": {
-        "NSScreenCaptureUsageDescription": "TimeTracker captures periodic screenshots while you are tracking time."
+        "NSScreenCaptureUsageDescription": "Chronexa captures periodic screenshots while you are tracking time."
       }
     },
     "linux": {

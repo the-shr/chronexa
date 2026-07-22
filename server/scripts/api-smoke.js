@@ -2,13 +2,23 @@
  * Exercises the agent-facing API the way the desktop app does:
  * sign in -> push a session -> upload a screenshot.
  *
- *   node scripts/api-smoke.js [baseUrl] [pathToJpeg]
+ *   node --env-file=.env scripts/api-smoke.js [baseUrl] [pathToJpeg]
+ *
+ * Creates and removes its own throwaway account, so it does not depend on the
+ * seeded demo users still existing and leaves nothing behind.
  */
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 
+import { prisma } from '../src/lib/db.js';
+import { createUser } from '../src/lib/users.js';
+import { removeScreenshot } from '../src/lib/storage.js';
+
 const base = (process.argv[2] || 'http://localhost:3000').replace(/\/+$/, '');
 const jpegPath = process.argv[3];
+
+const TEST_EMAIL = `api-smoke-${Date.now()}@example.com`;
+const TEST_PASSWORD = 'apismoke1234';
 
 /** A valid 1x1 JPEG, so the upload path is covered even with no fixture on disk. */
 const TINY_JPEG = Buffer.from(
@@ -26,10 +36,19 @@ function check(name, ok, detail = '') {
 
 /* ------------------------------- sign in -------------------------------- */
 
+const created = await createUser({
+  name: 'API Smoke',
+  email: TEST_EMAIL,
+  role: 'employee',
+  password: TEST_PASSWORD,
+});
+check('creates a throwaway test account', Boolean(created.user), created.error || TEST_EMAIL);
+if (!created.user) process.exit(1);
+
 const badLogin = await fetch(`${base}/api/agent/login`, {
   method: 'POST',
   headers: { 'content-type': 'application/json' },
-  body: JSON.stringify({ email: 'employee@example.com', password: 'wrong-password' }),
+  body: JSON.stringify({ email: TEST_EMAIL, password: 'wrong-password' }),
 });
 check('rejects a wrong password', badLogin.status === 401, `HTTP ${badLogin.status}`);
 
@@ -37,8 +56,8 @@ const login = await fetch(`${base}/api/agent/login`, {
   method: 'POST',
   headers: { 'content-type': 'application/json' },
   body: JSON.stringify({
-    email: process.env.SEED_EMPLOYEE_EMAIL || 'employee@example.com',
-    password: process.env.SEED_EMPLOYEE_PASSWORD || 'employee1234',
+    email: TEST_EMAIL,
+    password: TEST_PASSWORD,
     deviceName: 'smoke-test-machine',
     platform: 'win32',
   }),
@@ -133,6 +152,19 @@ check('accepts but clamps an impossible duration', absurd.ok, `HTTP ${absurd.sta
     check('image is not public', unauth.status === 401, `HTTP ${unauth.status}`);
   }
 }
+
+/* -------------------------------- cleanup ------------------------------- */
+
+// Remove the uploaded objects before the rows cascade away with the user,
+// otherwise they linger in the bucket with nothing pointing at them.
+const uploaded = await prisma.screenshot.findMany({
+  where: { user: { email: TEST_EMAIL } },
+  select: { storagePath: true },
+});
+for (const shot of uploaded) await removeScreenshot(shot.storagePath);
+await prisma.user.deleteMany({ where: { email: TEST_EMAIL } });
+check('cleans up after itself', (await prisma.user.count({ where: { email: TEST_EMAIL } })) === 0);
+await prisma.$disconnect();
 
 const failed = results.filter((r) => !r).length;
 console.log(`\n${results.length - failed}/${results.length} checks passed`);

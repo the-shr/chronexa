@@ -49,7 +49,7 @@ export default async function DashboardPage() {
   return (
     <>
       <header className="topbar">
-        <strong>TimeTracker</strong>
+        <strong>Chronexa</strong>
         <span className="muted">Team overview</span>
         <span className="spacer" />
         <Link className="btn" href="/dashboard/employees">

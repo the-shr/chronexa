@@ -38,7 +38,7 @@ export default async function LoginPage({ searchParams }) {
   return (
     <div className="login-shell">
       <form className="login-card" action={signIn}>
-        <h1>TimeTracker Admin</h1>
+        <h1>Chronexa Admin</h1>
         <p className="muted" style={{ margin: 0 }}>
           Sign in with an administrator account.
         </p>

@@ -29,7 +29,7 @@ export default function App() {
         <div className="brand">
           <span className="brand-dot" data-state={idle ? 'idle' : snapshot?.state || 'stopped'} />
           <div>
-            <strong>TimeTracker</strong>
+            <strong>Chronexa</strong>
             <small>{idle ? 'Idle' : running ? 'Tracking' : snapshot?.state === 'paused' ? 'Paused' : 'Stopped'}</small>
           </div>
         </div>

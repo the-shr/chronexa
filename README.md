@@ -1,4 +1,4 @@
-# TimeTracker
+# Chronexa
 
 Employee time tracking desktop app with interval screenshots and idle detection,
 plus a server and admin dashboard.
@@ -98,7 +98,9 @@ Sign in from the app's **Account** tab with an employee account and enable sync.
 
 ```bash
 cd desktop && npm run test:smoke   # idle state machine + screenshot capture (headless Electron)
-cd desktop && npm run test:sync    # full round trip against a running server
+
+# Round trip against a running server. Needs a real employee account:
+cd desktop && TT_EMAIL=someone@yourcompany.com TT_PASSWORD=... npm run test:sync
 
 cd server && npm test              # all three suites below
 cd server && npm run test:api      # agent API contract
@@ -106,6 +108,18 @@ cd server && npm run test:admin    # employee management rules + token revocatio
 cd server && npm run test:hardening # rate limiting, security headers, boot validation
 cd server && npm run test:storage  # real put/get/delete round trip on the active driver
 ```
+
+The server suites create and delete their own throwaway accounts, so they need
+nothing seeded and leave nothing behind.
+
+Once you have created your own admin, clear the seeded demo accounts and any
+data attached to them — including their stored images:
+
+```bash
+cd server && npm run clear:demo
+```
+
+It refuses to remove the last remaining admin, so it cannot lock you out.
 
 `test:smoke` stubs `powerMonitor.getSystemIdleTime`, so "the employee walked away"
 is simulated instantly instead of waiting five real minutes. The server suites
@@ -123,7 +137,7 @@ samples in that interval where input occurred within the last 60 seconds.
 
 ## Where data lives
 
-**Agent** (`%APPDATA%/timetracker-desktop` on Windows,
+**Agent** (`%APPDATA%/chronexa-desktop` on Windows,
 `~/Library/Application Support` on macOS, `~/.config` on Linux):
 `settings.json`, `auth.json`, `sessions.json`, `screenshots.json`,
 `outbox.json`, and `screenshots/YYYY-MM-DD/`.

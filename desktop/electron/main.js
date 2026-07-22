@@ -196,5 +196,5 @@ handle('app:version', () => app.getVersion());
 
 process.on('uncaughtException', (err) => {
   log.error('uncaught', err);
-  if (app.isReady()) dialog.showErrorBox('TimeTracker error', String(err?.message || err));
+  if (app.isReady()) dialog.showErrorBox('Chronexa error', String(err?.message || err));
 });

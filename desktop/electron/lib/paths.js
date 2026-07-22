@@ -6,9 +6,9 @@ const { app } = require('electron');
 
 /**
  * All user data lives under Electron's per-user appData folder, e.g.
- *   Windows: %APPDATA%/TimeTracker
- *   macOS:   ~/Library/Application Support/TimeTracker
- *   Linux:   ~/.config/TimeTracker
+ *   Windows: %APPDATA%/Chronexa
+ *   macOS:   ~/Library/Application Support/Chronexa
+ *   Linux:   ~/.config/Chronexa
  */
 function root() {
   return app.getPath('userData');
@@ -28,7 +28,7 @@ const paths = {
   outboxFile: () => path.join(root(), 'outbox.json'),
   screenshotDir: () => ensureDir(path.join(root(), 'screenshots')),
   thumbDir: () => ensureDir(path.join(root(), 'screenshots', 'thumbs')),
-  logFile: () => path.join(root(), 'timetracker.log'),
+  logFile: () => path.join(root(), 'chronexa.log'),
   ensureDir,
 };
 

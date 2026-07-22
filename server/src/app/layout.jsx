@@ -1,7 +1,7 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'TimeTracker Admin',
+  title: 'Chronexa Admin',
   description: 'Team time tracking, activity and screenshots',
 };
 

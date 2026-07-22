@@ -74,12 +74,12 @@ export function register() {
     );
   }
 
-  for (const warning of warnings) console.warn(`[timetracker] warning: ${warning}`);
+  for (const warning of warnings) console.warn(`[chronexa] warning: ${warning}`);
 
   if (problems.length) {
     const message = problems.map((p) => `  - ${p}`).join('\n');
     // Refusing to start is the point: a half-configured deployment is worse
     // than an obviously broken one.
-    throw new Error(`TimeTracker cannot start:\n${message}`);
+    throw new Error(`Chronexa cannot start:\n${message}`);
   }
 }

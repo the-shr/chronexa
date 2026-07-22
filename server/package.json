@@ -1,5 +1,5 @@
 {
-  "name": "timetracker-server",
+  "name": "chronexa-server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -12,10 +12,11 @@
     "db:seed": "node scripts/seed.js",
     "setup": "prisma migrate deploy && node scripts/seed.js",
     "test": "npm run test:api && npm run test:admin && npm run test:hardening && npm run test:storage",
-    "test:api": "node scripts/api-smoke.js",
-    "test:admin": "node scripts/admin-smoke.js",
+    "test:api": "node --env-file=.env scripts/api-smoke.js",
+    "test:admin": "node --env-file=.env scripts/admin-smoke.js",
     "test:hardening": "node scripts/hardening-smoke.js",
-    "test:storage": "node --env-file=.env scripts/storage-smoke.js"
+    "test:storage": "node --env-file=.env scripts/storage-smoke.js",
+    "clear:demo": "node --env-file=.env scripts/clear-demo-data.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1092.0",

@@ -10,7 +10,7 @@ const { app, powerMonitor } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 
-app.setPath('userData', path.join(app.getPath('temp'), 'timetracker-synctest'));
+app.setPath('userData', path.join(app.getPath('temp'), 'chronexa-synctest'));
 powerMonitor.getSystemIdleTime = () => 0; // always "present"
 
 const BASE = process.env.TT_SERVER || 'http://localhost:3000';
@@ -51,7 +51,12 @@ app.whenReady().then(async () => {
     check('agent signs in against the server', Boolean(user?.email), user?.email);
   } catch (err) {
     check('agent signs in against the server', false, err.message);
-    console.log(`\nIs the server running at ${BASE}?`);
+    console.log(`
+This test needs a real employee account on the server. Either:
+  - create one from the dashboard's Employees page, then re-run with
+      TT_EMAIL=<email> TT_PASSWORD=<password> npm run test:sync
+  - or run "npm run db:seed" in server/ to recreate the demo accounts.
+Server: ${BASE}`);
     app.exit(1);
     return;
   }
