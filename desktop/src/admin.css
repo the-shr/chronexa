@@ -9,7 +9,9 @@
 
 /* ------------------------------ sign-in --------------------------------- */
 
-.signin {
+/* Not `.signin` -- that name is already taken by the inline form inside
+   Settings, whose max-width would pin this full-screen wrapper to the left. */
+.signin-screen {
   height: 100%;
   display: grid;
   place-items: center;

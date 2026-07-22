@@ -35,7 +35,7 @@ export default function SignIn({ onSignedIn }) {
   };
 
   return (
-    <div className="signin">
+    <div className="signin-screen">
       <button
         className="round-btn signin-theme"
         onClick={toggleTheme}

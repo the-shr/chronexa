@@ -59,7 +59,7 @@ app.whenReady().then(async () => {
 
   // Wrong password stays on the form and says why.
   await signInAs(win, 'employee@example.com', 'wrongpassword');
-  check('a bad password is reported', await wait(win, `Boolean(document.querySelector('.signin .form-error'))`), '');
+  check('a bad password is reported', await wait(win, `Boolean(document.querySelector('.signin-screen .form-error'))`), '');
   check('and it stays on the form', await win.webContents.executeJavaScript(`Boolean(document.querySelector('.signin-card'))`));
 
   // A real employee reaches the employee dashboard.

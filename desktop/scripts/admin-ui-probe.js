@@ -144,7 +144,7 @@ app.whenReady().then(async () => {
 
   // The window may have rendered the sign-in screen before the token landed.
   await win.webContents.reload();
-  if (!(await waitFor(win, `Boolean(document.querySelector('.app') || document.querySelector('.signin'))`))) {
+  if (!(await waitFor(win, `Boolean(document.querySelector('.app') || document.querySelector('.signin-screen'))`))) {
     console.log('FAIL  the window never rendered anything');
     app.exit(1);
     return;
