@@ -345,7 +345,7 @@
  * row height; here it keeps its aspect ratio and the list takes what is left.
  */
 .home-grid {
-  grid-template-columns: 202px minmax(0, 1fr) minmax(0, 1fr) 238px;
+  grid-template-columns: 262px minmax(0, 1fr) minmax(0, 1fr) 264px;
   grid-template-rows: minmax(0, 1.08fr) minmax(0, 1fr);
   grid-template-areas:
     'side progress tracker  right'
@@ -393,7 +393,7 @@
    both are available in full on the Calendar and Settings pages. */
 @media (max-width: 1240px) {
   .home-grid {
-    grid-template-columns: 190px minmax(0, 1fr) 224px;
+    grid-template-columns: 232px minmax(0, 1fr) 224px;
     grid-template-areas:
       'side tracker  right'
       'side progress right';
@@ -432,7 +432,7 @@
 }
 
 .profile-photo span {
-  font-size: 44px;
+  font-size: 54px;
   font-weight: 620;
   color: #fff;
   letter-spacing: -0.03em;
@@ -925,16 +925,13 @@
   border: 1px dashed rgb(255 255 255 / 0.25);
 }
 
-.check-grip {
-  width: 20px;
-  display: grid;
-  place-items: center;
-  color: rgb(255 255 255 / 0.4);
+/* The whole row is the drag handle -- a separate grip cost the title about a
+   quarter of its width in this column. */
+.check-item {
   cursor: grab;
-  flex: none;
 }
 
-.check-item:active .check-grip {
+.check-item:active {
   cursor: grabbing;
 }
 
@@ -964,6 +961,7 @@
 .check-text {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
   font-size: 12px;
   font-weight: 520;
 }

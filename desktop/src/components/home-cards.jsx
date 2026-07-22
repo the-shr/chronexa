@@ -14,7 +14,6 @@ import {
   IconList,
   IconClock,
   IconPlus,
-  IconGrip,
   IconTrash,
 } from './Icons.jsx';
 
@@ -436,9 +435,6 @@ export function ChecklistCard({ tasks, busy, onAction, listRef, slice }) {
                   drop(e, task.id);
                 }}
               >
-                <span className="check-grip" title="Drag to reorder">
-                  <IconGrip width={13} height={13} />
-                </span>
                 <span className="check-text">
                   <span className="truncate">{task.title}</span>
                   <small className={due?.overdue ? 'overdue' : undefined}>

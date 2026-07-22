@@ -105,7 +105,14 @@ button {
   color: var(--text-faint);
 }
 
+/*
+ * display:block matters: overflow and text-overflow do not apply to inline
+ * boxes, so on a plain <span> the text simply ran past its container -- which
+ * is how task titles ended up printed over the tick button.
+ */
 .truncate {
+  display: block;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
