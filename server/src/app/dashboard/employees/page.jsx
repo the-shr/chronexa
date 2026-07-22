@@ -31,6 +31,9 @@ export default async function EmployeesPage() {
         </Link>
         <span className="muted">/ Employees</span>
         <span className="spacer" />
+        <Link className="btn" href="/dashboard/tasks">
+          Tasks
+        </Link>
         <Link className="btn" href="/dashboard">
           Team overview
         </Link>

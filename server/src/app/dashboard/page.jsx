@@ -52,6 +52,9 @@ export default async function DashboardPage() {
         <strong>Chronexa</strong>
         <span className="muted">Team overview</span>
         <span className="spacer" />
+        <Link className="btn" href="/dashboard/tasks">
+          Tasks
+        </Link>
         <Link className="btn" href="/dashboard/employees">
           Employees
         </Link>
