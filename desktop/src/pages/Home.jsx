@@ -1,31 +1,40 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import RingTimer from '../components/RingTimer.jsx';
-import WeekChart from '../components/WeekChart.jsx';
-import MetricStrip from '../components/MetricStrip.jsx';
-import ProfileCard from '../components/ProfileCard.jsx';
-import DaySchedule from '../components/DaySchedule.jsx';
+import {
+  MetricRow,
+  ProfileCard,
+  InfoCard,
+  ProgressCard,
+  TrackerCard,
+  TodayCard,
+  ChecklistCard,
+  ScheduleCard,
+} from '../components/home-cards.jsx';
 import { usePager, ROW } from '../components/Pager.jsx';
-import { humanDuration, dueLabel } from '../lib/format.js';
 import { useDailyTotals, useSessions, useSettings } from '../lib/hooks.js';
-import { IconCheck } from '../components/Icons.jsx';
 
 export default function Home({ snapshot, tasks, account }) {
   const daily = useDailyTotals(7);
-  const sessions = useSessions(40);
+  const sessions = useSessions(120);
   const [settings] = useSettings();
   const [busy, setBusy] = useState(false);
+  const [sync, setSync] = useState(null);
   const { ref, slice } = usePager(tasks.open, { rowHeight: ROW.check, gap: 6 });
+
+  useEffect(() => {
+    let alive = true;
+    window.api.sync.status().then((s) => alive && setSync(s));
+    const off = window.api.sync.onStatus(setSync);
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
 
   if (!settings) return null;
 
-  const activeTask = snapshot.session?.taskId ? tasks.open.find((t) => t.id === snapshot.session.taskId) : null;
-  const weekSeconds = daily.reduce(
-    (sum, r) => sum + r.activeSeconds + (settings.idle.countIdleAsWork ? r.idleSeconds : 0),
-    0,
-  );
-  const doneCount = tasks.done.length;
-  const totalCount = tasks.open.length + doneCount;
+  const countIdle = settings.idle.countIdleAsWork;
+  const weekSeconds = daily.reduce((sum, r) => sum + r.activeSeconds + (countIdle ? r.idleSeconds : 0), 0);
 
   const run = async (fn) => {
     setBusy(true);
@@ -40,78 +49,26 @@ export default function Home({ snapshot, tasks, account }) {
     <>
       <header className="greeting">
         <h1>
-          {greeting()}, <span>{firstName(account)}</span>
+          Welcome back, <span>{firstName(account)}</span>
         </h1>
       </header>
 
-      <MetricStrip snapshot={snapshot} settings={settings} tasks={tasks} />
+      <MetricRow snapshot={snapshot} settings={settings} tasks={tasks} weekSeconds={weekSeconds} />
 
       <div className="page-body home-grid">
         <ProfileCard account={account} snapshot={snapshot} />
+        <InfoCard account={account} settings={settings} sync={sync} />
+        <ProgressCard rows={daily} weekSeconds={weekSeconds} countIdle={countIdle} />
+        <TrackerCard snapshot={snapshot} settings={settings} busy={busy} onAction={run} />
+        <ScheduleCard sessions={sessions} />
 
-        <section className="card progress-card">
-          <h2>Progress</h2>
-          <div className="progress-head">
-            <strong className="mono">{humanDuration(weekSeconds)}</strong>
-            <span>
-              Work time
-              <br />
-              this week
-            </span>
-          </div>
-          <WeekChart rows={daily} />
-        </section>
-
-        <RingTimer snapshot={snapshot} settings={settings} busy={busy} onAction={run} activeTask={activeTask} />
-
-        <section className="card checklist-card">
-          <h2>
-            Tasks
-            <span className="count mono">
-              {doneCount}/{totalCount || 0}
-            </span>
-          </h2>
-          <div className="checklist" ref={ref}>
-            {slice.length === 0 ? (
-              <p className="empty">Nothing assigned right now.</p>
-            ) : (
-              slice.map((task) => {
-                const due = dueLabel(task.dueAt);
-                return (
-                  <button
-                    key={task.id}
-                    className="check-row"
-                    disabled={busy}
-                    onClick={() => run(() => tasks.setStatus(task.id, 'done'))}
-                    title="Mark done"
-                  >
-                    <span className="check-row-body">
-                      <span className="truncate">{task.title}</span>
-                      <small className={due?.overdue ? 'overdue' : undefined}>
-                        {due ? due.text : task.priority === 'high' ? 'High priority' : 'No due date'}
-                      </small>
-                    </span>
-                    <span className="check-mark">
-                      <IconCheck width={12} height={12} />
-                    </span>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </section>
-
-        <DaySchedule sessions={sessions} />
+        <div className="right-col">
+          <TodayCard snapshot={snapshot} settings={settings} />
+          <ChecklistCard tasks={tasks} busy={busy} onAction={run} listRef={ref} slice={slice} />
+        </div>
       </div>
     </>
   );
-}
-
-function greeting() {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 17) return 'Good afternoon';
-  return 'Good evening';
 }
 
 function firstName(account) {

@@ -6,14 +6,13 @@ import Calendar from './pages/Calendar.jsx';
 import Activity from './pages/Activity.jsx';
 import Settings from './pages/Settings.jsx';
 import { useTrackerState, useTasks, useTheme, useAccount } from './lib/hooks.js';
-import { IconSun, IconMoon, IconClock } from './components/Icons.jsx';
+import { IconSun, IconMoon, IconBell, IconSettings } from './components/Icons.jsx';
 
 const TABS = [
   { id: 'home', label: 'Dashboard' },
   { id: 'tasks', label: 'Tasks' },
   { id: 'calendar', label: 'Calendar' },
   { id: 'activity', label: 'Activity' },
-  { id: 'settings', label: 'Settings' },
 ];
 
 export default function App() {
@@ -54,12 +53,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <span className="brand-pill">
-          <span className="brand-mark">
-            <IconClock width={15} height={15} />
-          </span>
-          Chronexa
-        </span>
+        <span className="brand-pill">Chronexa</span>
 
         <nav className="top-nav">
           {TABS.map(({ id, label }) => (
@@ -71,12 +65,26 @@ export default function App() {
         </nav>
 
         <button
-          className="icon-btn"
+          className={tab === 'settings' ? 'setting-pill active' : 'setting-pill'}
+          onClick={() => setTab('settings')}
+        >
+          <IconSettings width={14} height={14} />
+          Setting
+        </button>
+
+        <button
+          className="round-btn"
           onClick={toggleTheme}
           title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}
         >
           {theme === 'dark' ? <IconSun width={15} height={15} /> : <IconMoon width={15} height={15} />}
         </button>
+
+        <button className="round-btn" title={`${tasks.open.length} open task(s)`}>
+          <IconBell width={15} height={15} />
+          {tasks.open.length > 0 && <i className="dot" />}
+        </button>
+
         <span className="avatar" title={name}>
           {initials(name)}
         </span>

@@ -1,0 +1,1735 @@
+/*
+ * Shell, dashboard cards and page furniture. Colour tokens live in styles.css.
+ *
+ * Layout rule for the whole app: nothing scrolls. The window is the frame, and
+ * every page is a grid that fits inside it. Lists that could outgrow their card
+ * paginate instead -- see components/Pager.jsx.
+ */
+
+/* -------------------------------- shell --------------------------------- */
+
+.app {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* Brand on the left, navigation and account controls on the right. */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 22px 6px;
+  flex: none;
+}
+
+.brand-pill {
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  flex: none;
+  margin-right: auto;
+}
+
+.top-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.top-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 8px 15px;
+  border-radius: 999px;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.top-tab:hover {
+  color: var(--text);
+}
+
+.top-tab.active {
+  background: var(--deep);
+  color: #fff;
+  font-weight: 550;
+}
+
+.nav-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 620;
+  display: grid;
+  place-items: center;
+}
+
+.top-tab.active .nav-badge {
+  background: rgb(255 255 255 / 0.25);
+}
+
+.setting-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 15px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  flex: none;
+  margin-left: 6px;
+}
+
+.setting-pill:hover,
+.setting-pill.active {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.round-btn {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-dim);
+  cursor: pointer;
+  flex: none;
+  position: relative;
+}
+
+.round-btn:hover {
+  color: var(--text);
+}
+
+.round-btn .dot {
+  position: absolute;
+  top: 6px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 1.5px solid var(--surface);
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(140deg, var(--accent), var(--accent-2));
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 660;
+  flex: none;
+}
+
+.icon-btn {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-dim);
+  cursor: pointer;
+  flex: none;
+}
+
+.icon-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Page frame: headers stay put, body takes the rest and never overflows. */
+.content {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 6px 22px 18px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Pages without a metric row only need two rows. */
+.content:has(> .page-head) {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.greeting h1 {
+  margin: 0;
+  font-size: 33px;
+  font-weight: 380;
+  letter-spacing: -0.03em;
+}
+
+.greeting h1 span {
+  font-weight: 640;
+}
+
+/* ------------------------------ metric row ------------------------------ */
+
+.metric-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 26px;
+}
+
+.metric-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+}
+
+.metric {
+  flex: 1 1 0;
+  min-width: 74px;
+}
+
+.metric.wide {
+  flex-grow: 2.2;
+}
+
+.metric.hatched {
+  flex-grow: 0.8;
+  min-width: 40px;
+}
+
+.metric-label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-bottom: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metric-bar {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 13px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.metric-bar.deep {
+  background: var(--deep);
+}
+
+.metric-bar.bright {
+  background: var(--accent);
+}
+
+.metric-bar.idle {
+  background: var(--idle);
+  color: #04211d;
+}
+
+.metric-bar.outline {
+  border: 1px solid var(--line-strong);
+  background: transparent;
+  color: var(--text-dim);
+  justify-content: center;
+}
+
+.metric-bar.hatch {
+  background: repeating-linear-gradient(115deg, var(--surface-3) 0 5px, transparent 5px 10px);
+  border: 1px solid var(--line);
+}
+
+.figures {
+  display: flex;
+  gap: 24px;
+  flex: none;
+}
+
+.figure {
+  text-align: right;
+}
+
+.figure strong {
+  display: block;
+  font-size: 29px;
+  font-weight: 620;
+  letter-spacing: -0.035em;
+  line-height: 1.05;
+}
+
+.figure span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* -------------------------------- cards --------------------------------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 15px 16px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.card > h2 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 580;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex: none;
+}
+
+.corner {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface-3);
+  color: var(--text-dim);
+  flex: none;
+}
+
+/* ------------------------------- home grid ------------------------------ */
+
+.home-grid {
+  grid-template-columns: 202px minmax(0, 1fr) minmax(0, 1fr) 238px;
+  grid-template-rows: minmax(0, 1.08fr) minmax(0, 1fr);
+  grid-template-areas:
+    'profile progress tracker  right'
+    'info    schedule schedule right';
+}
+
+.profile-card {
+  grid-area: profile;
+}
+
+.info-card {
+  grid-area: info;
+}
+
+.progress-card {
+  grid-area: progress;
+}
+
+.tracker-card {
+  grid-area: tracker;
+}
+
+.schedule-card {
+  grid-area: schedule;
+}
+
+.right-col {
+  grid-area: right;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+/* As width runs out the week view goes first, then the profile column --
+   both are available in full on the Calendar and Settings pages. */
+@media (max-width: 1240px) {
+  .home-grid {
+    grid-template-columns: 190px minmax(0, 1fr) 224px;
+    grid-template-areas:
+      'profile tracker  right'
+      'info    progress right';
+  }
+  .schedule-card {
+    display: none;
+  }
+}
+
+@media (max-width: 1000px) {
+  .home-grid {
+    grid-template-columns: minmax(0, 1fr) 214px;
+    grid-template-areas:
+      'tracker  right'
+      'progress right';
+  }
+  .profile-card,
+  .info-card {
+    display: none;
+  }
+}
+
+/* -------------------------------- profile ------------------------------- */
+
+.profile-card {
+  padding: 0;
+  position: relative;
+  justify-content: flex-end;
+}
+
+.profile-photo {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(160deg, var(--accent), var(--accent-2));
+}
+
+.profile-photo span {
+  font-size: 44px;
+  font-weight: 620;
+  color: #fff;
+  letter-spacing: -0.03em;
+  opacity: 0.92;
+}
+
+.profile-over {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px;
+  padding: 9px 11px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.profile-id {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-id strong {
+  display: block;
+  font-size: 13px;
+}
+
+.profile-id small {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+
+.profile-badge {
+  flex: none;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  font-size: 11.5px;
+  font-weight: 620;
+}
+
+/* --------------------------------- info --------------------------------- */
+
+.info-card {
+  padding: 4px 14px;
+  justify-content: center;
+}
+
+.info-row {
+  border-bottom: 1px solid var(--line);
+}
+
+.info-row:last-child {
+  border-bottom: 0;
+}
+
+.info-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.info-head svg {
+  color: var(--text-faint);
+  transition: transform 0.18s;
+  flex: none;
+}
+
+.info-row.open .info-head svg {
+  transform: rotate(180deg);
+}
+
+.info-body {
+  padding-bottom: 10px;
+}
+
+.info-detail {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.info-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: var(--surface-3);
+  color: var(--text-dim);
+  flex: none;
+}
+
+.info-detail-text {
+  min-width: 0;
+}
+
+.info-detail-text strong {
+  display: block;
+  font-size: 12px;
+}
+
+.info-detail-text small,
+.info-text {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* ------------------------------- progress ------------------------------- */
+
+.progress-head {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex: none;
+  margin-bottom: 6px;
+}
+
+.progress-head strong {
+  font-size: 27px;
+  font-weight: 620;
+  letter-spacing: -0.035em;
+}
+
+.progress-head span {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  line-height: 1.25;
+}
+
+.chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
+}
+
+.chart-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  height: 100%;
+  position: relative;
+}
+
+.chart-bar-space {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.chart-bar {
+  width: 9px;
+  border-radius: 999px;
+  background: var(--deep);
+  transition: height 0.4s ease;
+}
+
+.chart-col.is-today .chart-bar {
+  background: var(--accent);
+}
+
+.chart-bar.empty {
+  background: var(--surface-3);
+}
+
+.chart-day {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  flex: none;
+}
+
+.chart-tip {
+  position: absolute;
+  top: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 1;
+}
+
+/* -------------------------------- tracker ------------------------------- */
+
+.tracker-card {
+  align-items: stretch;
+}
+
+.ring-wrap {
+  flex: 1;
+  min-height: 70px;
+  display: grid;
+  place-items: center;
+}
+
+/* Sized from the height it is given, so a short card shrinks the ring rather
+   than clipping it. container-type lets the text inside scale with it. */
+.ring {
+  --progress: 0;
+  --ring-color: var(--accent);
+  height: 100%;
+  width: auto;
+  max-height: 168px;
+  max-width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  position: relative;
+  container-type: size;
+  background: conic-gradient(var(--ring-color) calc(var(--progress) * 360deg), var(--surface-3) 0);
+  transition: background 0.6s linear;
+}
+
+/* No target set: a plain track, so the ring cannot imply progress towards
+   something that does not exist. */
+.ring[data-target='none'] {
+  background: var(--surface-3);
+}
+
+.ring::before {
+  content: '';
+  position: absolute;
+  inset: 9%;
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.ring-inner {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.ring-time {
+  font-size: 22cqmin;
+  font-weight: 620;
+  letter-spacing: -0.03em;
+}
+
+.ring-label {
+  font-size: 6cqmin;
+  color: var(--text-faint);
+}
+
+.tracker-controls {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 10px;
+  flex: none;
+}
+
+.round-ctl {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+}
+
+.round-ctl:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.round-ctl.solid {
+  margin-left: auto;
+  background: var(--deep);
+  border-color: var(--deep);
+  color: #fff;
+}
+
+.round-ctl.solid:hover:not(:disabled) {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+}
+
+.round-ctl:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* --------------------------------- today -------------------------------- */
+
+.today-card {
+  flex: none;
+}
+
+.today-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.today-head h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 580;
+}
+
+.today-head strong {
+  font-size: 19px;
+  font-weight: 640;
+  letter-spacing: -0.03em;
+}
+
+.today-parts {
+  display: flex;
+  gap: 6px;
+}
+
+.today-part {
+  min-width: 0;
+  flex-basis: 0;
+}
+
+.today-pct {
+  display: block;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+
+.today-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  border-radius: 8px;
+  font-size: 10.5px;
+  font-weight: 560;
+  color: #fff;
+  overflow: hidden;
+}
+
+.today-bar.bright {
+  background: var(--accent);
+}
+
+.today-bar.idle {
+  background: var(--idle);
+  color: #04211d;
+}
+
+.today-bar.muted {
+  background: var(--surface-3);
+  color: var(--text-dim);
+}
+
+/* ------------------------------- checklist ------------------------------ */
+
+.checklist-card {
+  flex: 1;
+  background: var(--deep);
+  border-color: transparent;
+  color: #fff;
+}
+
+.checklist-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex: none;
+}
+
+.checklist-head h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 580;
+}
+
+.checklist-head strong {
+  font-size: 17px;
+  font-weight: 640;
+}
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+}
+
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 46px; /* pinned: see ROW.check in components/Pager.jsx */
+  padding: 0 9px;
+  border-radius: 11px;
+  background: rgb(255 255 255 / 0.07);
+  flex: none;
+  overflow: hidden;
+}
+
+.check-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: rgb(255 255 255 / 0.1);
+  color: #fff;
+  flex: none;
+}
+
+.check-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 520;
+}
+
+.check-text small {
+  display: block;
+  font-size: 10px;
+  color: rgb(255 255 255 / 0.55);
+  font-weight: 400;
+}
+
+.check-text small.overdue {
+  color: var(--idle);
+}
+
+.check-btn {
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  border: 1px solid rgb(255 255 255 / 0.28);
+  background: transparent;
+  color: transparent;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex: none;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.check-btn:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.check-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.checklist-card .empty {
+  color: rgb(255 255 255 / 0.5);
+}
+
+/* -------------------------------- schedule ------------------------------ */
+
+.schedule-head {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 9px;
+  flex: none;
+}
+
+.schedule-head strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.month-pill {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.month-pill:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+.month-pill:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.schedule-grid {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.schedule-hours {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px 0 2px;
+  font-size: 9.5px;
+  color: var(--text-faint);
+  flex: none;
+  text-align: right;
+}
+
+.schedule-days {
+  display: flex;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+}
+
+.schedule-day {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.schedule-dow {
+  font-size: 10px;
+  color: var(--text-faint);
+  text-align: center;
+  flex: none;
+}
+
+.schedule-dow b {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  font-weight: 560;
+}
+
+.schedule-day.is-today .schedule-dow b {
+  color: var(--accent);
+}
+
+.schedule-lane {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.schedule-day.is-today .schedule-lane {
+  border-color: var(--accent);
+}
+
+.schedule-lane > i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--line);
+}
+
+.schedule-event {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  border-radius: 7px;
+  background: var(--deep);
+  color: #fff;
+  font-size: 9.5px;
+  display: flex;
+  align-items: center;
+  padding: 0 5px;
+  min-height: 12px;
+}
+
+.schedule-event.live {
+  background: var(--accent);
+}
+
+/* ---------------------------- other pages ------------------------------- */
+
+.page-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.page-head h1 {
+  font-size: 23px;
+  font-weight: 660;
+  letter-spacing: -0.025em;
+  margin: 0;
+}
+
+.page-head p {
+  margin: 2px 0 0;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.head-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.page-body {
+  display: grid;
+  gap: 12px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  padding: 12px 14px;
+  min-width: 0;
+}
+
+.stat-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stat-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.stat strong {
+  display: block;
+  font-size: 23px;
+  font-weight: 640;
+  margin-top: 5px;
+  letter-spacing: -0.025em;
+  white-space: nowrap;
+}
+
+.stat small {
+  display: block;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+}
+
+.bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  height: 100%;
+  min-width: 0;
+}
+
+.bar-stack {
+  flex: 1;
+  width: 100%;
+  max-width: 30px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 2px;
+  min-height: 0;
+}
+
+.bar-seg {
+  border-radius: 5px;
+  min-height: 2px;
+  transition: height 0.4s ease;
+}
+
+.bar-seg.active {
+  background: var(--accent);
+}
+
+.bar-seg.idle {
+  background: var(--idle);
+}
+
+.bar-empty {
+  height: 3px;
+  border-radius: 3px;
+  background: var(--surface-3);
+}
+
+.bar-col span {
+  font-size: 11px;
+  color: var(--text-faint);
+  flex: none;
+}
+
+.bar-col.is-today span {
+  color: var(--accent-text);
+  font-weight: 620;
+}
+
+.legend {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+.legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 3px;
+  display: inline-block;
+  margin-right: 5px;
+}
+
+.task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Height is pinned so usePager's arithmetic matches what is painted. */
+.task {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  flex: none;
+  height: 74px;
+  overflow: hidden;
+}
+
+.task.compact {
+  height: 68px;
+}
+
+.task:hover {
+  border-color: var(--line-strong);
+}
+
+.task.done {
+  opacity: 0.5;
+}
+
+.task.done .task-title {
+  text-decoration: line-through;
+}
+
+.task.compact .task-desc {
+  display: none;
+}
+
+.check {
+  width: 19px;
+  height: 19px;
+  border-radius: 7px;
+  border: 1.5px solid var(--line-strong);
+  background: transparent;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex: none;
+  margin-top: 1px;
+  padding: 0;
+  color: transparent;
+}
+
+.check:hover {
+  border-color: var(--accent);
+}
+
+.check[data-checked='true'] {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #fff;
+}
+
+.task-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-title {
+  font-weight: 550;
+  font-size: 13.5px;
+}
+
+.task-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 560;
+  background: var(--surface-3);
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.chip.high {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border-color: transparent;
+}
+
+.chip.overdue {
+  background: var(--idle-soft);
+  color: var(--idle);
+  border-color: transparent;
+}
+
+.chip.accent {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border-color: transparent;
+}
+
+.task-track {
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-dim);
+  border-radius: 9px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  flex: none;
+}
+
+.task-track:hover:not(:disabled) {
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+.task-track:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+.pager .icon-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+}
+
+/* minmax(0, 1fr) rather than 1fr: the cells contain a duration label whose
+   min-content width would otherwise push the grid wider than its card. */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-auto-rows: minmax(0, 1fr);
+  gap: 5px;
+  flex: 1;
+  min-height: 0;
+}
+
+.cal-grid-head {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+  flex: none;
+}
+
+.cal-dow {
+  text-align: center;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  padding-bottom: 2px;
+}
+
+.cal-day {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 2px;
+  font-size: 12px;
+}
+
+.cal-day:hover:not(.empty) {
+  border-color: var(--line-strong);
+}
+
+.cal-day.empty {
+  border-color: transparent;
+  background: transparent;
+  cursor: default;
+}
+
+.cal-day.today {
+  border-color: var(--accent);
+}
+
+.cal-day.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.cal-day.future {
+  opacity: 0.35;
+}
+
+.cal-day b {
+  font-weight: 560;
+}
+
+.cal-day em {
+  font-style: normal;
+  font-size: 9px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 52px; /* pinned: see ROW.session in components/Pager.jsx */
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  flex: none;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.empty {
+  color: var(--text-faint);
+  text-align: center;
+  padding: 20px 12px;
+  font-size: 13px;
+  margin: auto 0;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  flex: none;
+}
+
+.field:last-child {
+  border-bottom: 0;
+}
+
+.field-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.field-text small {
+  display: block;
+  color: var(--text-dim);
+  font-size: 11.5px;
+  margin-top: 1px;
+}
+
+.field input[type='checkbox'] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.switch {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  border: 1px solid var(--line-strong);
+  position: relative;
+  flex: none;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-faint);
+  transition: transform 0.2s, background 0.2s;
+}
+
+.field input:checked ~ .switch {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.field input:checked ~ .switch::after {
+  transform: translateX(16px);
+  background: #fff;
+}
+
+.text-input {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  padding: 9px 12px;
+  font: inherit;
+}
+
+.text-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.signin {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  max-width: 320px;
+}
+
+.error {
+  color: var(--danger);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.seg {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  flex: none;
+}
+
+.seg button {
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 5px 12px;
+  border-radius: 7px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.seg button.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-2);
+  cursor: pointer;
+  font-weight: 560;
+  white-space: nowrap;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--line-strong);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn.danger {
+  background: transparent;
+  border-color: var(--danger-soft);
+  color: var(--danger);
+}
+
+.btn.ghost {
+  background: transparent;
+}
+
+.btn.sm {
+  padding: 6px 12px;
+  font-size: 12.5px;
+  border-radius: 9px;
+}
+
+/* ---------------------------- idle warning ------------------------------ */
+
+.idle-shell {
+  height: 100%;
+  background: var(--surface);
+  border: 1px solid var(--idle);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  gap: 4px;
+  -webkit-app-region: drag;
+}
+
+.idle-shell h1 {
+  font-size: 18px;
+  margin: 8px 0 0;
+}
+
+.idle-shell p {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin: 4px 0 12px;
+}
+
+.idle-actions {
+  display: flex;
+  gap: 8px;
+  -webkit-app-region: no-drag;
+}
+
+.idle-ring {
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: conic-gradient(var(--idle) calc(var(--progress) * 360deg), var(--surface-3) 0);
+  position: relative;
+}
+
+.idle-ring::before {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: var(--surface);
+}
+
+.idle-ring span {
+  position: relative;
+  font-size: 20px;
+  font-weight: 660;
+}
+
+/* ------------------------------- fallback ------------------------------- */
+
+.fallback {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+}
+
+.fallback-card {
+  max-width: 460px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 26px;
+  text-align: center;
+}
+
+.fallback-card h1 {
+  font-size: 19px;
+  margin: 0 0 8px;
+}
+
+.fallback-card p {
+  color: var(--text-dim);
+  font-size: 13px;
+  margin: 0 0 14px;
+}
+
+.fallback-card pre {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--danger);
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0 0 16px;
+}

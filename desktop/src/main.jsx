@@ -6,6 +6,7 @@ import IdleWarning from './pages/IdleWarning.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { installMockApi } from './lib/mock-api.js';
 import './styles.css';
+import './layout.css';
 
 // Opened in a plain browser rather than Electron: install the stand-in bridge
 // so the UI can be worked on without launching the agent. Inside Electron the

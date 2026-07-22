@@ -30,7 +30,7 @@ const SIZES = [
 ];
 
 const CHECK = `(async () => {
-  const pages = ['Dashboard', 'Tasks', 'Calendar', 'Activity', 'Settings'];
+  const pages = ['Dashboard', 'Tasks', 'Calendar', 'Activity', 'Setting'];
   const problems = [];
   const vis = (e) => getComputedStyle(e).display !== 'none';
 
@@ -39,7 +39,7 @@ const CHECK = `(async () => {
   }
 
   for (const p of pages) {
-    const tab = [...document.querySelectorAll('.top-tab')].find((b) => b.textContent.includes(p));
+    const tab = [...document.querySelectorAll('.top-tab, .setting-pill')].find((b) => b.textContent.includes(p));
     if (!tab) { problems.push(p + ': tab missing'); continue; }
     tab.click();
     await new Promise((r) => setTimeout(r, 420));
@@ -82,15 +82,28 @@ const CHECK = `(async () => {
 })()`;
 
 const DUMP = `(async () => {
-  const tab = [...document.querySelectorAll('.top-tab')].find((b) => b.textContent.includes('Dashboard'));
+  const tab = [...document.querySelectorAll('.top-tab, .setting-pill')].find((b) => b.textContent.includes('Dashboard'));
   if (tab) tab.click();
   await new Promise((r) => setTimeout(r, 500));
   const el = document.querySelector('.content');
   return el ? el.innerText.replace(/\\s*\\n+\\s*/g, ' | ').slice(0, 420) : '(no content)';
 })()`;
 
+/** Waits for React to mount rather than guessing at a delay. */
+async function waitForRender(win, timeoutMs = 15000) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    const ready = await win.webContents
+      .executeJavaScript(`Boolean(document.querySelector('.app') || document.querySelector('.fallback'))`)
+      .catch(() => false);
+    if (ready) return true;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  return false;
+}
+
 app.whenReady().then(async () => {
-  await new Promise((r) => setTimeout(r, 3200));
+  await new Promise((r) => setTimeout(r, 1200));
   const win = BrowserWindow.getAllWindows()[0];
   if (!win) {
     console.log('FAIL  no window was created');
@@ -98,10 +111,17 @@ app.whenReady().then(async () => {
     return;
   }
 
+  if (!(await waitForRender(win))) {
+    console.log('FAIL  the window never rendered anything');
+    app.exit(1);
+    return;
+  }
+
   let failed = 0;
   for (const [w, h] of SIZES) {
     win.setContentSize(w, h);
-    await new Promise((r) => setTimeout(r, 900));
+    await new Promise((r) => setTimeout(r, 700));
+    await waitForRender(win);
     try {
       const problems = await win.webContents.executeJavaScript(CHECK);
       if (problems.length) {
