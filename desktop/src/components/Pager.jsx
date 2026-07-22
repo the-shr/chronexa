@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 
 import { IconChevron } from './Icons.jsx';
 
@@ -15,16 +15,19 @@ import { IconChevron } from './Icons.jsx';
  * render in the card header.
  */
 export function usePager(items, { rowHeight, gap = 0 }) {
-  const ref = useRef(null);
+  // A callback ref rather than useRef: pages commonly render `null` until their
+  // settings arrive, so the container mounts long after the first effect ran.
+  // Keeping the node in state re-runs the measurement the moment it appears.
+  const [node, setNode] = useState(null);
+  const ref = useCallback((el) => setNode(el), []);
   const [perPage, setPerPage] = useState(1);
   const [page, setPage] = useState(0);
 
   useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
+    if (!node) return undefined;
 
     const measure = () => {
-      const height = el.clientHeight;
+      const height = node.clientHeight;
       if (!height) return;
       setPerPage(Math.max(1, Math.floor((height + gap) / (rowHeight + gap))));
     };
@@ -36,14 +39,12 @@ export function usePager(items, { rowHeight, gap = 0 }) {
     measure();
     const frame = requestAnimationFrame(measure);
     const observer = new ResizeObserver(measure);
-    observer.observe(el);
+    observer.observe(node);
     return () => {
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-    // items.length matters: the container can only be measured meaningfully
-    // once the data it holds has arrived.
-  }, [rowHeight, gap, items.length]);
+  }, [node, rowHeight, gap]);
 
   const pages = Math.max(1, Math.ceil(items.length / perPage));
 
@@ -77,4 +78,4 @@ function Pager({ page, pages, onChange }) {
 }
 
 /** Row heights, kept in step with the values pinned in styles.css. */
-export const ROW = { task: 74, taskCompact: 68, session: 52 };
+export const ROW = { task: 74, taskCompact: 68, session: 52, check: 46 };

@@ -2,24 +2,30 @@ import { useState } from 'react';
 
 import RingTimer from '../components/RingTimer.jsx';
 import WeekChart from '../components/WeekChart.jsx';
-import TaskRow from '../components/TaskRow.jsx';
+import MetricStrip from '../components/MetricStrip.jsx';
+import ProfileCard from '../components/ProfileCard.jsx';
+import DaySchedule from '../components/DaySchedule.jsx';
 import { usePager, ROW } from '../components/Pager.jsx';
-import { humanDuration } from '../lib/format.js';
-import { useDailyTotals, useSettings } from '../lib/hooks.js';
+import { humanDuration, dueLabel } from '../lib/format.js';
+import { useDailyTotals, useSessions, useSettings } from '../lib/hooks.js';
+import { IconCheck } from '../components/Icons.jsx';
 
-export default function Home({ snapshot, tasks }) {
+export default function Home({ snapshot, tasks, account }) {
   const daily = useDailyTotals(7);
+  const sessions = useSessions(40);
   const [settings] = useSettings();
   const [busy, setBusy] = useState(false);
-  // As many as the card can hold; the rest live on My tasks. No pager here --
-  // this is a glance, not a list to work through.
-  const { ref, slice: upNext } = usePager(tasks.open, { rowHeight: ROW.taskCompact, gap: 7 });
+  const { ref, slice } = usePager(tasks.open, { rowHeight: ROW.check, gap: 6 });
 
   if (!settings) return null;
 
-  const { today } = snapshot;
   const activeTask = snapshot.session?.taskId ? tasks.open.find((t) => t.id === snapshot.session.taskId) : null;
-  const hidden = tasks.open.length - upNext.length;
+  const weekSeconds = daily.reduce(
+    (sum, r) => sum + r.activeSeconds + (settings.idle.countIdleAsWork ? r.idleSeconds : 0),
+    0,
+  );
+  const doneCount = tasks.done.length;
+  const totalCount = tasks.open.length + doneCount;
 
   const run = async (fn) => {
     setBusy(true);
@@ -32,84 +38,72 @@ export default function Home({ snapshot, tasks }) {
 
   return (
     <>
-      <header className="page-head">
-        <div className="head-main">
-          <h1>{greeting()}</h1>
-          <p>{new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-        </div>
+      <header className="greeting">
+        <h1>
+          {greeting()}, <span>{firstName(account)}</span>
+        </h1>
       </header>
 
+      <MetricStrip snapshot={snapshot} settings={settings} tasks={tasks} />
+
       <div className="page-body home-grid">
-        <RingTimer snapshot={snapshot} settings={settings} busy={busy} onAction={run} activeTask={activeTask} />
+        <ProfileCard account={account} snapshot={snapshot} />
 
-        <div className="stat-row">
-          <Stat
-            label="Worked"
-            dot="var(--accent)"
-            value={humanDuration(today.workSeconds)}
-            note={settings.idle.countIdleAsWork ? 'active + idle' : 'active time only'}
-          />
-          <Stat
-            label="Idle"
-            dot="var(--warn)"
-            value={humanDuration(today.idleSeconds)}
-            note={settings.idle.countIdleAsWork ? 'included above' : 'not counted'}
-          />
-          <Stat
-            label="Productivity"
-            dot="var(--ok)"
-            value={today.productivity === null ? '—' : `${today.productivity}%`}
-            note="active share of time"
-          />
-        </div>
-
-        <section className="card">
-          <h2>
-            This week
-            <span className="legend">
-              <span>
-                <i style={{ background: 'var(--accent)' }} />
-                Active
-              </span>
-              <span>
-                <i style={{ background: 'var(--warn)', opacity: 0.5 }} />
-                Idle
-              </span>
+        <section className="card progress-card">
+          <h2>Progress</h2>
+          <div className="progress-head">
+            <strong className="mono">{humanDuration(weekSeconds)}</strong>
+            <span>
+              Work time
+              <br />
+              this week
             </span>
-          </h2>
+          </div>
           <WeekChart rows={daily} />
         </section>
 
-        <section className="card home-tasks">
+        <RingTimer snapshot={snapshot} settings={settings} busy={busy} onAction={run} activeTask={activeTask} />
+
+        <section className="card checklist-card">
           <h2>
-            Up next
-            {hidden > 0 && <span className="faint">+{hidden} more</span>}
+            Tasks
+            <span className="count mono">
+              {doneCount}/{totalCount || 0}
+            </span>
           </h2>
-          <div className="task-list" ref={ref}>
-            {upNext.length === 0 ? (
+          <div className="checklist" ref={ref}>
+            {slice.length === 0 ? (
               <p className="empty">Nothing assigned right now.</p>
             ) : (
-              upNext.map((task) => (
-                <TaskRow key={task.id} task={task} tasks={tasks} snapshot={snapshot} disabled={busy} onAction={run} compact />
-              ))
+              slice.map((task) => {
+                const due = dueLabel(task.dueAt);
+                return (
+                  <button
+                    key={task.id}
+                    className="check-row"
+                    disabled={busy}
+                    onClick={() => run(() => tasks.setStatus(task.id, 'done'))}
+                    title="Mark done"
+                  >
+                    <span className="check-row-body">
+                      <span className="truncate">{task.title}</span>
+                      <small className={due?.overdue ? 'overdue' : undefined}>
+                        {due ? due.text : task.priority === 'high' ? 'High priority' : 'No due date'}
+                      </small>
+                    </span>
+                    <span className="check-mark">
+                      <IconCheck width={12} height={12} />
+                    </span>
+                  </button>
+                );
+              })
             )}
           </div>
         </section>
+
+        <DaySchedule sessions={sessions} />
       </div>
     </>
-  );
-}
-
-function Stat({ label, value, note, dot }) {
-  return (
-    <div className="stat">
-      <div className="stat-label">
-        <span className="stat-dot" style={{ background: dot }} />
-        {label}
-      </div>
-      <strong className="mono">{value}</strong>
-      <small>{note}</small>
-    </div>
   );
 }
 
@@ -118,4 +112,9 @@ function greeting() {
   if (h < 12) return 'Good morning';
   if (h < 17) return 'Good afternoon';
   return 'Good evening';
+}
+
+function firstName(account) {
+  const name = account?.user?.name || account?.user?.email || 'there';
+  return name.split(/[\s@]/)[0];
 }

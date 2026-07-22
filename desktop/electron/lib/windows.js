@@ -24,12 +24,13 @@ function createMainWindow({ onCloseRequest }) {
   }
 
   mainWindow = new BrowserWindow({
-    // Wide enough for the ring timer and the stat row to sit side by side;
-    // below minWidth the dashboard stacks into a single column.
-    width: 1180,
-    height: 780,
-    minWidth: 900,
-    minHeight: 620,
+    // The dashboard is a four-column grid; this is the width where all four
+    // columns are comfortable. It sheds columns down to minWidth, below which
+    // the cards would be too narrow to read.
+    width: 1320,
+    height: 860,
+    minWidth: 940,
+    minHeight: 640,
     show: false,
     backgroundColor: '#0f1115',
     autoHideMenuBar: true,

@@ -5,25 +5,15 @@ import Tasks from './pages/Tasks.jsx';
 import Calendar from './pages/Calendar.jsx';
 import Activity from './pages/Activity.jsx';
 import Settings from './pages/Settings.jsx';
-import { useTrackerState, useTasks, useTheme, useAccount, useSettings } from './lib/hooks.js';
-import { humanDuration } from './lib/format.js';
-import {
-  IconHome,
-  IconTasks,
-  IconCalendar,
-  IconChart,
-  IconSettings,
-  IconSun,
-  IconMoon,
-  IconClock,
-} from './components/Icons.jsx';
+import { useTrackerState, useTasks, useTheme, useAccount } from './lib/hooks.js';
+import { IconSun, IconMoon, IconClock } from './components/Icons.jsx';
 
 const TABS = [
-  { id: 'home', label: 'Home', Icon: IconHome },
-  { id: 'tasks', label: 'My tasks', Icon: IconTasks },
-  { id: 'calendar', label: 'Calendar', Icon: IconCalendar },
-  { id: 'activity', label: 'Activity', Icon: IconChart },
-  { id: 'settings', label: 'Settings', Icon: IconSettings },
+  { id: 'home', label: 'Dashboard' },
+  { id: 'tasks', label: 'Tasks' },
+  { id: 'calendar', label: 'Calendar' },
+  { id: 'activity', label: 'Activity' },
+  { id: 'settings', label: 'Settings' },
 ];
 
 export default function App() {
@@ -32,64 +22,44 @@ export default function App() {
   const tasks = useTasks();
   const [theme, toggleTheme] = useTheme();
   const [account] = useAccount();
-  const [settings] = useSettings();
 
   if (!snapshot) return null;
 
-  const running = snapshot.state === 'running';
-  const phase = running ? (snapshot.idlePhase === 'active' ? 'active' : 'idle') : snapshot.state;
   const name = account?.user?.name || account?.user?.email || 'Not signed in';
-  const targetSeconds = (settings?.work?.dailyTargetHours || 0) * 3600;
 
   return (
     <div className="app">
-      <aside className="sidebar">
-        <div className="brand">
+      <header className="topbar">
+        <span className="brand-pill">
           <span className="brand-mark">
-            <IconClock width={16} height={16} />
+            <IconClock width={15} height={15} />
           </span>
-          <span className="brand-name">Chronexa</span>
-          <button
-            className="icon-btn"
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}
-          >
-            {theme === 'dark' ? <IconSun width={15} height={15} /> : <IconMoon width={15} height={15} />}
-          </button>
-        </div>
+          Chronexa
+        </span>
 
-        <nav>
-          {TABS.map(({ id, label, Icon }) => (
-            <button key={id} className={tab === id ? 'nav active' : 'nav'} onClick={() => setTab(id)}>
-              <Icon />
+        <nav className="top-nav">
+          {TABS.map(({ id, label }) => (
+            <button key={id} className={tab === id ? 'top-tab active' : 'top-tab'} onClick={() => setTab(id)}>
               {label}
               {id === 'tasks' && tasks.open.length > 0 && <span className="nav-badge">{tasks.open.length}</span>}
             </button>
           ))}
         </nav>
 
-        <div className="sidebar-foot">
-          <div className="today-card">
-            <span>Tracked today</span>
-            <strong className="mono">{humanDuration(snapshot.today.workSeconds)}</strong>
-            {targetSeconds > 0 && (
-              <div className="today-bar" title={`${Math.round((snapshot.today.workSeconds / targetSeconds) * 100)}% of today's target`}>
-                <i style={{ width: `${Math.min(100, (snapshot.today.workSeconds / targetSeconds) * 100)}%` }} />
-              </div>
-            )}
-          </div>
-          <div className="user-chip">
-            <span className="avatar">{initials(name)}</span>
-            <div>
-              <strong className="truncate">{name}</strong>
-              <small className="truncate">{phaseLabel(phase)}</small>
-            </div>
-          </div>
-        </div>
-      </aside>
+        <button
+          className="icon-btn"
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}
+        >
+          {theme === 'dark' ? <IconSun width={15} height={15} /> : <IconMoon width={15} height={15} />}
+        </button>
+        <span className="avatar" title={name}>
+          {initials(name)}
+        </span>
+      </header>
 
       <main className="content">
-        {tab === 'home' && <Home snapshot={snapshot} tasks={tasks} />}
+        {tab === 'home' && <Home snapshot={snapshot} tasks={tasks} account={account} />}
         {tab === 'tasks' && <Tasks snapshot={snapshot} tasks={tasks} />}
         {tab === 'calendar' && <Calendar />}
         {tab === 'activity' && <Activity snapshot={snapshot} />}
@@ -97,10 +67,6 @@ export default function App() {
       </main>
     </div>
   );
-}
-
-function phaseLabel(phase) {
-  return { active: 'Tracking', idle: 'Idle — paused', paused: 'Paused', stopped: 'Not tracking' }[phase] || phase;
 }
 
 function initials(name) {

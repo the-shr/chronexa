@@ -110,29 +110,74 @@ button {
 
 .app {
   display: grid;
-  grid-template-columns: 224px minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100%;
   overflow: hidden;
   background: var(--bg);
 }
 
-.sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: 18px 12px;
-  background: var(--surface);
-  border-right: 1px solid var(--line);
-  overflow: hidden;
-}
-
-.brand {
+/* Navigation sits across the top rather than down the side: the dashboard is
+   wide and dense, and a sidebar would take room the card grid needs. */
+.topbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 6px;
+  gap: 12px;
+  padding: 14px 22px;
   flex: none;
 }
+
+.brand-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 16px 7px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-weight: 640;
+  letter-spacing: -0.015em;
+  flex: none;
+}
+
+.top-nav {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  margin: 0 auto 0 8px;
+  flex: none;
+}
+
+.top-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 7px 15px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 520;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.top-tab:hover {
+  color: var(--text);
+}
+
+.top-tab.active {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  font-weight: 580;
+  box-shadow: 0 3px 10px rgb(99 102 241 / 0.3);
+}
+
 
 .brand-mark {
   width: 30px;
@@ -146,51 +191,11 @@ button {
   box-shadow: 0 4px 12px rgb(99 102 241 / 0.35);
 }
 
-.brand-name {
-  font-size: 15px;
-  font-weight: 660;
-  letter-spacing: -0.015em;
-  flex: 1;
-}
 
-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  flex: 1;
-  min-height: 0;
-}
 
-.nav {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 9px 10px;
-  border: 0;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--text-dim);
-  text-align: left;
-  cursor: pointer;
-  flex: none;
-  transition: background 0.15s, color 0.15s;
-}
 
-.nav:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
 
-.nav.active {
-  color: var(--text);
-  background: linear-gradient(90deg, var(--surface-3), var(--accent-soft));
-  box-shadow: inset 0 0 0 1px var(--line);
-}
 
-.nav svg {
-  flex: none;
-  opacity: 0.85;
-}
 
 .nav-badge {
   margin-left: auto;
@@ -206,61 +211,12 @@ nav {
   place-items: center;
 }
 
-.sidebar-foot {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex: none;
-}
 
-.today-card {
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  padding: 12px 14px;
-  background: linear-gradient(150deg, var(--surface-2), var(--surface-3));
-}
 
-.today-card span {
-  font-size: 11px;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
 
-.today-card strong {
-  display: block;
-  font-size: 21px;
-  font-weight: 660;
-  margin-top: 3px;
-  letter-spacing: -0.02em;
-}
 
-.today-bar {
-  height: 4px;
-  border-radius: 999px;
-  background: var(--surface);
-  margin-top: 8px;
-  overflow: hidden;
-}
 
-.today-bar > i {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
-  transition: width 0.6s ease;
-}
 
-.user-chip {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  background: var(--surface-2);
-  min-width: 0;
-}
 
 .avatar {
   width: 30px;
@@ -275,21 +231,8 @@ nav {
   flex: none;
 }
 
-.user-chip div {
-  min-width: 0;
-  flex: 1;
-}
 
-.user-chip strong {
-  display: block;
-  font-size: 13px;
-}
 
-.user-chip small {
-  display: block;
-  color: var(--text-faint);
-  font-size: 11px;
-}
 
 .icon-btn {
   width: 30px;
@@ -315,14 +258,140 @@ nav {
   cursor: not-allowed;
 }
 
-/* Page frame: header stays put, body takes the rest and never overflows. */
+/* Page frame: headers stay put, body takes the rest and never overflows. */
 .content {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 14px;
-  padding: 20px 24px 22px;
+  padding: 4px 22px 20px;
   min-height: 0;
   overflow: hidden;
+}
+
+/* Pages without a metric strip only use two rows. */
+.content:has(> .page-head) {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.greeting h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+}
+
+.greeting h1 span {
+  font-weight: 660;
+}
+
+/* ----------------------------- metric strip ----------------------------- */
+
+.metric-strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 28px;
+}
+
+.segments {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.segment {
+  min-width: 104px;
+  flex-basis: 0;
+}
+
+.segment-label {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  margin-bottom: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.segment-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+.segment-bar.accent {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+
+.segment-bar.warn {
+  background: var(--warn);
+}
+
+.segment-bar.hollow {
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--text-dim);
+}
+
+.segment-bar.hollow i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent-soft);
+}
+
+.segment-bar.hollow b {
+  position: relative;
+  font-weight: 600;
+}
+
+.segment.target {
+  flex-grow: 5;
+  min-width: 170px;
+}
+
+.segment-empty {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px dashed var(--line-strong);
+  color: var(--text-faint);
+  font-size: 12px;
+  align-self: flex-end;
+}
+
+.figures {
+  display: flex;
+  gap: 26px;
+  flex: none;
+}
+
+.figure {
+  text-align: right;
+}
+
+.figure strong {
+  display: block;
+  font-size: 30px;
+  font-weight: 640;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.figure span {
+  font-size: 11.5px;
+  color: var(--text-dim);
 }
 
 .page-head {
@@ -394,31 +463,287 @@ nav {
 
 /* ------------------------------- home grid ------------------------------ */
 
+/*
+ * Four columns, mirroring the reference: who you are, how the week is going,
+ * the timer itself, and what is still to do -- with the day's shape underneath.
+ */
+/*
+ * Named areas rather than auto-placement: every card is placed explicitly at
+ * each width, so narrowing the window can never drop two cards into the same
+ * cell. As space runs out, the schedule goes first (the Calendar page shows it
+ * in full), then the profile tile.
+ */
 .home-grid {
-  grid-template-columns: 302px minmax(0, 1.05fr) minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-columns: 236px minmax(0, 1fr) minmax(0, 0.92fr) 264px;
+  grid-template-rows: minmax(0, 1.5fr) minmax(0, 1fr);
+  grid-template-areas:
+    'profile  progress timer tasks'
+    'schedule schedule schedule tasks';
 }
 
-.home-grid .timer-card {
-  grid-row: 1 / span 2;
+.profile-card {
+  grid-area: profile;
 }
 
-.home-grid .stat-row {
-  grid-column: 2 / span 2;
+.progress-card {
+  grid-area: progress;
 }
 
-@media (max-width: 1080px) {
+.timer-card {
+  grid-area: timer;
+}
+
+.checklist-card {
+  grid-area: tasks;
+}
+
+.schedule-card {
+  grid-area: schedule;
+}
+
+@media (max-width: 1280px) {
   .home-grid {
-    grid-template-columns: 268px minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-columns: 210px minmax(0, 1fr) 246px;
+    grid-template-rows: minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-areas:
+      'profile  timer    tasks'
+      'progress progress tasks';
   }
-  .home-grid .stat-row {
-    grid-column: 2;
-  }
-  /* The task list is the first thing to go when there is no room for it. */
-  .home-grid .home-tasks {
+  .schedule-card {
     display: none;
   }
+}
+
+@media (max-width: 1020px) {
+  .home-grid {
+    grid-template-columns: minmax(0, 1fr) 232px;
+    grid-template-rows: minmax(0, 1.2fr) minmax(0, 1fr);
+    grid-template-areas:
+      'timer    tasks'
+      'progress tasks';
+  }
+  .profile-card {
+    display: none;
+  }
+}
+
+/* -------------------------------- profile ------------------------------- */
+
+.profile-card {
+  padding: 0;
+  overflow: hidden;
+  justify-content: flex-end;
+  background: linear-gradient(160deg, var(--accent-soft), var(--surface) 62%);
+}
+
+.profile-photo {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  font-size: 46px;
+  font-weight: 640;
+  letter-spacing: -0.03em;
+  color: #fff;
+  background: linear-gradient(150deg, var(--accent), var(--accent-2));
+}
+
+.profile-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 15px;
+  flex: none;
+}
+
+.profile-id {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-id strong {
+  display: block;
+  font-size: 14px;
+}
+
+.profile-id small {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+.profile-badge {
+  flex: none;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* ------------------------------- progress ------------------------------- */
+
+.progress-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex: none;
+}
+
+.progress-head strong {
+  font-size: 30px;
+  font-weight: 640;
+  letter-spacing: -0.035em;
+}
+
+.progress-head span {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  line-height: 1.25;
+}
+
+/* ------------------------------- checklist ------------------------------ */
+
+.checklist-card .count {
+  font-size: 15px;
+  font-weight: 640;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 46px; /* pinned: see ROW.check in components/Pager.jsx */
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  cursor: pointer;
+  text-align: left;
+  flex: none;
+  overflow: hidden;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.check-row:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.check-row:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.check-row-body {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  font-size: 12.5px;
+  font-weight: 540;
+}
+
+.check-row-body small {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+.check-row-body small.overdue {
+  color: var(--warn);
+}
+
+.check-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--surface-3);
+  border: 1px solid var(--line-strong);
+  color: transparent;
+  flex: none;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.check-row:hover:not(:disabled) .check-mark {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #fff;
+}
+
+/* ------------------------------- schedule ------------------------------- */
+
+.schedule {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  flex: 1;
+  min-height: 0;
+}
+
+.schedule-rail {
+  position: relative;
+  height: 14px;
+  flex: none;
+}
+
+.schedule-rail span {
+  position: absolute;
+  transform: translateX(-50%);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.schedule-track {
+  position: relative;
+  flex: none;
+  height: 46px;
+  border-radius: 12px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.schedule-track > i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--line);
+}
+
+.schedule-block {
+  position: absolute;
+  top: 7px;
+  bottom: 7px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  min-width: 6px;
+  box-shadow: var(--shadow-sm);
+}
+
+.schedule-block.live {
+  background: linear-gradient(135deg, var(--ok), #16a34a);
 }
 
 .stat-row {
