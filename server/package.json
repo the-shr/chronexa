@@ -1,0 +1,27 @@
+{
+  "name": "timetracker-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "prisma generate && next build",
+    "start": "next start -p 3000",
+    "db:push": "prisma db push",
+    "db:seed": "node scripts/seed.js",
+    "setup": "prisma db push && node scripts/seed.js",
+    "test": "npm run test:api && npm run test:admin && npm run test:hardening",
+    "test:api": "node scripts/api-smoke.js",
+    "test:admin": "node scripts/admin-smoke.js",
+    "test:hardening": "node scripts/hardening-smoke.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.2.1",
+    "next": "^15.1.4",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "prisma": "^6.2.1"
+  }
+}

@@ -1,0 +1,32 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+dist-electron/
+release/
+.next/
+out/
+
+# secrets and local config
+.env
+.env.local
+.env.*.local
+
+# databases (SQLite lives in server/prisma/)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# uploaded screenshots -- employee data, never in version control
+uploads/
+server/uploads/
+
+# generated Prisma client
+.prisma/
+
+# logs and OS noise
+*.log
+.DS_Store
+Thumbs.db
