@@ -9,5 +9,11 @@
     "src/app/api/image/[id]/route.js": {
       "maxDuration": 30
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/purge-screenshots",
+      "schedule": "0 3 * * *"
+    }
+  ]
 }
