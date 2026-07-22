@@ -27,6 +27,16 @@ export async function deviceFromRequest(request) {
   return device;
 }
 
+/**
+ * Same as above, but only for admins. The desktop app signs in through the
+ * agent endpoint whatever the role, so every admin-only route has to check
+ * the role itself rather than trusting that a token means "employee".
+ */
+export async function adminDeviceFromRequest(request) {
+  const device = await deviceFromRequest(request);
+  return device && device.user.role === 'admin' ? device : null;
+}
+
 /* ---------------------------- admin sessions ---------------------------- */
 
 function secret() {

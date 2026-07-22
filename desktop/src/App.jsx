@@ -6,6 +6,8 @@ import Calendar from './pages/Calendar.jsx';
 import Activity from './pages/Activity.jsx';
 import Settings from './pages/Settings.jsx';
 import Profile from './pages/Profile.jsx';
+import SignIn from './pages/SignIn.jsx';
+import AdminApp from './AdminApp.jsx';
 import { useTrackerState, useTasks, useTheme, useAccount, useProfile } from './lib/hooks.js';
 import SessionBanner from './components/SessionBanner.jsx';
 import { IconSun, IconMoon, IconBell, IconSettings } from './components/Icons.jsx';
@@ -41,7 +43,7 @@ export default function App() {
     );
   }
 
-  if (!snapshot) {
+  if (!snapshot || !account) {
     return (
       <div className="fallback">
         <div className="fallback-card">
@@ -50,6 +52,13 @@ export default function App() {
       </div>
     );
   }
+
+  // A fresh install has no account at all. Ask who this is before showing a
+  // dashboard, since the answer decides which dashboard it should be.
+  if (!account.signedIn && !account.sessionExpired) return <SignIn onSignedIn={refreshAccount} />;
+
+  // The server said this account runs the team, not a timer.
+  if (account.user?.role === 'admin') return <AdminApp />;
 
   const name = profile?.user?.name || account?.user?.name || account?.user?.email || 'Not signed in';
   const avatar = profile?.avatar || null;

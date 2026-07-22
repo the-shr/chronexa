@@ -11,11 +11,17 @@
 const DAY = 86400000;
 const listeners = { tracker: [], settings: [], tasks: [], sync: [], profile: [], account: [] };
 
+// ?role=admin in the preview URL renders the admin dashboard instead.
+const previewRole = new URLSearchParams(window.location.search).get('role') === 'admin' ? 'admin' : 'employee';
+
 let mockAccount = {
   signedIn: true,
   sessionExpired: false,
   deviceName: 'DESIGN-PREVIEW',
-  user: { name: 'Rahim Uddin', email: 'rahim@example.com' },
+  user:
+    previewRole === 'admin'
+      ? { name: 'Ayesha Karim', email: 'ayesha@example.com', role: 'admin' }
+      : { name: 'Rahim Uddin', email: 'rahim@example.com', role: 'employee' },
 };
 
 // Flip from the console to preview the signed-out banner:
@@ -224,8 +230,160 @@ export function installMockApi() {
       status: async () => ({ ok: true, pending: 0, at: new Date().toISOString(), signedIn: true }),
       onStatus: (fn) => subscribe('sync', fn),
     },
+    admin: mockAdmin(),
     window: { minimize: () => {}, close: () => {}, closeIdleWarning: () => {} },
     app: { version: async () => '0.1.0-preview', platform: 'browser' },
+  };
+}
+
+/* ------------------------------ admin side ------------------------------ */
+
+const MOCK_PEOPLE = [
+  { name: 'Rahim Uddin', live: true, today: 19800, idle: 2400, task: 'Payments refactor' },
+  { name: 'Nusrat Jahan', live: true, today: 16200, idle: 1500, task: 'Onboarding flow' },
+  { name: 'Tanvir Hasan', live: false, today: 25200, idle: 3600, task: '' },
+  { name: 'Farhana Akter', live: false, today: 12600, idle: 900, task: '' },
+  { name: 'Imran Kabir', live: false, today: 0, idle: 0, task: '' },
+  { name: 'Sadia Rahman', live: true, today: 8100, idle: 600, task: 'Design review' },
+];
+
+let mockAdminTasks = [
+  { id: 'mt1', userId: 'p0', title: 'Ship the billing fix', status: 'open', priority: 'high', source: 'assigned', dueAt: iso(1), estimateMinutes: 90 },
+  { id: 'mt2', userId: 'p1', title: 'Write the release notes', status: 'open', priority: 'normal', source: 'assigned', dueAt: iso(3), estimateMinutes: null },
+  { id: 'mt3', userId: 'p2', title: 'Review pull request #482', status: 'open', priority: 'normal', source: 'assigned', dueAt: iso(-1), estimateMinutes: 45 },
+  { id: 'mt4', userId: 'p0', title: 'Update the runbook', status: 'done', priority: 'low', source: 'self', dueAt: null, estimateMinutes: null },
+];
+
+function iso(daysFromNow) {
+  const d = new Date();
+  d.setDate(d.getDate() + daysFromNow);
+  return d.toISOString();
+}
+
+function mockPerson(person, index) {
+  const daily = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (6 - i));
+    return {
+      date: d.toISOString().slice(0, 10),
+      activeSeconds: i === 6 ? person.today : Math.round(person.today * (0.5 + ((index + i) % 5) / 6)),
+      idleSeconds: person.idle,
+    };
+  });
+
+  return {
+    id: `p${index}`,
+    name: person.name,
+    email: `${person.name.split(' ')[0].toLowerCase()}@example.com`,
+    hasAvatar: false,
+    platform: 'win32',
+    lastSeenAt: person.live ? new Date().toISOString() : iso(0),
+    live: person.live,
+    currentTask: person.task,
+    todayActive: person.today,
+    todayIdle: person.idle,
+    weekActive: daily.reduce((s, d) => s + d.activeSeconds, 0),
+    weekIdle: person.idle * 7,
+    idleStops: index % 3,
+    sessionsToday: person.today ? 2 : 0,
+    tasksOpen: mockAdminTasks.filter((t) => t.userId === `p${index}` && t.status === 'open').length,
+    tasksDone: mockAdminTasks.filter((t) => t.userId === `p${index}` && t.status === 'done').length,
+    daily,
+  };
+}
+
+function mockAdmin() {
+  const people = MOCK_PEOPLE.map(mockPerson);
+  const sum = (key) => people.reduce((total, p) => total + p[key], 0);
+
+  return {
+    overview: async () => ({
+      generatedAt: new Date().toISOString(),
+      days: 7,
+      team: {
+        headcount: people.length,
+        tracking: people.filter((p) => p.live).length,
+        todayActive: sum('todayActive'),
+        todayIdle: sum('todayIdle'),
+        weekActive: sum('weekActive'),
+        weekIdle: sum('weekIdle'),
+        tasksOpen: sum('tasksOpen'),
+        tasksDone: sum('tasksDone'),
+        idleStops: sum('idleStops'),
+        daily: people[0].daily.map((_, i) => ({
+          date: people[0].daily[i].date,
+          activeSeconds: people.reduce((t, p) => t + p.daily[i].activeSeconds, 0),
+          idleSeconds: people.reduce((t, p) => t + p.daily[i].idleSeconds, 0),
+        })),
+      },
+      people,
+    }),
+
+    employees: async () => ({
+      users: people.map((p) => ({ ...p, role: 'employee', active: true, joinedAt: iso(-90) })),
+    }),
+
+    employee: async (id) => {
+      const person = people.find((p) => p.id === id) || people[0];
+      return {
+        user: { ...person, role: 'employee', active: true, joinedAt: iso(-90) },
+        sessions: Array.from({ length: 9 }, (_, i) => ({
+          id: `s${i}`,
+          startedAt: iso(-i),
+          endedAt: i === 0 && person.live ? null : iso(-i),
+          activeSeconds: 7200 - i * 400,
+          idleSeconds: 600,
+          stopReason: i % 4 === 0 ? 'idle-timeout' : 'manual',
+          note: i % 2 ? 'Feature work' : '',
+          screenshotCount: 0,
+          taskTitle: null,
+        })),
+        tasks: mockAdminTasks.filter((t) => t.userId === person.id),
+        screenshots: [],
+        devices: [{ id: 'd1', name: 'WORK-LAPTOP', platform: 'win32', lastSeenAt: new Date().toISOString() }],
+      };
+    },
+
+    tasks: async ({ userId = '', status = 'all' } = {}) => ({
+      tasks: mockAdminTasks.filter(
+        (t) => (!userId || t.userId === userId) && (status === 'all' || t.status === status),
+      ),
+    }),
+
+    assignTask: async (payload) => {
+      const task = { ...payload, id: `mt${Date.now()}`, status: 'open', source: 'assigned' };
+      mockAdminTasks = [task, ...mockAdminTasks];
+      return { task };
+    },
+
+    updateTask: async ({ id, moveTo, ...patch }) => {
+      mockAdminTasks = mockAdminTasks.map((t) =>
+        t.id === id ? { ...t, ...patch, ...(moveTo ? { userId: moveTo } : {}) } : t,
+      );
+      return { task: mockAdminTasks.find((t) => t.id === id) };
+    },
+
+    deleteTask: async (id) => {
+      mockAdminTasks = mockAdminTasks.filter((t) => t.id !== id);
+      return { ok: true };
+    },
+
+    addEmployee: async () => ({ user: { id: 'new', name: 'New Hire' } }),
+    updateEmployee: async () => ({ ok: true }),
+
+    screenshots: async ({ limit = 60 } = {}) => ({
+      screenshots: Array.from({ length: Math.min(limit, 14) }, (_, i) => ({
+        id: `shot${i}`,
+        userId: `p${i % people.length}`,
+        name: people[i % people.length].name,
+        capturedAt: new Date(Date.now() - i * 6 * 60000).toISOString(),
+        monitorLabel: 'Display 1',
+        activityPercent: 40 + ((i * 7) % 55),
+      })),
+    }),
+
+    // No bytes in the preview: the placeholder shimmer is the point.
+    image: async () => null,
   };
 }
 

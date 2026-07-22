@@ -8,6 +8,7 @@ const db = require('./lib/db');
 const tracker = require('./lib/tracker');
 const tasks = require('./lib/tasks');
 const profile = require('./lib/profile');
+const admin = require('./lib/admin');
 const sync = require('./lib/sync');
 const windows = require('./lib/windows');
 const tray = require('./lib/tray');
@@ -30,6 +31,7 @@ app.whenReady().then(() => {
   db.init();
   tasks.init();
   profile.init();
+  admin.init();
 
   windows.createMainWindow({ onCloseRequest: handleMainClose });
   tray.create({
@@ -69,7 +71,9 @@ app.whenReady().then(() => {
     if (status.ok && status.pending === 0) tasks.refresh().catch(() => {});
   });
 
-  if (settings.get().general.startTrackingOnLaunch) tracker.start();
+  // Admins are not tracked -- they run this build to watch the team, and
+  // auto-starting a session for them would put phantom hours in the reports.
+  if (settings.get().general.startTrackingOnLaunch && !admin.isAdmin()) tracker.start();
 
   log.info('app: ready, data dir =', paths.root());
 });
@@ -217,6 +221,18 @@ handle('profile:pick-avatar', async () => {
   if (bytes.length > 3 * 1024 * 1024) throw new Error('That picture is too large. Keep it under 3 MB.');
   return profile.setAvatar(bytes, require('node:path').basename(file));
 });
+
+handle('admin:overview', (days) => admin.overview(days || 7));
+handle('admin:employees', () => admin.employees());
+handle('admin:employee', (id) => admin.employee(id));
+handle('admin:tasks', (query) => admin.tasks(query || {}));
+handle('admin:screenshots', (query) => admin.screenshots(query || {}));
+handle('admin:assign-task', (payload) => admin.assignTask(payload || {}));
+handle('admin:update-task', (payload) => admin.updateTask(payload || {}));
+handle('admin:delete-task', (id) => admin.deleteTask(id));
+handle('admin:add-employee', (payload) => admin.addEmployee(payload || {}));
+handle('admin:update-employee', (payload) => admin.updateEmployee(payload || {}));
+handle('admin:image', (id) => admin.image(id));
 
 handle('sync:now', () => sync.run());
 handle('sync:status', () => sync.status());

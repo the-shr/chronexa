@@ -60,6 +60,21 @@ contextBridge.exposeInMainWorld('api', {
     login: (creds) => invoke('account:login', creds),
     logout: () => invoke('account:logout'),
   },
+  // Only useful to an admin: every call is refused server-side for anyone else,
+  // so exposing it to all renderers gives an employee nothing.
+  admin: {
+    overview: (days) => invoke('admin:overview', days),
+    employees: () => invoke('admin:employees'),
+    employee: (id) => invoke('admin:employee', id),
+    tasks: (query) => invoke('admin:tasks', query),
+    screenshots: (query) => invoke('admin:screenshots', query),
+    assignTask: (payload) => invoke('admin:assign-task', payload),
+    updateTask: (payload) => invoke('admin:update-task', payload),
+    deleteTask: (id) => invoke('admin:delete-task', id),
+    addEmployee: (payload) => invoke('admin:add-employee', payload),
+    updateEmployee: (payload) => invoke('admin:update-employee', payload),
+    image: (id) => invoke('admin:image', id),
+  },
   sync: {
     now: () => invoke('sync:now'),
     status: () => invoke('sync:status'),

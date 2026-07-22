@@ -1,0 +1,910 @@
+/*
+ * The admin dashboard. Same tokens, same cards, same rule as everywhere else:
+ * nothing scrolls -- lists paginate inside their card.
+ *
+ * Only the pieces the employee side has no equivalent for live here; anything
+ * shared (.card, .metric-row, .chart, .checklist-head, .btn) comes from
+ * layout.css so the two dashboards cannot drift apart visually.
+ */
+
+/* ------------------------------ sign-in --------------------------------- */
+
+.signin {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(120% 90% at 50% 0%, var(--surface-2) 0%, var(--bg) 62%);
+  position: relative;
+  overflow: hidden;
+}
+
+.signin-theme {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+}
+
+.signin-card {
+  width: min(370px, calc(100% - 48px));
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  padding: 26px 26px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.signin-card h1 {
+  margin: 12px 0 0;
+  font-size: 21px;
+  font-weight: 620;
+}
+
+.signin-card .muted {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.signin-card .brand-pill {
+  align-self: flex-start;
+}
+
+.signin-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.signin-field > span {
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+.signin-card .btn.primary {
+  margin-top: 6px;
+  justify-content: center;
+}
+
+.link-btn {
+  align-self: center;
+  border: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font: inherit;
+  font-size: 12px;
+  padding: 4px;
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  text-decoration: underline;
+}
+
+.form-error,
+.form-ok {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.form-error {
+  color: var(--danger);
+}
+
+.form-ok {
+  color: var(--ok);
+}
+
+/* ------------------------------- chrome --------------------------------- */
+
+/*
+ * The session banner renders nothing until the token is rejected, so the .app
+ * grid usually has just the topbar and the page. With the banner row absent,
+ * the page falls into the second `auto` row and collapses to its content
+ * height. Pinning it to the flexible row makes it fill the window whether the
+ * banner is there or not. Scoped to the admin shell via :has so the employee
+ * dashboard, already signed off on, is untouched.
+ */
+.app:has(.brand-role) > .content {
+  grid-row: 3;
+}
+
+.brand-role {
+  margin-left: 7px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.16);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+
+.head-tools {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.load-error {
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  color: var(--text-dim);
+  max-width: 380px;
+}
+
+.load-error p {
+  margin: 0;
+  font-size: 13px;
+}
+
+/* ------------------------------ overview -------------------------------- */
+
+/*
+ * The admin pages reuse .progress-card and friends for their looks, but those
+ * classes also carry `grid-area: progress` for the employee home grid. Left
+ * alone, that name resolves nowhere here and the card lands in an implicit row
+ * of its own, outside the layout. Placement is this grid's business.
+ */
+.admin-grid > *,
+.people-grid > *,
+.tasks-grid > *,
+.screens-grid > * {
+  grid-area: auto;
+}
+
+/* Pages that are only a body -- no greeting, no metric row -- still have to
+   fill the window rather than collapse to their content height. */
+.content:has(> .page-body:only-child) {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.admin-grid {
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr) 300px;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+@media (max-width: 1180px) {
+  .admin-grid {
+    grid-template-columns: minmax(0, 1fr) 268px;
+  }
+  .live-card {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .admin-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .progress-card {
+    display: none;
+  }
+}
+
+/* ------------------------------ avatars --------------------------------- */
+
+.admin-avatar {
+  --size: 34px;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  flex: none;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(140deg, var(--accent) 0%, var(--accent-2) 100%);
+  color: #fff;
+  font-size: calc(var(--size) * 0.36);
+  font-weight: 640;
+  letter-spacing: 0.02em;
+  position: relative;
+}
+
+/* The ring reads at a glance across a list of thirty. */
+.admin-avatar.live::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 2px solid var(--ok);
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--ok);
+  flex: none;
+  box-shadow: 0 0 0 3px var(--ok-soft);
+}
+
+/* ------------------------------- people --------------------------------- */
+
+.people-list,
+.live-list,
+.board-list,
+.detail-list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.person-row {
+  height: 52px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.person-row:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-3);
+}
+
+.person-row.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.person-row.off {
+  opacity: 0.55;
+}
+
+.person-id {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.person-id strong {
+  font-size: 13px;
+  font-weight: 560;
+}
+
+.person-id small {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.person-figures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  flex: none;
+}
+
+.person-figures b {
+  font-size: 13px;
+  font-weight: 620;
+}
+
+.person-figures small {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+/* A single bar rather than a sparkline: one number, read in a glance. */
+.person-bar {
+  width: 5px;
+  height: 30px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--surface-3);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.person-bar i {
+  width: 100%;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--accent) 0%, var(--deep) 100%);
+}
+
+/* ------------------------------ live card ------------------------------- */
+
+.live-row {
+  height: 46px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.live-row:hover {
+  border-color: var(--ok);
+}
+
+.live-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.live-text strong {
+  font-size: 12.5px;
+  font-weight: 560;
+}
+
+.live-text small {
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+
+/* --------------------------- people page grid --------------------------- */
+
+.people-grid {
+  grid-template-columns: 310px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+@media (max-width: 940px) {
+  .people-grid {
+    grid-template-columns: 250px minmax(0, 1fr);
+  }
+}
+
+.add-person {
+  flex: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.add-person input,
+.add-person select {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  padding: 7px 9px;
+  min-width: 0;
+}
+
+.add-person input:focus,
+.add-person select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.add-person input:first-child,
+.add-person .btn,
+.add-person .form-error {
+  grid-column: span 2;
+}
+
+.add-person .btn {
+  justify-content: center;
+}
+
+/* -------------------------------- detail -------------------------------- */
+
+.detail-card.empty-card {
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.detail-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.detail-id {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.detail-id strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.detail-id small {
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+.detail-stats {
+  flex: none;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 0;
+}
+
+.detail-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 9px 11px;
+  border-radius: var(--r);
+  background: var(--surface-2);
+  min-width: 0;
+}
+
+.detail-stat strong {
+  font-size: 15px;
+  font-weight: 640;
+}
+
+.detail-stat span {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.detail-tabs,
+.seg-row {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.detail-tabs .head-tools {
+  margin-left: auto;
+}
+
+.seg {
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.seg:hover {
+  color: var(--text);
+}
+
+.seg.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.seg-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--line-strong);
+  margin: 0 3px;
+}
+
+.detail-row {
+  height: 52px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+
+.detail-when {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: none;
+  width: 96px;
+}
+
+.detail-when strong {
+  font-size: 12px;
+  font-weight: 560;
+}
+
+.detail-when small {
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+
+.detail-note {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.detail-note strong {
+  color: var(--text);
+  font-weight: 540;
+}
+
+.detail-figures {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  flex: none;
+}
+
+.detail-figures b {
+  font-size: 12.5px;
+  font-weight: 620;
+}
+
+.detail-figures small {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.detail-devices {
+  flex: none;
+  display: flex;
+  gap: 6px;
+  padding-top: 10px;
+  margin-top: 10px;
+  border-top: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.device-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-faint);
+  font-size: 10.5px;
+  max-width: 190px;
+}
+
+/* --------------------------------- pills -------------------------------- */
+
+.pill {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-3);
+  color: var(--text-dim);
+  font-size: 10px;
+  font-weight: 560;
+  white-space: nowrap;
+}
+
+.pill.ok {
+  color: var(--ok);
+  border-color: var(--ok);
+  background: var(--ok-soft);
+}
+
+.pill.warn {
+  color: var(--idle);
+  border-color: var(--idle);
+  background: var(--idle-soft);
+}
+
+.pill.accent {
+  color: var(--accent-text);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* -------------------------------- tasks --------------------------------- */
+
+.tasks-grid {
+  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+@media (max-width: 940px) {
+  .tasks-grid {
+    grid-template-columns: 270px minmax(0, 1fr);
+  }
+}
+
+.assign-fields {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.assign-fields > input,
+.assign-fields select,
+.assign-fields label input {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  padding: 8px 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.assign-fields input:focus,
+.assign-fields select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.assign-fields label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.assign-fields label > span {
+  flex: none;
+  width: 92px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+.assign-fields .btn.primary {
+  justify-content: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.assign-note {
+  margin: auto 0 0;
+  padding-top: 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+
+.board-item {
+  height: 74px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+
+.board-item.done {
+  opacity: 0.6;
+}
+
+.board-item.done .board-text strong {
+  text-decoration: line-through;
+}
+
+.board-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.board-text strong {
+  font-size: 13px;
+  font-weight: 560;
+}
+
+.board-text small {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.board-text .overdue {
+  color: var(--danger);
+}
+
+.move-select {
+  flex: none;
+  max-width: 118px;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 11px;
+  padding: 5px 7px;
+  cursor: pointer;
+}
+
+.move-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ------------------------------- screens -------------------------------- */
+
+.screens-grid {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+/* Fixed row height so the pager arithmetic matches what is painted. */
+.shot-wall {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-auto-rows: 128px;
+  gap: 10px;
+  overflow: hidden;
+  align-content: start;
+}
+
+.shot-thumb {
+  position: relative;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  display: block;
+  color: inherit;
+  font: inherit;
+}
+
+.shot-thumb:hover {
+  border-color: var(--accent);
+}
+
+.shot-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.shot-placeholder {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(100deg, var(--surface-2) 30%, var(--surface-3) 50%, var(--surface-2) 70%);
+  background-size: 240% 100%;
+  animation: shot-shimmer 1.3s linear infinite;
+}
+
+@keyframes shot-shimmer {
+  to {
+    background-position: -240% 0;
+  }
+}
+
+.shot-meta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 14px 9px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  text-align: left;
+  background: linear-gradient(180deg, transparent 0%, rgb(0 0 0 / 0.78) 60%);
+  color: #fff;
+}
+
+.shot-meta strong {
+  font-size: 11.5px;
+  font-weight: 560;
+}
+
+.shot-meta small {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.shot-activity {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 34px;
+  background: rgb(0 0 0 / 0.72);
+  backdrop-filter: blur(3px);
+}
+
+.lightbox-inner {
+  max-width: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 12px;
+  box-shadow: var(--shadow);
+  min-height: 0;
+}
+
+.lightbox-inner img {
+  max-width: 100%;
+  min-height: 0;
+  flex: 1;
+  object-fit: contain;
+  border-radius: var(--r);
+  background: #000;
+}
+
+.lightbox-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.lightbox-bar .spacer {
+  flex: 1;
+}
+
+.lightbox-bar .muted {
+  color: var(--text-dim);
+}

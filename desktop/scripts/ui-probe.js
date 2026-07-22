@@ -106,6 +106,25 @@ async function waitForRender(win, timeoutMs = 15000) {
 }
 
 app.whenReady().then(async () => {
+  // The app opens to a sign-in screen when there is no account (a fresh run, or
+  // after another probe signed out). Sign in as an employee so this always
+  // measures the dashboard, not the login form -- unless PROBE_FRESH asked for
+  // the signed-out first run on purpose.
+  if (!process.env.PROBE_FRESH) {
+    const settings = require('../electron/lib/settings');
+    const auth = require('../electron/lib/auth');
+    settings.set({ sync: { enabled: true, serverUrl: process.env.CHRONEXA_SERVER || 'http://localhost:3000' } });
+    if (!auth.isSignedIn()) {
+      await auth
+        .login({
+          email: process.env.CHRONEXA_EMPLOYEE_EMAIL || 'employee@example.com',
+          password: process.env.CHRONEXA_EMPLOYEE_PASSWORD || 'employee1234',
+          deviceName: 'ui-probe',
+        })
+        .catch((err) => console.log('note: could not sign in —', err.message));
+    }
+  }
+
   await new Promise((r) => setTimeout(r, 1200));
   const win = BrowserWindow.getAllWindows()[0];
   if (!win) {
@@ -113,6 +132,7 @@ app.whenReady().then(async () => {
     app.exit(1);
     return;
   }
+  await win.webContents.reload();
 
   if (!(await waitForRender(win))) {
     console.log('FAIL  the window never rendered anything');
