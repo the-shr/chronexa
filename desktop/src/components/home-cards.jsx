@@ -436,7 +436,7 @@ export function ChecklistCard({ tasks, busy, onAction, listRef, slice }) {
                 }}
               >
                 <span className="check-text">
-                  <span className="truncate">{task.title}</span>
+                  <span className="check-title">{task.title}</span>
                   <small className={due?.overdue ? 'overdue' : undefined}>
                     {due ? due.text : mine ? 'Added by you' : task.priority === 'high' ? 'High priority' : 'Assigned'}
                   </small>

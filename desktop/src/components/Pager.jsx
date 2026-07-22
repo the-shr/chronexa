@@ -78,4 +78,4 @@ function Pager({ page, pages, onChange }) {
 }
 
 /** Row heights, kept in step with the values pinned in styles.css. */
-export const ROW = { task: 74, taskCompact: 68, session: 52, check: 46 };
+export const ROW = { task: 74, taskCompact: 68, session: 52, check: 62 };
