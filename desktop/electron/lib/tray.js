@@ -31,21 +31,21 @@ function update(snapshot) {
 
   const running = snapshot.state === 'running';
   const paused = snapshot.state === 'paused';
-  const idle = snapshot.idlePhase !== 'active' && running;
+  const idle = running && snapshot.idlePhase !== 'active';
 
   const label = running ? (idle ? 'Idle' : 'Tracking') : paused ? 'Paused' : 'Stopped';
-  tray.setToolTip(`Chronexa — ${label} · ${formatDuration(snapshot.todaySeconds)} today`);
+  const worked = formatDuration(snapshot.today.workSeconds);
+  tray.setToolTip(`Chronexa — ${label} · ${worked} today`);
 
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: `Today: ${formatDuration(snapshot.todaySeconds)}`, enabled: false },
+      { label: `Today: ${worked}`, enabled: false },
       { label: `Status: ${label}`, enabled: false },
       { type: 'separator' },
       { label: 'Start tracking', enabled: !running, click: () => handlers.onStart?.() },
       { label: paused ? 'Resume' : 'Pause', enabled: running || paused, click: () => (paused ? handlers.onResume?.() : handlers.onPause?.()) },
       { label: 'Stop tracking', enabled: running || paused, click: () => handlers.onStop?.() },
       { type: 'separator' },
-      { label: 'Take screenshot now', enabled: running, click: () => handlers.onCapture?.() },
       { label: 'Open Chronexa', click: () => handlers.onShow?.() },
       { type: 'separator' },
       { label: 'Quit', click: () => handlers.onQuit?.() },

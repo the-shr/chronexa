@@ -64,6 +64,7 @@ class Sync extends EventEmitter {
         try {
           if (item.type === 'session') await this.pushSession(item.payload);
           else if (item.type === 'screenshot') await this.pushScreenshot(item.payload.id);
+          else if (item.type === 'task') await this.pushTask(item.payload);
           done.push(item.id);
         } catch (err) {
           log.warn('sync: item failed', item.id, err.message);
@@ -98,6 +99,17 @@ class Sync extends EventEmitter {
       body: JSON.stringify(session),
     });
     if (!res.ok) throw new Error(`sessions ${res.status}`);
+  }
+
+  async pushTask({ id, status }) {
+    const res = await fetch(`${this.base()}/api/agent/tasks/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', ...auth.authHeaders() },
+      body: JSON.stringify({ status }),
+    });
+    // A task deleted by the admin is not a failure worth retrying forever.
+    if (res.status === 404) return;
+    if (!res.ok) throw new Error(`tasks ${res.status}`);
   }
 
   async pushScreenshot(id) {

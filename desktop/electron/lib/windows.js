@@ -24,10 +24,12 @@ function createMainWindow({ onCloseRequest }) {
   }
 
   mainWindow = new BrowserWindow({
-    width: 980,
-    height: 700,
-    minWidth: 820,
-    minHeight: 560,
+    // Wide enough for the ring timer and the stat row to sit side by side;
+    // below minWidth the dashboard stacks into a single column.
+    width: 1180,
+    height: 780,
+    minWidth: 900,
+    minHeight: 620,
     show: false,
     backgroundColor: '#0f1115',
     autoHideMenuBar: true,

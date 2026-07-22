@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { useTheme } from '../lib/hooks.js';
+
 /**
  * Frameless always-on-top popup shown when no mouse/keyboard input has been
  * seen for the configured threshold. Any real input dismisses it automatically
@@ -10,6 +12,7 @@ export default function IdleWarning() {
   const [info, setInfo] = useState(null);
   const [remaining, setRemaining] = useState(null);
   const beeped = useRef(false);
+  useTheme(); // this window renders standalone, so it applies the theme itself
 
   useEffect(() => {
     const offWarn = window.api.tracker.onIdleWarning((payload) => {
@@ -52,7 +55,9 @@ export default function IdleWarning() {
       <p>
         No mouse or keyboard activity for {info?.thresholdMinutes ?? '—'} minutes.
         <br />
-        {willStop ? 'The timer will stop automatically' : 'The timer will keep waiting'} in {remaining ?? '—'}s.
+        {willStop
+          ? `The timer stops in ${remaining ?? '—'}s.`
+          : `The timer pauses in ${remaining ?? '—'}s and starts again when you come back.`}
       </p>
 
       <div className="idle-actions">

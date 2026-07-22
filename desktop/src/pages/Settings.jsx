@@ -1,239 +1,206 @@
-import { useSettings } from '../lib/hooks.js';
+import { useEffect, useState } from 'react';
 
+import { useSettings, useTheme, useAccount } from '../lib/hooks.js';
+import { clockTime, humanDuration } from '../lib/format.js';
+
+/**
+ * Only preferences that are genuinely the employee's own. Monitoring policy --
+ * capture, idle thresholds, what counts as work -- is set by the organisation
+ * and is not editable, or even visible, here.
+ */
 export default function Settings() {
   const [settings, update] = useSettings();
-  if (!settings) return <div className="page">Loading…</div>;
+  const [theme, toggleTheme] = useTheme();
+  const [account, refreshAccount] = useAccount();
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [sync, setSync] = useState(null);
 
-  const set = (group) => (key, value) => update({ [group]: { [key]: value } });
-  const shots = set('screenshots');
-  const idle = set('idle');
-  const general = set('general');
+  useEffect(() => {
+    let alive = true;
+    window.api.sync.status().then((s) => alive && setSync(s));
+    const off = window.api.sync.onStatus(setSync);
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
+
+  if (!settings || !account) return null;
+
+  const general = (key, value) => update({ general: { [key]: value } });
+
+  const signIn = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await window.api.account.login(form);
+      setForm({ email: '', password: '' });
+      refreshAccount();
+    } catch (err) {
+      setError(err.message.replace(/^Error invoking remote method '[^']+':\s*/, ''));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
-    <div className="page">
+    <>
       <header className="page-head">
-        <h1>Settings</h1>
-        <button className="btn ghost" onClick={() => window.api.settings.reset()}>
-          Reset to defaults
-        </button>
+        <div>
+          <h1>Settings</h1>
+          <p>Your preferences on this computer</p>
+        </div>
       </header>
 
-      <section className="panel">
-        <h2>Screenshots</h2>
+      <div className="grid-main" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        <section className="card">
+          <h2>Account</h2>
+          {account.signedIn ? (
+            <>
+              <div className="row">
+                <div className="row-main">
+                  <strong>{account.user?.name || account.user?.email}</strong>
+                  <div className="faint" style={{ fontSize: 12 }}>
+                    {account.user?.email}
+                  </div>
+                </div>
+                <button
+                  className="btn sm"
+                  onClick={async () => {
+                    await window.api.account.logout();
+                    refreshAccount();
+                  }}
+                >
+                  Sign out
+                </button>
+              </div>
+              <div className="row">
+                <div className="row-main">
+                  <span className="muted">This computer</span>
+                </div>
+                <span className="faint">{account.deviceName}</span>
+              </div>
+              <div className="row">
+                <div className="row-main">
+                  <span className="muted">Last synced</span>
+                </div>
+                <span className="faint">
+                  {sync?.at ? clockTime(sync.at) : 'never'}
+                  {sync?.pending ? ` · ${sync.pending} waiting` : ''}
+                </span>
+              </div>
+            </>
+          ) : (
+            <form className="signin" onSubmit={signIn}>
+              <p className="muted" style={{ margin: 0 }}>
+                Sign in with your work account to receive tasks and report your hours.
+              </p>
+              <input
+                className="text-input"
+                type="email"
+                required
+                placeholder="Work email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+              <input
+                className="text-input"
+                type="password"
+                required
+                placeholder="Password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+              />
+              <button className="btn primary" disabled={busy}>
+                {busy ? 'Signing in…' : 'Sign in'}
+              </button>
+              {error && <p className="error">{error}</p>}
+            </form>
+          )}
+        </section>
 
-        <Toggle
-          label="Capture screenshots while tracking"
-          checked={settings.screenshots.enabled}
-          onChange={(v) => shots('enabled', v)}
-        />
+        <section className="card">
+          <h2>Preferences</h2>
 
-        <Slider
-          label="Capture interval"
-          suffix="minutes"
-          min={1}
-          max={60}
-          value={settings.screenshots.intervalMinutes}
-          disabled={!settings.screenshots.enabled}
-          onChange={(v) => shots('intervalMinutes', v)}
-          hint="One screenshot per window of this length."
-        />
+          <label className="field">
+            <span className="field-text">
+              Light theme
+              <small>Switch between the light and dark look.</small>
+            </span>
+            <input type="checkbox" checked={theme === 'light'} onChange={toggleTheme} />
+            <span className="switch" aria-hidden="true" />
+          </label>
 
-        <Toggle
-          label="Randomise the moment inside each interval"
-          checked={settings.screenshots.randomize}
-          disabled={!settings.screenshots.enabled}
-          onChange={(v) => shots('randomize', v)}
-          hint="Prevents the capture time from being predictable."
-        />
+          <label className="field">
+            <span className="field-text">
+              Open Chronexa when I log in
+              <small>Starts minimised to the tray.</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={settings.general.launchOnLogin}
+              onChange={(e) => general('launchOnLogin', e.target.checked)}
+            />
+            <span className="switch" aria-hidden="true" />
+          </label>
 
-        <Toggle
-          label="Capture all monitors"
-          checked={settings.screenshots.allMonitors}
-          disabled={!settings.screenshots.enabled}
-          onChange={(v) => shots('allMonitors', v)}
-        />
+          <label className="field">
+            <span className="field-text">
+              Start tracking automatically
+              <small>Begins a session as soon as the app opens.</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={settings.general.startTrackingOnLaunch}
+              onChange={(e) => general('startTrackingOnLaunch', e.target.checked)}
+            />
+            <span className="switch" aria-hidden="true" />
+          </label>
 
-        <Slider
-          label="Image quality"
-          suffix="%"
-          min={10}
-          max={100}
-          step={5}
-          value={settings.screenshots.quality}
-          disabled={!settings.screenshots.enabled}
-          onChange={(v) => shots('quality', v)}
-        />
-
-        <Slider
-          label="Max image width"
-          suffix="px"
-          min={640}
-          max={3840}
-          step={160}
-          value={settings.screenshots.maxWidth}
-          disabled={!settings.screenshots.enabled}
-          onChange={(v) => shots('maxWidth', v)}
-        />
-
-        <Toggle
-          label="Privacy blur"
-          checked={settings.screenshots.blur}
-          disabled={!settings.screenshots.enabled}
-          onChange={(v) => shots('blur', v)}
-          hint="Pixelates the image so activity is visible but text is not readable."
-        />
-
-        <Toggle
-          label="Notify me on every capture"
-          checked={settings.screenshots.notifyOnCapture}
-          disabled={!settings.screenshots.enabled}
-          onChange={(v) => shots('notifyOnCapture', v)}
-        />
-      </section>
-
-      <section className="panel">
-        <h2>Idle detection</h2>
-
-        <Toggle
-          label="Detect idle (no mouse or keyboard input)"
-          checked={settings.idle.enabled}
-          onChange={(v) => idle('enabled', v)}
-        />
-
-        <Slider
-          label="Idle after"
-          suffix="minutes"
-          min={1}
-          max={60}
-          value={settings.idle.thresholdMinutes}
-          disabled={!settings.idle.enabled}
-          onChange={(v) => idle('thresholdMinutes', v)}
-          hint="How long without input before you are considered away."
-        />
-
-        <Toggle
-          label="Show a warning before acting"
-          checked={settings.idle.warningEnabled}
-          disabled={!settings.idle.enabled}
-          onChange={(v) => idle('warningEnabled', v)}
-        />
-
-        <Slider
-          label="Warning countdown"
-          suffix="seconds"
-          min={10}
-          max={300}
-          step={5}
-          value={settings.idle.warningCountdownSeconds}
-          disabled={!settings.idle.enabled || !settings.idle.warningEnabled}
-          onChange={(v) => idle('warningCountdownSeconds', v)}
-        />
-
-        <Choice
-          label="When the countdown ends"
-          value={settings.idle.onTimeout}
-          disabled={!settings.idle.enabled}
-          onChange={(v) => idle('onTimeout', v)}
-          options={[
-            { value: 'stop', label: 'Stop the timer' },
-            { value: 'keep', label: 'Keep the timer running' },
-          ]}
-        />
-
-        <Toggle
-          label="Discard idle time from the tracked total"
-          checked={settings.idle.discardIdleTime}
-          disabled={!settings.idle.enabled}
-          onChange={(v) => idle('discardIdleTime', v)}
-          hint="Removes the idle stretch, including the minutes before idle was confirmed."
-        />
-
-        <Toggle
-          label="Play a sound with the warning"
-          checked={settings.idle.playSound}
-          disabled={!settings.idle.enabled || !settings.idle.warningEnabled}
-          onChange={(v) => idle('playSound', v)}
-        />
-      </section>
-
-      <section className="panel">
-        <h2>General</h2>
-        <Toggle
-          label="Start Chronexa when I log in"
-          checked={settings.general.launchOnLogin}
-          onChange={(v) => general('launchOnLogin', v)}
-        />
-        <Toggle
-          label="Start tracking automatically on launch"
-          checked={settings.general.startTrackingOnLaunch}
-          onChange={(v) => general('startTrackingOnLaunch', v)}
-        />
-        <Toggle
-          label="Keep running in the tray when the window is closed"
-          checked={settings.general.minimizeToTray}
-          onChange={(v) => general('minimizeToTray', v)}
-        />
-      </section>
-    </div>
-  );
-}
-
-/* ------------------------------ form pieces ----------------------------- */
-
-function Toggle({ label, checked, onChange, disabled, hint }) {
-  return (
-    <label className={`field toggle ${disabled ? 'disabled' : ''}`}>
-      <span className="field-text">
-        {label}
-        {hint && <small>{hint}</small>}
-      </span>
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
-      <span className="switch" aria-hidden="true" />
-    </label>
-  );
-}
-
-function Slider({ label, value, min, max, step = 1, suffix, onChange, disabled, hint }) {
-  return (
-    <div className={`field slider ${disabled ? 'disabled' : ''}`}>
-      <div className="field-text">
-        {label}
-        {hint && <small>{hint}</small>}
+          <label className="field">
+            <span className="field-text">
+              Keep running in the tray
+              <small>Closing the window keeps the timer going.</small>
+            </span>
+            <input
+              type="checkbox"
+              checked={settings.general.minimizeToTray}
+              onChange={(e) => general('minimizeToTray', e.target.checked)}
+            />
+            <span className="switch" aria-hidden="true" />
+          </label>
+        </section>
       </div>
-      <div className="slider-row">
-        <input
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          disabled={disabled}
-          onChange={(e) => onChange(Number(e.target.value))}
-        />
-        <span className="slider-value mono">
-          {value} {suffix}
-        </span>
-      </div>
-    </div>
-  );
-}
 
-function Choice({ label, value, options, onChange, disabled }) {
-  return (
-    <div className={`field ${disabled ? 'disabled' : ''}`}>
-      <div className="field-text">{label}</div>
-      <div className="choice-row">
-        {options.map((o) => (
-          <button
-            key={o.value}
-            className={value === o.value ? 'chip active' : 'chip'}
-            disabled={disabled}
-            onClick={() => onChange(o.value)}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
-    </div>
+      <section className="card" style={{ marginTop: 14 }}>
+        <h2>How your time is measured</h2>
+        <div className="rows">
+          <div className="row">
+            <div className="row-main">
+              <span className="muted">Marked idle after</span>
+            </div>
+            <span>{humanDuration(settings.idle.thresholdMinutes * 60)} without mouse or keyboard</span>
+          </div>
+          <div className="row">
+            <div className="row-main">
+              <span className="muted">While idle</span>
+            </div>
+            <span>The timer pauses and resumes on its own when you come back</span>
+          </div>
+          <div className="row">
+            <div className="row-main">
+              <span className="muted">Idle time</span>
+            </div>
+            <span>{settings.idle.countIdleAsWork ? 'Counts towards your hours' : 'Recorded, but not counted as work'}</span>
+          </div>
+        </div>
+        <p className="faint" style={{ fontSize: 12, marginBottom: 0 }}>
+          These are set by your organisation.
+        </p>
+      </section>
+    </>
   );
 }

@@ -22,7 +22,6 @@ contextBridge.exposeInMainWorld('api', {
     resume: () => invoke('tracker:resume'),
     stop: (reason) => invoke('tracker:stop', reason),
     snapshot: () => invoke('tracker:snapshot'),
-    captureNow: () => invoke('tracker:capture-now'),
     acknowledgeIdle: () => invoke('tracker:acknowledge-idle'),
     onState: (fn) => subscribe('tracker:state', fn),
     onIdleWarning: (fn) => subscribe('tracker:idle-warning', fn),
@@ -31,14 +30,17 @@ contextBridge.exposeInMainWorld('api', {
   settings: {
     get: () => invoke('settings:get'),
     set: (patch) => invoke('settings:set', patch),
-    reset: () => invoke('settings:reset'),
     onChange: (fn) => subscribe('settings:changed', fn),
   },
   history: {
     sessions: (opts) => invoke('history:sessions', opts),
-    screenshots: (opts) => invoke('history:screenshots', opts),
-    deleteScreenshot: (id) => invoke('history:delete-screenshot', id),
-    openFolder: () => invoke('history:open-folder'),
+    daily: (days) => invoke('history:daily', days),
+  },
+  tasks: {
+    list: () => invoke('tasks:list'),
+    refresh: () => invoke('tasks:refresh'),
+    setStatus: (id, status) => invoke('tasks:set-status', { id, status }),
+    onChange: (fn) => subscribe('tasks:changed', fn),
   },
   account: {
     get: () => invoke('account:get'),

@@ -23,15 +23,19 @@ const DEFAULTS = {
     thresholdMinutes: 5, // no mouse/keyboard for this long => idle
     warningEnabled: true, // show the "are you still there?" window
     warningCountdownSeconds: 60, // how long that window waits for a response
-    onTimeout: 'stop', // 'stop' = stop the tracker | 'keep' = keep running
-    discardIdleTime: true, // do not bill the idle stretch
+    // 'pause' keeps the session open and resumes by itself as soon as the
+    // employee touches the mouse again; 'stop' ends the session outright.
+    onTimeout: 'pause',
+    // Active and idle seconds are always recorded separately. This only decides
+    // whether idle counts towards the work total the employee is credited with.
+    countIdleAsWork: false,
     playSound: true,
   },
   general: {
+    theme: 'dark', // 'dark' | 'light'
     launchOnLogin: false,
     startTrackingOnLaunch: false,
     minimizeToTray: true,
-    confirmOnStop: false,
   },
   sync: {
     enabled: false,
@@ -75,7 +79,8 @@ function validate(settings) {
     const [group, key] = dotted.split('.');
     s[group][key] = clamp(Math.round(s[group][key]), range);
   }
-  if (!['stop', 'keep'].includes(s.idle.onTimeout)) s.idle.onTimeout = 'stop';
+  if (!['pause', 'stop'].includes(s.idle.onTimeout)) s.idle.onTimeout = 'pause';
+  if (!['dark', 'light'].includes(s.general.theme)) s.general.theme = 'dark';
   s.sync.serverUrl = String(s.sync.serverUrl || '').replace(/\/+$/, '');
   return s;
 }
@@ -90,6 +95,39 @@ function init() {
 
 function get() {
   return store.read();
+}
+
+/** Groups the employee is allowed to change from the UI. */
+const EMPLOYEE_EDITABLE = ['general'];
+
+/**
+ * What the renderer is allowed to see. Capture configuration is omitted
+ * entirely -- not merely hidden in the UI -- so opening devtools reveals
+ * nothing about it. The idle values are included because the app explains
+ * them to the employee.
+ */
+function publicView() {
+  const s = get();
+  return {
+    general: { ...s.general },
+    idle: {
+      enabled: s.idle.enabled,
+      thresholdMinutes: s.idle.thresholdMinutes,
+      onTimeout: s.idle.onTimeout,
+      countIdleAsWork: s.idle.countIdleAsWork,
+    },
+  };
+}
+
+/**
+ * Applies only the groups an employee may change. Monitoring policy is set by
+ * the organisation, so a patch touching anything else is ignored rather than
+ * trusted -- the renderer is the one surface an employee can reach.
+ */
+function setFromRenderer(patch) {
+  const allowed = Object.fromEntries(Object.entries(patch || {}).filter(([group]) => EMPLOYEE_EDITABLE.includes(group)));
+  set(allowed);
+  return publicView();
 }
 
 /** Patch is a partial settings tree; returns the full validated result. */
@@ -110,4 +148,4 @@ function onChange(fn) {
   return () => listeners.delete(fn);
 }
 
-module.exports = { init, get, set, reset, onChange, DEFAULTS };
+module.exports = { init, get, set, reset, onChange, publicView, setFromRenderer, DEFAULTS };

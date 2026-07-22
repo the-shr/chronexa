@@ -6,11 +6,10 @@ const settings = require('./lib/settings');
 const auth = require('./lib/auth');
 const db = require('./lib/db');
 const tracker = require('./lib/tracker');
+const tasks = require('./lib/tasks');
 const sync = require('./lib/sync');
 const windows = require('./lib/windows');
 const tray = require('./lib/tray');
-const screenshots = require('./lib/screenshots');
-const shotProtocol = require('./lib/protocol');
 const paths = require('./lib/paths');
 const log = require('./lib/log');
 
@@ -20,9 +19,6 @@ if (!app.requestSingleInstanceLock()) {
   process.exit(0);
 }
 
-// Must run before the app is ready.
-shotProtocol.registerScheme();
-
 let quitting = false;
 
 /* ------------------------------- bootstrap ------------------------------ */
@@ -31,7 +27,7 @@ app.whenReady().then(() => {
   settings.init();
   auth.init();
   db.init();
-  shotProtocol.handle();
+  tasks.init();
 
   windows.createMainWindow({ onCloseRequest: handleMainClose });
   tray.create({
@@ -39,7 +35,6 @@ app.whenReady().then(() => {
     onPause: () => tracker.pause(),
     onResume: () => tracker.resume(),
     onStop: () => tracker.stop('tray'),
-    onCapture: () => tracker.captureNow().catch((err) => log.error('capture-now', err)),
     onShow: () => windows.createMainWindow({ onCloseRequest: handleMainClose }),
     onQuit: () => quitApp(),
   });
@@ -48,14 +43,22 @@ app.whenReady().then(() => {
   wireTracker();
   wireSystemEvents();
   applyLaunchOnLogin();
-  settings.onChange((next) => {
-    windows.broadcast('settings:changed', next);
+  settings.onChange(() => {
+    windows.broadcast('settings:changed', settings.publicView());
     applyLaunchOnLogin();
     sync.start();
   });
 
   sync.on('status', (status) => windows.broadcast('sync:status', status));
   sync.start();
+
+  tasks.on('changed', (list) => windows.broadcast('tasks:changed', list));
+  tasks.start();
+  // A task ticked offline only reaches the server on the next sync; pull the
+  // authoritative list straight after so the two cannot drift.
+  sync.on('status', (status) => {
+    if (status.ok && status.pending === 0) tasks.refresh().catch(() => {});
+  });
 
   if (settings.get().general.startTrackingOnLaunch) tracker.start();
 
@@ -115,7 +118,7 @@ function wireTracker() {
     }
   });
 
-  tracker.on('screenshot', (rows) => windows.broadcast('tracker:screenshot', rows.length));
+  // Deliberately no 'screenshot' relay: nothing about capture reaches the UI.
 }
 
 function wireSystemEvents() {
@@ -149,28 +152,25 @@ handle('tracker:pause', () => tracker.pause());
 handle('tracker:resume', () => tracker.resume());
 handle('tracker:stop', (reason) => tracker.stop(reason || 'manual'));
 handle('tracker:snapshot', () => tracker.snapshot());
-handle('tracker:capture-now', async () => {
-  const rows = await tracker.captureNow();
-  return rows?.length || 0;
-});
 handle('tracker:acknowledge-idle', () => {
   const snapshot = tracker.acknowledgeIdle();
   windows.closeIdleWindow();
   return snapshot;
 });
 
-handle('settings:get', () => settings.get());
-handle('settings:set', (patch) => settings.set(patch || {}));
-handle('settings:reset', () => settings.reset());
+handle('settings:get', () => settings.publicView());
+handle('settings:set', (patch) => settings.setFromRenderer(patch));
 
-handle('history:sessions', (opts) => db.listSessions(opts || {}));
-handle('history:screenshots', (opts) => db.listScreenshots(opts || {}));
-handle('history:delete-screenshot', (id) => {
-  const row = db.removeScreenshot(id);
-  if (row) screenshots.remove(row);
-  return Boolean(row);
-});
-handle('history:open-folder', () => shell.openPath(paths.screenshotDir()));
+// Sessions reach the renderer without their capture counts: the agent UI has
+// no screenshot surface and must not hint at one.
+handle('history:sessions', (opts) =>
+  db.listSessions(opts || {}).map(({ screenshotCount, ...session }) => session),
+);
+handle('history:daily', (days) => db.dailyTotals(days || 7));
+
+handle('tasks:list', () => tasks.list());
+handle('tasks:refresh', () => tasks.refresh());
+handle('tasks:set-status', ({ id, status }) => tasks.setStatus(id, status));
 
 handle('account:get', () => {
   const { user, deviceName } = auth.get();

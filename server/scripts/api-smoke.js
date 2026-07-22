@@ -153,6 +153,59 @@ check('accepts but clamps an impossible duration', absurd.ok, `HTTP ${absurd.sta
   }
 }
 
+/* --------------------------------- tasks -------------------------------- */
+
+{
+  const mine = await prisma.task.create({
+    data: { userId: created.user.id, title: 'Smoke task', priority: 'high', description: 'assigned by the test' },
+  });
+
+  const listed = await fetch(`${base}/api/agent/tasks`, { headers: auth });
+  check('lists assigned tasks', listed.ok, `HTTP ${listed.status}`);
+  const { tasks } = await listed.json();
+  check('includes the assigned task', tasks.some((t) => t.id === mine.id), `${tasks.length} task(s)`);
+  check('does not leak internal fields', tasks.every((t) => !('createdById' in t) && !('userId' in t)));
+
+  const patch = (id, body, headers = auth) =>
+    fetch(`${base}/api/agent/tasks/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', ...headers },
+      body: JSON.stringify(body),
+    });
+
+  const badStatus = await patch(mine.id, { status: 'cancelled' });
+  check('rejects an unknown status', badStatus.status === 400, `HTTP ${badStatus.status}`);
+
+  const completed = await patch(mine.id, { status: 'done' });
+  check('marks a task done', completed.ok, `HTTP ${completed.status}`);
+  const after = await prisma.task.findUnique({ where: { id: mine.id } });
+  check('records when it was completed', Boolean(after.completedAt), after.completedAt?.toISOString());
+
+  const reopened = await patch(mine.id, { status: 'open' });
+  check('reopens a task', reopened.ok && !(await prisma.task.findUnique({ where: { id: mine.id } })).completedAt);
+
+  // A task belonging to someone else must be invisible, not merely read-only.
+  const other = await createUser({
+    name: 'Other Employee',
+    email: `api-smoke-other-${Date.now()}@example.com`,
+    role: 'employee',
+    password: 'otherpass123',
+  });
+  const theirs = await prisma.task.create({ data: { userId: other.user.id, title: 'Not yours' } });
+
+  const stealRead = await fetch(`${base}/api/agent/tasks`, { headers: auth });
+  const { tasks: visible } = await stealRead.json();
+  check("cannot see another employee's task", !visible.some((t) => t.id === theirs.id));
+
+  const stealWrite = await patch(theirs.id, { status: 'done' });
+  check("cannot complete another employee's task", stealWrite.status === 404, `HTTP ${stealWrite.status}`);
+
+  const unauth = await patch(mine.id, { status: 'done' }, {});
+  check('rejects an unauthenticated task update', unauth.status === 401, `HTTP ${unauth.status}`);
+
+  await prisma.user.deleteMany({ where: { id: other.user.id } });
+}
+
 /* -------------------------------- cleanup ------------------------------- */
 
 // Remove the uploaded objects before the rows cascade away with the user,

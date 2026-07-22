@@ -44,7 +44,7 @@ app.whenReady().then(async () => {
       warningEnabled: true,
       warningCountdownSeconds: 10,
       onTimeout: 'stop',
-      discardIdleTime: true,
+      countIdleAsWork: false,
       playSound: false,
     },
   });
@@ -116,9 +116,72 @@ app.whenReady().then(async () => {
   await wait(2200);
   check('resumes counting time', tracker.session.activeSeconds > activeAfterResume);
 
+  /* ------- scenario 2b: idle pauses the session, input resumes it -------- */
+
+  settings.set({ idle: { onTimeout: 'pause' } });
+  tracker.stop('manual');
+
+  fakeIdleSeconds = 0;
+  tracker.start({ taskNote: 'pause and resume' });
+  await wait(2200);
+  const beforePause = tracker.session.activeSeconds;
+
+  fakeIdleSeconds = 70; // away, and nobody answers the warning
+  await wait(12000);
+
+  check('stays running instead of stopping', tracker.state === 'running', tracker.state);
+  check('sits in the idle phase', tracker.idlePhase === 'idle', tracker.idlePhase);
+  const pausedActive = tracker.session.activeSeconds;
+  const pausedIdle = tracker.session.idleSeconds;
+  check('stops crediting active time while paused', pausedActive <= beforePause, `${pausedActive}s`);
+  check('still records the idle seconds', pausedIdle >= 10, `${pausedIdle}s idle`);
+
+  fakeIdleSeconds = 0; // employee touches the mouse
+  await wait(2200);
+  check('resumes by itself on input', tracker.idlePhase === 'active', tracker.idlePhase);
+  check('counts time again after resuming', tracker.session.activeSeconds > pausedActive);
+  check('keeps the same session across the pause', tracker.session.taskNote === 'pause and resume');
+
+  const snap = tracker.snapshot();
+  check('reports an active/idle split for today', snap.today.activeSeconds > 0 && snap.today.idleSeconds > 0, `${snap.today.activeSeconds}s / ${snap.today.idleSeconds}s`);
+  check('reports a productivity percentage', typeof snap.today.productivity === 'number', `${snap.today.productivity}%`);
+  check('hides capture activity from the renderer', !('screenshotCount' in (snap.session || {})) && !('nextShotInSeconds' in snap));
+
+  settings.set({ idle: { countIdleAsWork: true } });
+  const counted = tracker.snapshot().today;
+  check(
+    'counts idle as work when the policy says so',
+    counted.workSeconds === counted.activeSeconds + counted.idleSeconds,
+    `${counted.workSeconds}s`,
+  );
+  settings.set({ idle: { countIdleAsWork: false } });
+  const split = tracker.snapshot().today;
+  check('excludes idle from work otherwise', split.workSeconds === split.activeSeconds, `${split.workSeconds}s`);
+
+  tracker.stop('manual');
+
+  /* ---------- scenario 2c: the renderer cannot see or change policy ------ */
+
+  const view = settings.publicView();
+  check('hides capture settings from the renderer', !('screenshots' in view), Object.keys(view).join(','));
+  check('still exposes the idle rules it explains to the employee', view.idle.thresholdMinutes > 0);
+  check('hides the warning countdown internals', !('warningCountdownSeconds' in view.idle));
+
+  const before = settings.get().screenshots.enabled;
+  settings.setFromRenderer({ screenshots: { enabled: false }, idle: { enabled: false } });
+  check('ignores a renderer patch aimed at capture', settings.get().screenshots.enabled === before);
+  check('ignores a renderer patch aimed at idle policy', settings.get().idle.enabled === true);
+
+  settings.setFromRenderer({ general: { theme: 'light' } });
+  check('applies the employee-owned preferences', settings.get().general.theme === 'light');
+  settings.setFromRenderer({ general: { theme: 'dark' } });
+
   /* ---------------- scenario 3: screenshots land on disk ---------------- */
 
   settings.set({ screenshots: { enabled: true, quality: 40, maxWidth: 800, allMonitors: false, notifyOnCapture: false } });
+  fakeIdleSeconds = 0;
+  tracker.start({ taskNote: 'capture' }); // capture needs a live session
+  await wait(2200); // and a few ticks, so there is activity to summarise
   const rows = await tracker.captureNow();
   check('captures a screenshot', rows?.length > 0, `${rows?.length || 0} image(s)`);
   if (rows?.length) {

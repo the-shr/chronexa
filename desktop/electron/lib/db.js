@@ -47,23 +47,41 @@ function getSession(id) {
   return sessions.read().rows.find((r) => r.id === id) || null;
 }
 
+function dayBounds(date) {
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+  return [start.getTime(), start.getTime() + 86400000];
+}
+
 /**
- * Total tracked seconds for a calendar day in the local timezone. `excludeId`
+ * Active and idle seconds for a calendar day in the local timezone. `excludeId`
  * lets the tracker leave out the live session, whose persisted row is always a
  * few seconds behind its in-memory counter.
  */
-function secondsOnDay(date = new Date(), { excludeId = null } = {}) {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start.getTime() + 86400000);
-  return sessions
-    .read()
-    .rows.filter((r) => {
-      if (r.id === excludeId) return false;
+function totalsOnDay(date = new Date(), { excludeId = null } = {}) {
+  const [start, end] = dayBounds(date);
+  return sessions.read().rows.reduce(
+    (totals, r) => {
+      if (r.id === excludeId) return totals;
       const t = new Date(r.startedAt).getTime();
-      return t >= start.getTime() && t < end.getTime();
-    })
-    .reduce((sum, r) => sum + (r.activeSeconds || 0), 0);
+      if (t < start || t >= end) return totals;
+      totals.activeSeconds += r.activeSeconds || 0;
+      totals.idleSeconds += r.idleSeconds || 0;
+      return totals;
+    },
+    { activeSeconds: 0, idleSeconds: 0 },
+  );
+}
+
+/** Per-day totals for the last `days` days, oldest first -- feeds the weekly chart. */
+function dailyTotals(days = 7, { excludeId = null } = {}) {
+  const out = [];
+  for (let i = days - 1; i >= 0; i -= 1) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    out.push({ date: date.toISOString(), ...totalsOnDay(date, { excludeId }) });
+  }
+  return out;
 }
 
 /* ------------------------------ screenshots ----------------------------- */
@@ -151,7 +169,8 @@ module.exports = {
   upsertSession,
   listSessions,
   getSession,
-  secondsOnDay,
+  totalsOnDay,
+  dailyTotals,
   addScreenshots,
   listScreenshots,
   getScreenshot,

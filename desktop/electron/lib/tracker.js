@@ -17,14 +17,24 @@ const ACTIVITY_SAMPLE_SECONDS = 60;
 /**
  * The tracker is a one-second state machine.
  *
- *   stopped ──start──► running ──idle threshold──► warning ──timeout──► stopped
- *                         ▲                           │
- *                         └────── input detected ─────┘
+ *   stopped ──start──► active ──idle threshold──► warning ──timeout──► idle
+ *                        ▲                          │                   │
+ *                        └───────── input detected ─┴───────────────────┘
+ *
+ * Idle pauses rather than stops: the session stays open and resumes by itself
+ * the moment the employee touches the mouse again. Active and idle seconds are
+ * always recorded separately; settings.idle.countIdleAsWork decides which of
+ * them the employee is credited with.
  *
  * Idle is measured with powerMonitor.getSystemIdleTime(), which reports OS-wide
  * seconds since the last mouse or keyboard event. That avoids installing a
  * global input hook, so the app needs no elevated permissions and cannot read
  * what the employee actually types.
+ *
+ * Screenshot capture is intentionally invisible to the renderer: snapshot()
+ * exposes no capture counts, timings or settings. The agent UI has no surface
+ * for it at all, and disclosure is handled through the employment agreement
+ * rather than the app.
  */
 class Tracker extends EventEmitter {
   constructor() {
@@ -42,7 +52,7 @@ class Tracker extends EventEmitter {
 
   /* ------------------------------ lifecycle ----------------------------- */
 
-  start({ projectId = null, taskNote = '' } = {}) {
+  start({ taskId = null, taskNote = '' } = {}) {
     if (this.state === 'running') return this.snapshot();
     if (this.state === 'paused') return this.resume();
 
@@ -52,7 +62,7 @@ class Tracker extends EventEmitter {
       endedAt: null,
       activeSeconds: 0,
       idleSeconds: 0,
-      projectId,
+      taskId,
       taskNote,
       stopReason: null,
       screenshotCount: 0,
@@ -156,7 +166,10 @@ class Tracker extends EventEmitter {
             this.stop('idle-timeout');
             return;
           }
+          // Paused, not stopped: the session stays open and the branch above
+          // resumes it the moment any input arrives.
           this.idlePhase = 'idle';
+          log.info('tracker: paused on idle, waiting for input');
         }
       }
     }
@@ -174,14 +187,15 @@ class Tracker extends EventEmitter {
     this.idlePhase = 'warning';
     this.warningDeadline = now + (cfg.idle.warningEnabled ? cfg.idle.warningCountdownSeconds * 1000 : 0);
 
-    // The threshold window was already counted as active while we waited to be
-    // sure. Move it to the idle column so the employee is not billed for it.
-    if (cfg.idle.discardIdleTime) {
+    // The threshold window was counted as active while we waited to be sure the
+    // employee had really gone. Move it to the idle column, unless idle counts
+    // as work anyway, in which case the split does not change the total.
+    if (!cfg.idle.countIdleAsWork) {
       const threshold = cfg.idle.thresholdMinutes * 60;
       const reclaimed = Math.min(threshold, this.session.activeSeconds);
       this.session.activeSeconds -= reclaimed;
       this.session.idleSeconds += reclaimed;
-      log.info('tracker: discarded', reclaimed, 'idle seconds');
+      log.info('tracker: moved', reclaimed, 'seconds from active to idle');
     }
 
     if (cfg.idle.warningEnabled) {
@@ -260,16 +274,31 @@ class Tracker extends EventEmitter {
 
   snapshot() {
     const cfg = settings.get();
+    const today = db.totalsOnDay(new Date(), { excludeId: this.session?.id });
+    const activeSeconds = today.activeSeconds + (this.session?.activeSeconds || 0);
+    const idleSeconds = today.idleSeconds + (this.session?.idleSeconds || 0);
+
     return {
       state: this.state,
       idlePhase: this.idlePhase,
-      session: this.session,
-      todaySeconds: db.secondsOnDay(new Date(), { excludeId: this.session?.id }) + (this.session?.activeSeconds || 0),
+      // Capture activity is deliberately absent from everything the renderer
+      // receives -- see the note on this class.
+      session: this.session && {
+        id: this.session.id,
+        startedAt: this.session.startedAt,
+        activeSeconds: this.session.activeSeconds,
+        idleSeconds: this.session.idleSeconds,
+        taskId: this.session.taskId,
+        taskNote: this.session.taskNote,
+      },
+      today: {
+        activeSeconds,
+        idleSeconds,
+        // What the employee is credited with, per the admin's idle policy.
+        workSeconds: activeSeconds + (cfg.idle.countIdleAsWork ? idleSeconds : 0),
+        productivity: activeSeconds + idleSeconds > 0 ? Math.round((activeSeconds / (activeSeconds + idleSeconds)) * 100) : null,
+      },
       systemIdleSeconds: powerMonitor.getSystemIdleTime(),
-      nextShotInSeconds:
-        this.state === 'running' && cfg.screenshots.enabled
-          ? Math.max(0, Math.round((this.nextShotAt - Date.now()) / 1000))
-          : null,
       warningRemainingSeconds:
         this.idlePhase === 'warning' ? Math.max(0, Math.round((this.warningDeadline - Date.now()) / 1000)) : null,
     };

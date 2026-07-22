@@ -31,9 +31,20 @@ export async function POST(request) {
   // Clamp the counters: they arrive from a machine the employee controls.
   const clampSeconds = (n) => Math.min(MAX_SESSION_SECONDS, Math.max(0, Math.floor(Number(n) || 0)));
 
+  // Only link a task the caller actually owns.
+  let taskId = null;
+  if (body.taskId) {
+    const owned = await prisma.task.findFirst({
+      where: { id: String(body.taskId), userId: device.userId },
+      select: { id: true },
+    });
+    taskId = owned?.id ?? null;
+  }
+
   const data = {
     userId: device.userId,
     deviceId: device.id,
+    taskId,
     startedAt,
     endedAt: toDate(body.endedAt),
     activeSeconds: clampSeconds(body.activeSeconds),
