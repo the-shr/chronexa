@@ -27,6 +27,7 @@ const paths = {
   screenshotsFile: () => path.join(root(), 'screenshots.json'),
   outboxFile: () => path.join(root(), 'outbox.json'),
   tasksFile: () => path.join(root(), 'tasks.json'),
+  profileFile: () => path.join(root(), 'profile.json'),
   screenshotDir: () => ensureDir(path.join(root(), 'screenshots')),
   thumbDir: () => ensureDir(path.join(root(), 'screenshots', 'thumbs')),
   logFile: () => path.join(root(), 'chronexa.log'),

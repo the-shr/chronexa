@@ -5,7 +5,8 @@ import Tasks from './pages/Tasks.jsx';
 import Calendar from './pages/Calendar.jsx';
 import Activity from './pages/Activity.jsx';
 import Settings from './pages/Settings.jsx';
-import { useTrackerState, useTasks, useTheme, useAccount } from './lib/hooks.js';
+import Profile from './pages/Profile.jsx';
+import { useTrackerState, useTasks, useTheme, useAccount, useProfile } from './lib/hooks.js';
 import { IconSun, IconMoon, IconBell, IconSettings } from './components/Icons.jsx';
 
 const TABS = [
@@ -21,6 +22,7 @@ export default function App() {
   const tasks = useTasks();
   const [theme, toggleTheme] = useTheme();
   const [account] = useAccount();
+  const { profile } = useProfile();
 
   // Say what happened rather than showing an empty window.
   if (error) {
@@ -48,7 +50,8 @@ export default function App() {
     );
   }
 
-  const name = account?.user?.name || account?.user?.email || 'Not signed in';
+  const name = profile?.user?.name || account?.user?.name || account?.user?.email || 'Not signed in';
+  const avatar = profile?.avatar || null;
 
   return (
     <div className="app">
@@ -85,9 +88,13 @@ export default function App() {
           {tasks.open.length > 0 && <i className="dot" />}
         </button>
 
-        <span className="avatar" title={name}>
-          {initials(name)}
-        </span>
+        <button
+          className={tab === 'profile' ? 'avatar as-button active' : 'avatar as-button'}
+          onClick={() => setTab('profile')}
+          title="Your profile"
+        >
+          {avatar ? <img src={avatar} alt="" /> : initials(name)}
+        </button>
       </header>
 
       <main className="content">
@@ -96,6 +103,7 @@ export default function App() {
         {tab === 'calendar' && <Calendar />}
         {tab === 'activity' && <Activity snapshot={snapshot} />}
         {tab === 'settings' && <Settings />}
+        {tab === 'profile' && <Profile />}
       </main>
     </div>
   );

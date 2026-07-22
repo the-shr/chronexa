@@ -41,6 +41,12 @@ async function login({ email, password }) {
   return data.user;
 }
 
+/** Keeps the cached identity in step after a profile edit. */
+function updateUser(user) {
+  store.write({ ...get(), user: { ...(get().user || {}), ...user } });
+  store.flush();
+}
+
 function logout() {
   store.write({ token: null, user: null, deviceName: os.hostname() });
   store.flush();
@@ -51,4 +57,4 @@ function authHeaders() {
   return token ? { authorization: `Bearer ${token}` } : {};
 }
 
-module.exports = { init, get, isSignedIn, login, logout, authHeaders };
+module.exports = { init, get, isSignedIn, login, logout, authHeaders, updateUser };

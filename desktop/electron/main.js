@@ -7,6 +7,7 @@ const auth = require('./lib/auth');
 const db = require('./lib/db');
 const tracker = require('./lib/tracker');
 const tasks = require('./lib/tasks');
+const profile = require('./lib/profile');
 const sync = require('./lib/sync');
 const windows = require('./lib/windows');
 const tray = require('./lib/tray');
@@ -28,6 +29,7 @@ app.whenReady().then(() => {
   auth.init();
   db.init();
   tasks.init();
+  profile.init();
 
   windows.createMainWindow({ onCloseRequest: handleMainClose });
   tray.create({
@@ -54,6 +56,9 @@ app.whenReady().then(() => {
 
   tasks.on('changed', (list) => windows.broadcast('tasks:changed', list));
   tasks.start();
+
+  profile.on('changed', (p) => windows.broadcast('profile:changed', p));
+  profile.refresh().catch(() => {});
   // A task ticked offline only reaches the server on the next sync; pull the
   // authoritative list straight after so the two cannot drift.
   sync.on('status', (status) => {
@@ -182,11 +187,34 @@ handle('account:get', () => {
 handle('account:login', async (creds) => {
   const user = await auth.login(creds);
   sync.start();
+  profile.refresh().catch(() => {});
   return user;
 });
 handle('account:logout', () => {
   auth.logout();
   return true;
+});
+
+handle('profile:get', () => profile.get());
+handle('profile:refresh', () => profile.refresh());
+handle('profile:update', (patch) => profile.update(patch || {}));
+handle('profile:change-password', (body) => profile.changePassword(body || {}));
+handle('profile:remove-avatar', () => profile.removeAvatar());
+
+// The renderer has no filesystem access, so the picker and the read both
+// happen here and only the result crosses the bridge.
+handle('profile:pick-avatar', async () => {
+  const result = await dialog.showOpenDialog(windows.getMainWindow(), {
+    title: 'Choose a profile picture',
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'webp'] }],
+  });
+  if (result.canceled || !result.filePaths.length) return { cancelled: true };
+
+  const file = result.filePaths[0];
+  const bytes = require('node:fs').readFileSync(file);
+  if (bytes.length > 3 * 1024 * 1024) throw new Error('That picture is too large. Keep it under 3 MB.');
+  return profile.setAvatar(bytes, require('node:path').basename(file));
 });
 
 handle('sync:now', () => sync.run());

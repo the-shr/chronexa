@@ -45,6 +45,15 @@ contextBridge.exposeInMainWorld('api', {
     reorder: (ids) => invoke('tasks:reorder', ids),
     onChange: (fn) => subscribe('tasks:changed', fn),
   },
+  profile: {
+    get: () => invoke('profile:get'),
+    refresh: () => invoke('profile:refresh'),
+    update: (patch) => invoke('profile:update', patch),
+    changePassword: (body) => invoke('profile:change-password', body),
+    pickAvatar: () => invoke('profile:pick-avatar'),
+    removeAvatar: () => invoke('profile:remove-avatar'),
+    onChange: (fn) => subscribe('profile:changed', fn),
+  },
   account: {
     get: () => invoke('account:get'),
     login: (creds) => invoke('account:login', creds),

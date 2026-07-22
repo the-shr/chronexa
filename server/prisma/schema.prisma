@@ -22,6 +22,9 @@ model User {
   passwordHash String
   role         String   @default("employee") // employee | admin
   active       Boolean  @default(true)
+  // Storage reference for the profile picture, in the same form as a
+  // screenshot's: `r2:<key>` or a relative path. Null means use initials.
+  avatarPath   String?
   createdAt    DateTime @default(now())
 
   devices     Device[]

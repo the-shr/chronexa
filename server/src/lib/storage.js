@@ -27,13 +27,17 @@ export const driver = process.env.STORAGE_DRIVER || (R2_CONFIGURED ? 'r2' : 'loc
 export const DRIVERS = ['local', 'r2'];
 
 /**
- * Key prefix inside the bucket. Use a bucket dedicated to this app with an API
- * token scoped to it: a prefix keeps keys tidy, but a bucket-wide delete script
- * belonging to another app does not care about prefixes, and a shared token
- * means a breach in either app exposes both.
+ * Key prefix inside the bucket. Screenshots and avatars are filed beneath it in
+ * their own folders. Use a bucket dedicated to this app with an API token scoped
+ * to it: a prefix keeps keys tidy, but a bucket-wide delete script belonging to
+ * another app does not care about prefixes, and a shared token means a breach in
+ * either app exposes both.
+ *
+ * Changing this only affects new writes -- reads use the reference stored on the
+ * row, so anything already uploaded keeps working.
  */
 export function keyPrefix() {
-  return (process.env.R2_PREFIX || 'screenshots').replace(/^\/+|\/+$/g, '');
+  return (process.env.R2_PREFIX || 'chronexa').replace(/^\/+|\/+$/g, '');
 }
 
 /* --------------------------------- local -------------------------------- */
@@ -94,7 +98,7 @@ async function s3Client() {
 }
 
 const r2Driver = {
-  async put(key, bytes) {
+  async put(key, bytes, contentType = 'image/jpeg') {
     const { PutObjectCommand } = await import('@aws-sdk/client-s3');
     const fullKey = `${keyPrefix()}/${key}`;
     await (
@@ -104,7 +108,7 @@ const r2Driver = {
         Bucket: process.env.R2_BUCKET,
         Key: fullKey,
         Body: bytes,
-        ContentType: 'image/jpeg',
+        ContentType: contentType,
         CacheControl: 'private, max-age=31536000, immutable',
       }),
     );
@@ -157,19 +161,28 @@ function activeDriver() {
 }
 
 /**
- * Stores one screenshot and returns the reference to persist on the row --
- * a relative path for local, an `r2:`-prefixed object key for R2.
+ * Stores one object and returns the reference to persist on the row -- a
+ * relative path for local, an `r2:`-prefixed object key for R2.
  */
-export async function putScreenshot(key, bytes) {
-  return activeDriver().put(key, bytes);
+export async function putObject(key, bytes, contentType = 'image/jpeg') {
+  return activeDriver().put(key, bytes, contentType);
 }
 
-export async function getScreenshot(reference) {
+export async function getObject(reference) {
   if (!reference) return null;
   return driverFor(reference).get(reference);
 }
 
-export async function removeScreenshot(reference) {
+export async function removeObject(reference) {
   if (!reference) return;
   return driverFor(reference).remove(reference);
 }
+
+/* Screenshots and avatars differ only in the key they are filed under. */
+export const putScreenshot = (key, bytes) => putObject(`screenshots/${key}`, bytes, 'image/jpeg');
+export const getScreenshot = getObject;
+export const removeScreenshot = removeObject;
+
+export const putAvatar = (key, bytes, contentType) => putObject(`avatars/${key}`, bytes, contentType);
+export const getAvatar = getObject;
+export const removeAvatar = removeObject;

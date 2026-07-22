@@ -126,3 +126,43 @@ export function useAccount() {
   }, [refresh]);
   return [account, refresh];
 }
+
+/** The employee's own account: identity, picture, and the ways to change them. */
+export function useProfile() {
+  const [profile, setProfile] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    window.api.profile.get().then((p) => alive && setProfile(p));
+    const off = window.api.profile.onChange(setProfile);
+    // The cached copy renders instantly; this pulls anything changed elsewhere.
+    window.api.profile.refresh().catch(() => {});
+    return () => {
+      alive = false;
+      off();
+    };
+  }, []);
+
+  const update = useCallback(async (patch) => {
+    const next = await window.api.profile.update(patch);
+    setProfile(next);
+    return next;
+  }, []);
+
+  const changePassword = useCallback((body) => window.api.profile.changePassword(body), []);
+
+  const pickAvatar = useCallback(async () => {
+    const next = await window.api.profile.pickAvatar();
+    if (next?.cancelled) throw new Error('No picture chosen.');
+    setProfile(next);
+    return next;
+  }, []);
+
+  const removeAvatar = useCallback(async () => {
+    const next = await window.api.profile.removeAvatar();
+    setProfile(next);
+    return next;
+  }, []);
+
+  return { profile, update, changePassword, pickAvatar, removeAvatar };
+}

@@ -9,7 +9,15 @@
  */
 
 const DAY = 86400000;
-const listeners = { tracker: [], settings: [], tasks: [], sync: [] };
+const listeners = { tracker: [], settings: [], tasks: [], sync: [], profile: [] };
+
+let mockProfile = {
+  user: { id: 'u1', name: 'Rahim Uddin', email: 'rahim@example.com', role: 'employee', hasAvatar: false },
+  fetchedAt: new Date().toISOString(),
+  signedIn: true,
+  deviceName: 'DESIGN-PREVIEW',
+  avatar: null,
+};
 
 // Mirrors settings.publicView() exactly -- the renderer never sees more than
 // this, so neither does the mock.
@@ -167,6 +175,23 @@ export function installMockApi() {
         return tasks;
       },
       onChange: (fn) => subscribe('tasks', fn),
+    },
+    profile: {
+      get: async () => mockProfile,
+      refresh: async () => mockProfile,
+      update: async (patch) => {
+        mockProfile = { ...mockProfile, user: { ...mockProfile.user, ...patch } };
+        emit('profile', mockProfile);
+        return mockProfile;
+      },
+      changePassword: async () => ({ ok: true, otherDevicesSignedOut: 1 }),
+      pickAvatar: async () => mockProfile,
+      removeAvatar: async () => {
+        mockProfile = { ...mockProfile, avatar: null };
+        emit('profile', mockProfile);
+        return mockProfile;
+      },
+      onChange: (fn) => subscribe('profile', fn),
     },
     account: {
       get: async () => ({ signedIn: true, deviceName: 'DESIGN-PREVIEW', user: { name: 'Rahim Uddin', email: 'rahim@example.com' } }),

@@ -30,7 +30,7 @@ const SIZES = [
 ];
 
 const CHECK = `(async () => {
-  const pages = ['Dashboard', 'Tasks', 'Calendar', 'Activity', 'Setting'];
+  const pages = ['Dashboard', 'Tasks', 'Calendar', 'Activity', 'Setting', 'Profile'];
   const problems = [];
   const vis = (e) => getComputedStyle(e).display !== 'none';
 
@@ -39,7 +39,10 @@ const CHECK = `(async () => {
   }
 
   for (const p of pages) {
-    const tab = [...document.querySelectorAll('.top-tab, .setting-pill')].find((b) => b.textContent.includes(p));
+    // Profile has no tab of its own; it opens from the avatar in the corner.
+    const tab = p === 'Profile'
+      ? document.querySelector('.avatar.as-button')
+      : [...document.querySelectorAll('.top-tab, .setting-pill')].find((b) => b.textContent.includes(p));
     if (!tab) { problems.push(p + ': tab missing'); continue; }
     tab.click();
     await new Promise((r) => setTimeout(r, 420));
