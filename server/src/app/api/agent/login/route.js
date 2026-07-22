@@ -29,7 +29,7 @@ export async function POST(request) {
     [ipKey, LOGIN_LIMITS.perIp],
     [accountKey, LOGIN_LIMITS.perAccount],
   ]) {
-    const result = rateLimit(key, policy);
+    const result = await rateLimit(key, policy);
     if (!result.allowed) {
       return Response.json(
         { error: 'Too many sign-in attempts. Try again shortly.' },
@@ -45,7 +45,7 @@ export async function POST(request) {
   }
 
   // Success: don't let earlier typos count against this account.
-  clearRateLimit(accountKey);
+  await clearRateLimit(accountKey);
 
   const deviceName = String(body.deviceName || 'Unknown device').slice(0, 120);
   const platform = String(body.platform || 'unknown').slice(0, 40);

@@ -1,12 +1,18 @@
-// SQLite keeps local setup to a single file. Switching to Postgres/Neon later
-// is a provider change plus a fresh migration -- no model changes required.
 generator client {
   provider = "prisma-client-js"
 }
 
+// Postgres, because the app deploys to Vercel where there is no persistent
+// filesystem for SQLite to live on.
+//
+// DATABASE_URL should be the *pooled* connection string (Neon's -pooler host,
+// or Vercel Postgres' POSTGRES_PRISMA_URL): serverless functions open far more
+// connections than a Postgres instance will accept directly.
+// DIRECT_URL is the unpooled string, used only for migrations.
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {

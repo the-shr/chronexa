@@ -60,28 +60,60 @@ check(
   Boolean(withEnv({ SESSION_SECRET: goodSecret, DATABASE_URL: undefined }, register)?.includes('DATABASE_URL')),
 );
 check(
-  'starts with a valid configuration',
-  withEnv({ SESSION_SECRET: goodSecret, DATABASE_URL: 'file:./dev.db' }, register) === null,
+  'refuses a leftover SQLite DATABASE_URL',
+  Boolean(
+    withEnv({ SESSION_SECRET: goodSecret, DATABASE_URL: 'file:./dev.db' }, register)?.includes('SQLite'),
+  ),
+);
+
+const validEnv = { SESSION_SECRET: goodSecret, DATABASE_URL: 'postgresql://u:p@host/db', STORAGE_DRIVER: 'local' };
+check('starts with a valid configuration', withEnv(validEnv, register) === null);
+
+// The failure mode this catches is nasty: uploads appear to succeed on Vercel
+// and then vanish with the instance.
+check(
+  'refuses local storage on a serverless platform',
+  Boolean(withEnv({ ...validEnv, VERCEL: '1' }, register)?.includes('serverless')),
+);
+check(
+  'refuses vercel-blob without a token',
+  Boolean(
+    withEnv({ ...validEnv, STORAGE_DRIVER: 'vercel-blob', BLOB_READ_WRITE_TOKEN: undefined }, register)?.includes(
+      'BLOB_READ_WRITE_TOKEN',
+    ),
+  ),
+);
+check(
+  'refuses an unknown storage driver',
+  Boolean(withEnv({ ...validEnv, STORAGE_DRIVER: 'dropbox' }, register)?.includes('STORAGE_DRIVER')),
+);
+check(
+  'accepts vercel-blob on Vercel with a token',
+  withEnv(
+    { ...validEnv, VERCEL: '1', STORAGE_DRIVER: 'vercel-blob', BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_test' },
+    register,
+  ) === null,
 );
 
 /* --------------------- rate limiter behaviour (unit) -------------------- */
 
 resetAllRateLimits();
 const policy = { limit: 3, windowMs: 60_000 };
-const outcomes = [1, 2, 3, 4, 5].map(() => rateLimit('unit-test', policy).allowed);
+const outcomes = [];
+for (let i = 0; i < 5; i += 1) outcomes.push((await rateLimit('unit-test', policy)).allowed);
 check('allows up to the limit', outcomes.slice(0, 3).every(Boolean), outcomes.join(','));
 check('blocks past the limit', outcomes.slice(3).every((a) => a === false));
 
-const blocked = rateLimit('unit-test', policy);
+const blocked = await rateLimit('unit-test', policy);
 check('reports a retry-after', blocked.retryAfterSeconds > 0, `${blocked.retryAfterSeconds}s`);
 
 resetAllRateLimits();
-check('is independent per key', rateLimit('unit-test', policy).allowed);
+check('is independent per key', (await rateLimit('unit-test', policy)).allowed);
 
 const windowed = { limit: 1, windowMs: 1 };
-rateLimit('expiring', windowed);
+await rateLimit('expiring', windowed);
 await new Promise((r) => setTimeout(r, 12));
-check('resets once the window passes', rateLimit('expiring', windowed).allowed);
+check('resets once the window passes', (await rateLimit('expiring', windowed)).allowed);
 
 /* ------------------------------ live server ----------------------------- */
 

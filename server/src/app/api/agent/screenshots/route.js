@@ -1,9 +1,8 @@
-import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { prisma } from '@/lib/db.js';
 import { deviceFromRequest } from '@/lib/auth.js';
-import { uploadRoot } from '@/lib/storage.js';
+import { putScreenshot } from '@/lib/storage.js';
 
 const MAX_BYTES = 8 * 1024 * 1024;
 
@@ -57,11 +56,9 @@ export async function POST(request) {
   }
 
   const day = capturedAt.toISOString().slice(0, 10);
-  // The path is built from ids we control, never from client-supplied filenames.
-  const relative = path.posix.join(device.userId, day, `${clientId.replace(/[^\w.-]/g, '_')}.jpg`);
-  const absolute = path.join(uploadRoot(), relative);
-  await fs.mkdir(path.dirname(absolute), { recursive: true });
-  await fs.writeFile(absolute, bytes);
+  // The key is built from ids we control, never from client-supplied filenames.
+  const key = path.posix.join(device.userId, day, `${clientId.replace(/[^\w.-]/g, '_')}.jpg`);
+  const storagePath = await putScreenshot(key, bytes);
 
   // Only link the session if it really belongs to this user.
   let sessionId = null;
@@ -88,7 +85,7 @@ export async function POST(request) {
         ? null
         : Math.min(100, Math.max(0, Math.floor(Number(meta.activityPercent)))),
     blurred: Boolean(meta.blurred),
-    storagePath: relative,
+    storagePath,
   };
 
   const row = await prisma.screenshot.upsert({

@@ -59,13 +59,20 @@ Everything below is exposed in the app's Settings tab.
 
 ### Server
 
+Needs a Postgres database — a free [Neon](https://neon.tech) project is the
+quickest route, and it is the same database you can point production at.
+
 ```bash
 cd server
 npm install
-cp .env.example .env          # then set SESSION_SECRET to a random string
-npm run setup                 # creates the SQLite db and seeds accounts
+cp .env.example .env          # fill in DATABASE_URL, DIRECT_URL, SESSION_SECRET
+npm run setup                 # creates the tables and seeds accounts
 npm run dev                   # http://localhost:3000
 ```
+
+The server refuses to start if the configuration is wrong — a missing
+`SESSION_SECRET`, a leftover SQLite URL, or local file storage on a serverless
+platform all fail loudly at boot rather than breaking silently later.
 
 The seed creates `admin@example.com / admin12345` and
 `employee@example.com / employee1234`. **Change these before any real use** —
@@ -124,10 +131,50 @@ Local storage is JSON with atomic writes, so the agent has zero native
 dependencies. The `db.js` interface is deliberately SQLite-shaped if that
 becomes necessary at higher volume.
 
-**Server**: SQLite at `server/dev.db`, images under `server/uploads/`
-(override with `UPLOAD_DIR`). For production, change the Prisma provider to
-`postgresql` and point `UPLOAD_DIR` at a persistent volume — or replace
-`src/lib/storage.js` with an S3 client.
+**Server**: Postgres for all records. Screenshot images go through a storage
+driver selected by `STORAGE_DRIVER`:
+
+| Driver | Where images go | Use for |
+|---|---|---|
+| `local` | `UPLOAD_DIR` on disk | development, or a VPS with a real disk |
+| `vercel-blob` | Vercel Blob store | Vercel and anything else serverless |
+
+Whichever driver is active, images are only ever served back through
+`/api/image/:id`, which requires an admin session. The route streams the bytes
+itself, so the underlying storage URL never reaches the browser.
+
+Existing rows keep working after a driver change — the reference stored on each
+row determines how it is read back, not the current setting.
+
+## Deploying to Vercel
+
+The server is serverless-ready; the desktop agent is unaffected.
+
+1. **Database** — create a Neon or Vercel Postgres database. Set `DATABASE_URL`
+   to the **pooled** connection string and `DIRECT_URL` to the unpooled one.
+   Serverless functions exhaust direct Postgres connections quickly.
+2. **Storage** — add a Vercel Blob store to the project. Vercel injects
+   `BLOB_READ_WRITE_TOKEN`; set `STORAGE_DRIVER=vercel-blob`. Without this the
+   app refuses to boot, because local writes would silently disappear.
+3. **Rate limiting** — create a free Upstash Redis database and set
+   `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`. Without Redis each
+   serverless instance keeps its own counters, so the real limit is far higher
+   than intended.
+4. **Other env vars** — `SESSION_SECRET` (32+ random chars) and
+   `TRUST_PROXY=true`.
+5. **Root directory** — set the Vercel project's root to `server/`.
+6. Seed the first admin once, from your machine with the production
+   `DATABASE_URL` in the environment: `npm run db:seed`. Then sign in and create
+   real accounts from the **Employees** page.
+
+`vercel.json` runs `prisma migrate deploy` during the build, so schema changes
+ship with the deployment.
+
+One caveat worth knowing: Vercel Blob URLs are unguessable but technically
+public. Nothing hands them to the browser, so the practical exposure is small —
+but if that is unacceptable for your employees' screens, add an S3 driver with
+private objects to `src/lib/storage.js`. It only needs `put`, `get` and
+`remove`.
 
 ## API
 
@@ -174,9 +221,7 @@ Still your responsibility:
 - [ ] Change the seeded passwords (or delete those accounts once real ones exist).
 - [ ] Serve over HTTPS — device tokens are bearer credentials.
 - [ ] Set `TRUST_PROXY=true` if you run behind nginx / Vercel / Cloudflare.
-- [ ] Move to Postgres and durable object storage before real load.
-- [ ] Back the rate limiter with Redis if you run more than one instance —
-      counters are per-process, so N instances means N times the limit.
+- [ ] Configure Upstash Redis on any multi-instance or serverless deployment.
 - [ ] Set a retention policy. Screenshots accumulate indefinitely today.
 - [ ] Tell employees what is captured. The agent shows a capture notification by
       default and keeping that on is the honest default.

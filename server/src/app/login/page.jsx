@@ -21,7 +21,8 @@ export default async function LoginPage({ searchParams }) {
       [`admin-login:ip:${ip}`, LOGIN_LIMITS.perIp],
       [accountKey, LOGIN_LIMITS.perAccount],
     ]) {
-      if (!rateLimit(key, policy).allowed) redirect('/login?error=rate');
+      const { allowed } = await rateLimit(key, policy);
+      if (!allowed) redirect('/login?error=rate');
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
@@ -29,7 +30,7 @@ export default async function LoginPage({ searchParams }) {
       redirect('/login?error=1');
     }
 
-    clearRateLimit(accountKey);
+    await clearRateLimit(accountKey);
     await createAdminSession(user);
     redirect('/dashboard');
   }

@@ -1,11 +1,21 @@
 /**
- * Fixed-window rate limiter held in process memory.
+ * Fixed-window rate limiting with two backends.
  *
- * This is deliberately simple and has one limitation worth knowing: each server
- * instance keeps its own counters, so behind a load balancer the effective
- * limit is `limit x instances`. For a single-instance deployment that is fine.
- * If you scale out, back this with Redis and keep the same interface.
+ *   memory — per-process counters. Correct on a single long-lived server,
+ *            useless on serverless where every instance counts separately.
+ *   redis  — Upstash REST API, shared by every instance. Set
+ *            UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to enable.
+ *
+ * Redis is chosen automatically when those variables are present. If a Redis
+ * call fails the request is allowed through: a rate limiter that goes down
+ * should not take sign-in down with it.
  */
+
+export const usingRedis = Boolean(
+  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN,
+);
+
+/* -------------------------------- memory -------------------------------- */
 
 const buckets = new Map();
 const SWEEP_EVERY_MS = 60_000;
@@ -19,11 +29,7 @@ function sweep(now) {
   }
 }
 
-/**
- * Records one hit against `key`.
- * Returns { allowed, remaining, retryAfterSeconds }.
- */
-export function rateLimit(key, { limit, windowMs }) {
+function memoryLimit(key, { limit, windowMs }) {
   const now = Date.now();
   sweep(now);
 
@@ -40,13 +46,63 @@ export function rateLimit(key, { limit, windowMs }) {
   return { allowed: true, remaining: limit - entry.count, retryAfterSeconds: 0 };
 }
 
-/** Clears a key early -- used after a successful sign-in so one typo'd password
- *  does not count against someone who then got it right. */
-export function clearRateLimit(key) {
-  buckets.delete(key);
+/* --------------------------------- redis -------------------------------- */
+
+let redisClient = null;
+async function redis() {
+  if (!redisClient) {
+    const { Redis } = await import('@upstash/redis');
+    redisClient = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
+  }
+  return redisClient;
 }
 
-/** Test helper. */
+async function redisLimit(key, { limit, windowMs }) {
+  const client = await redis();
+  const count = await client.incr(key);
+  // Only the first hit sets the expiry, which is what makes this a fixed
+  // window rather than a rolling one that never lets the key die.
+  if (count === 1) await client.pexpire(key, windowMs);
+
+  if (count > limit) {
+    const ttl = await client.pttl(key);
+    return { allowed: false, remaining: 0, retryAfterSeconds: Math.max(1, Math.ceil(ttl / 1000)) };
+  }
+  return { allowed: true, remaining: limit - count, retryAfterSeconds: 0 };
+}
+
+/* -------------------------------- facade -------------------------------- */
+
+/** Records one hit against `key`. Returns { allowed, remaining, retryAfterSeconds }. */
+export async function rateLimit(key, policy) {
+  if (!usingRedis) return memoryLimit(key, policy);
+  try {
+    return await redisLimit(`ratelimit:${key}`, policy);
+  } catch (err) {
+    console.error('[timetracker] rate limiter unavailable, allowing request:', err.message);
+    return { allowed: true, remaining: policy.limit, retryAfterSeconds: 0 };
+  }
+}
+
+/** Clears a key early -- used after a successful sign-in so one typo'd password
+ *  does not count against someone who then got it right. */
+export async function clearRateLimit(key) {
+  if (!usingRedis) {
+    buckets.delete(key);
+    return;
+  }
+  try {
+    const client = await redis();
+    await client.del(`ratelimit:${key}`);
+  } catch {
+    /* best effort */
+  }
+}
+
+/** Test helper (memory backend only). */
 export function resetAllRateLimits() {
   buckets.clear();
 }
@@ -59,8 +115,8 @@ export function resetAllRateLimits() {
  * below is the one that actually stops credential stuffing, because the attacker
  * cannot change which account they are guessing at.
  *
- * Set TRUST_PROXY=true when running behind nginx / Vercel / Cloudflare, which
- * makes these headers authoritative.
+ * On Vercel `x-forwarded-for` is set by the platform and cannot be spoofed;
+ * set TRUST_PROXY=true there and behind nginx / Cloudflare.
  */
 export function clientIp(headers) {
   const forwarded = headers.get('x-forwarded-for');
