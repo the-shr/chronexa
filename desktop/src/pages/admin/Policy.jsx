@@ -322,42 +322,31 @@ function PeopleCard({ employees, busy, onApply, note }) {
 }
 
 /**
- * One person's overrides. Each control is either "team default" or a set value;
- * turning a row off sends null so it falls back. This is where an admin makes
- * someone tracked but not captured.
+ * One person's overrides, grouped the same way as the team defaults. Each row
+ * has a toggle: off means "follow the team", on reveals the control. This is
+ * where an admin makes someone tracked but not captured, or gives them their
+ * own hours.
  */
 function PersonEditor({ person, busy, onApply, onClose }) {
   const o = person.overrides || {};
   const has = (k) => o[k] !== undefined;
+  const set = (patch) => onApply({ userId: person.id, ...patch });
 
-  // A tri-state toggle row: off = team default (null), on = a chosen value.
-  const OverrideRow = ({ label, keyName, children, hint }) => (
-    <div className={has(keyName) ? 'pol-ov on' : 'pol-ov'}>
-      <label className="pol-ov-head">
-        <input
-          type="checkbox"
-          checked={has(keyName)}
-          disabled={busy}
-          onChange={(e) => onApply({ userId: person.id, [keyName]: e.target.checked ? defaultFor(keyName) : null })}
-        />
-        <span>
-          <strong>{label}</strong>
-          {hint && <small>{hint}</small>}
-        </span>
-      </label>
-      {has(keyName) && <div className="pol-ov-body">{children}</div>}
-    </div>
-  );
+  // Recording detail (mode + timing) is one override, keyed off the mode.
+  const recDetailOn = has('recordingMode');
+  const clips = (o.recordingMode ?? 'interval') === 'interval';
 
   return (
     <div className="lightbox" role="presentation" onClick={onClose} onKeyDown={(e) => e.key === 'Escape' && onClose()}>
       <div className="pol-editor" role="presentation" onClick={(e) => e.stopPropagation()}>
         <div className="pol-editor-head">
-          <strong>{person.name}</strong>
-          <span className="muted">{person.email}</span>
+          <span className="pol-editor-who">
+            <strong>{person.name}</strong>
+            <small className="muted">{person.email}</small>
+          </span>
           <span className="spacer" />
           {Object.keys(o).length > 0 && (
-            <button className="btn tiny" disabled={busy} onClick={() => onApply({ userId: person.id, clear: true })}>
+            <button className="btn tiny" disabled={busy} onClick={() => set({ clear: true })}>
               Reset to team default
             </button>
           )}
@@ -367,42 +356,114 @@ function PersonEditor({ person, busy, onApply, onClose }) {
         </div>
 
         <div className="pol-editor-body">
-          <OverrideRow label="Take screenshots" keyName="screenshotsEnabled" hint="Turn off to track this person without any screenshots.">
-            <div className="seg-row">
-              <button className={o.screenshotsEnabled ? 'seg active' : 'seg'} disabled={busy} onClick={() => onApply({ userId: person.id, screenshotsEnabled: true })}>On</button>
-              <button className={o.screenshotsEnabled === false ? 'seg active' : 'seg'} disabled={busy} onClick={() => onApply({ userId: person.id, screenshotsEnabled: false })}>Off</button>
-            </div>
-          </OverrideRow>
+          {/* --------------------------- screenshots -------------------------- */}
+          <div className="pol-ov-section">
+            <span className="pol-ov-title">Screenshots</span>
 
-          <OverrideRow label="Screenshot interval" keyName="screenshotIntervalMinutes">
-            <MiniNumber value={o.screenshotIntervalMinutes ?? 10} suffix="min" min={1} max={120} busy={busy} onCommit={(v) => onApply({ userId: person.id, screenshotIntervalMinutes: v })} />
-          </OverrideRow>
+            <OverrideToggle
+              label="Take screenshots"
+              hint="Off tracks this person with no screenshots at all."
+              active={has('screenshotsEnabled')}
+              busy={busy}
+              onToggle={(on) => set({ screenshotsEnabled: on ? true : null })}
+            >
+              <OnOff value={o.screenshotsEnabled} busy={busy} onChange={(v) => set({ screenshotsEnabled: v })} />
+            </OverrideToggle>
 
-          <OverrideRow label="Record the screen" keyName="recordingEnabled" hint="Turn off to track this person without any recording.">
-            <div className="seg-row">
-              <button className={o.recordingEnabled ? 'seg active' : 'seg'} disabled={busy} onClick={() => onApply({ userId: person.id, recordingEnabled: true })}>On</button>
-              <button className={o.recordingEnabled === false ? 'seg active' : 'seg'} disabled={busy} onClick={() => onApply({ userId: person.id, recordingEnabled: false })}>Off</button>
-            </div>
-          </OverrideRow>
+            <OverrideToggle
+              label="Screenshot interval"
+              active={has('screenshotIntervalMinutes')}
+              busy={busy}
+              onToggle={(on) => set({ screenshotIntervalMinutes: on ? 10 : null })}
+            >
+              <MiniNumber value={o.screenshotIntervalMinutes ?? 10} suffix="min" min={1} max={120} busy={busy} onCommit={(v) => set({ screenshotIntervalMinutes: v })} />
+            </OverrideToggle>
+          </div>
 
-          <OverrideRow label="Recording mode" keyName="recordingMode">
-            <div className="seg-row">
-              <button className={o.recordingMode === 'interval' ? 'seg active' : 'seg'} disabled={busy} onClick={() => onApply({ userId: person.id, recordingMode: 'interval' })}>Clips</button>
-              <button className={o.recordingMode === 'session' ? 'seg active' : 'seg'} disabled={busy} onClick={() => onApply({ userId: person.id, recordingMode: 'session' })}>Whole session</button>
-            </div>
-          </OverrideRow>
+          {/* ---------------------------- recording --------------------------- */}
+          <div className="pol-ov-section">
+            <span className="pol-ov-title">Screen recording</span>
 
-          <OverrideRow label="Idle threshold" keyName="idleThresholdMinutes">
-            <MiniNumber value={o.idleThresholdMinutes ?? 5} suffix="min" min={1} max={60} busy={busy} onCommit={(v) => onApply({ userId: person.id, idleThresholdMinutes: v })} />
-          </OverrideRow>
+            <OverrideToggle
+              label="Record the screen"
+              hint="Off tracks this person with no recording at all."
+              active={has('recordingEnabled')}
+              busy={busy}
+              onToggle={(on) => set({ recordingEnabled: on ? true : null })}
+            >
+              <OnOff value={o.recordingEnabled} busy={busy} onChange={(v) => set({ recordingEnabled: v })} />
+            </OverrideToggle>
 
-          <div className="pol-ov-grid">
-            <OverrideRow label="Daily target" keyName="dailyTargetHours">
-              <MiniNumber value={o.dailyTargetHours ?? 8} suffix="h" min={0} max={24} step={0.5} busy={busy} onCommit={(v) => onApply({ userId: person.id, dailyTargetHours: v })} />
-            </OverrideRow>
-            <OverrideRow label="Office start" keyName="officeStart">
-              <input className="pol-ov-time" type="time" defaultValue={o.officeStart ?? '09:00'} disabled={busy} onChange={(e) => onApply({ userId: person.id, officeStart: e.target.value })} />
-            </OverrideRow>
+            <OverrideToggle
+              label="Recording timing"
+              active={recDetailOn}
+              busy={busy}
+              onToggle={(on) =>
+                set(
+                  on
+                    ? { recordingMode: 'interval' }
+                    : { recordingMode: null, recordingIntervalMinutes: null, recordingDurationSeconds: null, recordingSegmentMinutes: null },
+                )
+              }
+            >
+              <div className="seg-row">
+                <button className={clips ? 'seg active' : 'seg'} disabled={busy} onClick={() => set({ recordingMode: 'interval' })}>Clips</button>
+                <button className={!clips ? 'seg active' : 'seg'} disabled={busy} onClick={() => set({ recordingMode: 'session' })}>Whole session</button>
+              </div>
+              {clips ? (
+                <div className="pol-ov-pair">
+                  <label className="pol-mini">
+                    <span>Every</span>
+                    <MiniNumber value={o.recordingIntervalMinutes ?? 3} suffix="min" min={1} max={240} busy={busy} onCommit={(v) => set({ recordingIntervalMinutes: v })} />
+                  </label>
+                  <label className="pol-mini">
+                    <span>For</span>
+                    <MiniNumber value={o.recordingDurationSeconds ?? 5} suffix="sec" min={2} max={60} busy={busy} onCommit={(v) => set({ recordingDurationSeconds: v })} />
+                  </label>
+                </div>
+              ) : (
+                <label className="pol-mini">
+                  <span>Segment</span>
+                  <MiniNumber value={o.recordingSegmentMinutes ?? 5} suffix="min" min={1} max={30} busy={busy} onCommit={(v) => set({ recordingSegmentMinutes: v })} />
+                </label>
+              )}
+            </OverrideToggle>
+          </div>
+
+          {/* ------------------------------- idle ----------------------------- */}
+          <div className="pol-ov-section">
+            <span className="pol-ov-title">Idle</span>
+            <OverrideToggle
+              label="Idle threshold"
+              active={has('idleThresholdMinutes')}
+              busy={busy}
+              onToggle={(on) => set({ idleThresholdMinutes: on ? 5 : null })}
+            >
+              <MiniNumber value={o.idleThresholdMinutes ?? 5} suffix="min" min={1} max={60} busy={busy} onCommit={(v) => set({ idleThresholdMinutes: v })} />
+            </OverrideToggle>
+          </div>
+
+          {/* ------------------------------ hours ----------------------------- */}
+          <div className="pol-ov-section">
+            <span className="pol-ov-title">Hours</span>
+
+            <OverrideToggle
+              label="Daily target"
+              active={has('dailyTargetHours')}
+              busy={busy}
+              onToggle={(on) => set({ dailyTargetHours: on ? 8 : null })}
+            >
+              <MiniNumber value={o.dailyTargetHours ?? 8} suffix="h" min={0} max={24} step={0.5} busy={busy} onCommit={(v) => set({ dailyTargetHours: v })} />
+            </OverrideToggle>
+
+            <OverrideToggle
+              label="Office start"
+              active={has('officeStart')}
+              busy={busy}
+              onToggle={(on) => set({ officeStart: on ? '09:00' : null })}
+            >
+              <input className="pol-ov-time" type="time" value={o.officeStart ?? '09:00'} disabled={busy} onChange={(e) => set({ officeStart: e.target.value })} />
+            </OverrideToggle>
           </div>
         </div>
       </div>
@@ -410,17 +471,37 @@ function PersonEditor({ person, busy, onApply, onClose }) {
   );
 }
 
-function defaultFor(key) {
-  const defaults = {
-    screenshotsEnabled: true,
-    screenshotIntervalMinutes: 10,
-    recordingEnabled: false,
-    recordingMode: 'interval',
-    idleThresholdMinutes: 5,
-    dailyTargetHours: 8,
-    officeStart: '09:00',
-  };
-  return defaults[key];
+/** A row that follows the team until its toggle is switched on. */
+function OverrideToggle({ label, hint, active, busy, onToggle, children }) {
+  return (
+    <div className={active ? 'pol-ov on' : 'pol-ov'}>
+      <label className="pol-ov-head">
+        <input type="checkbox" checked={active} disabled={busy} onChange={(e) => onToggle(e.target.checked)} />
+        <span className="pol-track" aria-hidden="true">
+          <i />
+        </span>
+        <span className="pol-ov-label">
+          <strong>{label}</strong>
+          {hint && <small>{hint}</small>}
+        </span>
+        {!active && <em className="pol-ov-default">Team default</em>}
+      </label>
+      {active && <div className="pol-ov-body">{children}</div>}
+    </div>
+  );
+}
+
+function OnOff({ value, busy, onChange }) {
+  return (
+    <div className="seg-row">
+      <button className={value ? 'seg active' : 'seg'} disabled={busy} onClick={() => onChange(true)}>
+        On
+      </button>
+      <button className={value === false ? 'seg active' : 'seg'} disabled={busy} onClick={() => onChange(false)}>
+        Off
+      </button>
+    </div>
+  );
 }
 
 function MiniNumber({ value, suffix, min, max, step = 1, busy, onCommit }) {

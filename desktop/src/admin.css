@@ -1298,6 +1298,13 @@
   border-bottom: 1px solid var(--line);
 }
 
+.pol-editor-who {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
 .pol-editor-head strong {
   font-size: 14px;
 }
@@ -1320,59 +1327,105 @@
   gap: 4px;
 }
 
-.pol-ov {
+/* Grouped like the team-default cards, so the two read the same way. */
+.pol-ov-section {
+  padding: 4px 0 8px;
   border-bottom: 1px solid var(--line);
-  padding: 10px 0;
 }
 
-.pol-ov:last-child {
+.pol-ov-section:last-child {
   border-bottom: 0;
 }
 
+.pol-ov-title {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin: 8px 0 4px;
+}
+
+.pol-ov {
+  padding: 7px 0;
+}
+
+/* A real switch, matching the team-default toggles. */
 .pol-ov-head {
   display: flex;
-  align-items: flex-start;
-  gap: 9px;
+  align-items: center;
+  gap: 10px;
   cursor: pointer;
 }
 
 .pol-ov-head input {
-  margin-top: 2px;
-  accent-color: var(--accent);
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
 }
 
-.pol-ov-head span {
+.pol-ov-head .pol-track {
+  flex: none;
+}
+
+.pol-ov-head input:checked + .pol-track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.pol-ov-head input:checked + .pol-track i {
+  transform: translateX(14px);
+  background: #fff;
+}
+
+.pol-ov-label {
   display: flex;
   flex-direction: column;
   gap: 1px;
+  min-width: 0;
 }
 
-.pol-ov-head strong {
+.pol-ov-label strong {
   font-size: 12.5px;
   font-weight: 520;
 }
 
-.pol-ov-head small {
+.pol-ov-label small {
   font-size: 10.5px;
   color: var(--text-faint);
 }
 
-.pol-ov:not(.on) .pol-ov-head strong {
+.pol-ov:not(.on) .pol-ov-label strong {
   color: var(--text-dim);
 }
 
-.pol-ov-body {
-  margin: 8px 0 0 24px;
+.pol-ov-default {
+  margin-left: auto;
+  flex: none;
+  font-style: normal;
+  font-size: 10px;
+  color: var(--text-faint);
 }
 
-.pol-ov-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0 14px;
+.pol-ov-body {
+  margin: 8px 0 2px 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pol-ov-pair {
+  display: flex;
+  gap: 12px;
 }
 
 .pol-ov-body .pol-input {
-  max-width: 140px;
+  max-width: 150px;
+}
+
+.pol-ov-body .pol-mini {
+  gap: 6px;
 }
 
 .pol-ov-time {
