@@ -10,6 +10,7 @@ const tasks = require('./lib/tasks');
 const profile = require('./lib/profile');
 const admin = require('./lib/admin');
 const recorder = require('./lib/recorder');
+const policy = require('./lib/policy');
 const sync = require('./lib/sync');
 const windows = require('./lib/windows');
 const tray = require('./lib/tray');
@@ -34,6 +35,7 @@ app.whenReady().then(() => {
   profile.init();
   admin.init();
   recorder.init();
+  policy.init();
 
   windows.createMainWindow({ onCloseRequest: handleMainClose });
   tray.create({
@@ -57,6 +59,7 @@ app.whenReady().then(() => {
 
   sync.on('status', (status) => windows.broadcast('sync:status', status));
   sync.start();
+  policy.start();
 
   tasks.on('changed', (list) => windows.broadcast('tasks:changed', list));
   tasks.start();
@@ -218,6 +221,9 @@ handle('account:get', () => auth.status());
 handle('account:login', async (creds) => {
   const user = await auth.login(creds);
   sync.start();
+  // Pull the organisation policy before the first session so it never runs on
+  // stale local settings.
+  await policy.refresh().catch(() => {});
   profile.refresh().catch(() => {});
   return user;
 });

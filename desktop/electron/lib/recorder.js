@@ -26,8 +26,10 @@ const log = require('./log');
 const RECORDER_HTML = path.join(__dirname, '..', 'recorder', 'index.html');
 const RECORDER_PRELOAD = path.join(__dirname, '..', 'recorder', 'preload.js');
 
-// A clip that never comes back must not wedge the scheduler forever.
-const JOB_TIMEOUT_MS = 90_000;
+// A clip that never comes back must not wedge the scheduler forever. The
+// allowance has to follow the piece length: a five-minute session segment would
+// blow a fixed ninety-second budget every time.
+const JOB_SLACK_MS = 60_000;
 
 const events = new EventEmitter();
 
@@ -98,6 +100,16 @@ async function pickSource() {
   return sources[0];
 }
 
+/**
+ * How long the next piece should run. In interval mode that is the clip length;
+ * in session mode it is a segment of continuous recording. Segments exist so a
+ * failed upload loses five minutes rather than a whole day, and so a clip is
+ * never so large that it cannot be played back.
+ */
+function pieceLengthMs(cfg) {
+  return cfg.mode === 'session' ? cfg.segmentMinutes * 60_000 : cfg.durationSeconds * 1000;
+}
+
 /** Records one clip and writes it to disk. Returns a row for the caller. */
 async function captureOnce() {
   const cfg = settings.get().recording;
@@ -116,7 +128,7 @@ async function captureOnce() {
     const timeout = setTimeout(() => {
       pending.delete(jobId);
       reject(new Error('The recorder did not answer in time'));
-    }, JOB_TIMEOUT_MS);
+    }, pieceLengthMs(cfg) + JOB_SLACK_MS);
 
     pending.set(jobId, {
       resolve: (value) => {
@@ -132,7 +144,7 @@ async function captureOnce() {
     target.webContents.send('recorder:record', {
       jobId,
       sourceId: source.id,
-      durationMs: cfg.durationSeconds * 1000,
+      durationMs: pieceLengthMs(cfg),
       maxWidth: cfg.maxWidth,
       frameRate: cfg.frameRate,
     });
@@ -163,10 +175,13 @@ function scheduleNext() {
   const cfg = settings.get().recording;
   if (!cfg.enabled || !sessionId) return;
 
-  // Spread clips randomly through the window rather than on the tick, so they
-  // do not land at predictable moments.
-  const windowMs = cfg.intervalMinutes * 60_000;
-  const delay = Math.round(windowMs * (0.5 + Math.random() * 0.5));
+  // Session mode records back to back, so the next segment starts immediately.
+  // Interval mode spreads clips randomly through the window rather than landing
+  // on the tick, so they cannot be timed around.
+  const delay =
+    cfg.mode === 'session'
+      ? 0
+      : Math.round(cfg.intervalMinutes * 60_000 * (0.5 + Math.random() * 0.5));
 
   timer = setTimeout(async () => {
     if (!sessionId) return;

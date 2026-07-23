@@ -27,6 +27,13 @@ model User {
   avatarPath   String?
   createdAt    DateTime @default(now())
 
+  /// Per-person overrides. Null means "use the organisation policy", so a team
+  /// with one part-timer does not need a policy row for everyone else.
+  dailyTargetHours  Float?
+  weeklyTargetHours Float?
+  officeStart       String?
+  officeEnd         String?
+
   devices     Device[]
   sessions    WorkSession[]
   screenshots Screenshot[]
@@ -119,6 +126,52 @@ model Screenshot {
 
   @@unique([userId, clientId])
   @@index([userId, capturedAt])
+}
+
+/// What the organisation monitors and expects, set by an admin and obeyed by
+/// every agent. A single row, id "org".
+///
+/// This lives here rather than in each agent's settings file so an admin can
+/// change it without touching anyone's machine -- and so an employee cannot
+/// change what is monitored by editing a file on their own computer.
+model Policy {
+  id String @id @default("org")
+
+  /// Office hours as "HH:MM" in the employee's own timezone, and the working
+  /// days as ISO weekday numbers. Used for reporting, not for blocking: someone
+  /// working late is worth showing an admin, not worth refusing to record.
+  officeStart String @default("09:00")
+  officeEnd   String @default("17:00")
+  workDays    String @default("1,2,3,4,5")
+
+  dailyTargetHours  Float @default(8)
+  weeklyTargetHours Float @default(40)
+
+  idleThresholdMinutes Int     @default(5)
+  idleOnTimeout        String  @default("pause") // pause | stop
+  countIdleAsWork      Boolean @default(false)
+
+  screenshotsEnabled        Boolean @default(true)
+  screenshotIntervalMinutes Int     @default(10)
+  screenshotRandomize       Boolean @default(true)
+  screenshotQuality         Int     @default(60)
+  screenshotAllMonitors     Boolean @default(true)
+  screenshotBlur            Boolean @default(false)
+
+  recordingEnabled          Boolean @default(false)
+  /// "interval" takes a short clip every so often; "session" records
+  /// continuously in segments for as long as someone is working.
+  recordingMode             String  @default("interval")
+  recordingIntervalMinutes  Int     @default(3)
+  recordingDurationSeconds  Int     @default(5)
+  /// Segment length in session mode. Long clips risk losing everything to one
+  /// failed upload, so continuous recording is cut into pieces.
+  recordingSegmentMinutes   Int     @default(5)
+  recordingMaxWidth         Int     @default(1280)
+  recordingFrameRate        Int     @default(12)
+
+  updatedAt   DateTime @updatedAt
+  updatedById String?
 }
 
 /// Short screen clips, stored in Google Drive rather than R2 -- only the id of

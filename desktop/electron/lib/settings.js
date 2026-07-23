@@ -21,8 +21,12 @@ const DEFAULTS = {
     // Off unless an admin turns it on. Like screenshots, nothing about this
     // reaches the renderer -- see publicView().
     enabled: false,
+    // 'interval' takes a short clip every so often; 'session' records
+    // continuously for as long as someone is working.
+    mode: 'interval',
     intervalMinutes: 3, // record once per this window
-    durationSeconds: 5, // how long each clip runs
+    durationSeconds: 5, // how long each clip runs, in interval mode
+    segmentMinutes: 5, // how long each piece runs, in session mode
     maxWidth: 1280, // downscale before encoding; video is bulky
     frameRate: 12, // enough to follow what is happening, a third the size of 30
   },
@@ -40,10 +44,14 @@ const DEFAULTS = {
     playSound: true,
   },
   work: {
-    // Set by the organisation. 0 means no target, in which case the dashboard
-    // shows elapsed time without implying progress towards anything.
+    // All set by the organisation and pushed down by the server -- see
+    // lib/policy.js. 0 means no target, in which case the dashboard shows
+    // elapsed time without implying progress towards anything.
     dailyTargetHours: 8,
     weeklyTargetHours: 40,
+    officeStart: '09:00',
+    officeEnd: '17:00',
+    workDays: '1,2,3,4,5',
   },
   general: {
     theme: 'dark', // 'dark' | 'light'
@@ -67,6 +75,7 @@ const RANGES = {
   'screenshots.maxWidth': [640, 3840],
   'recording.intervalMinutes': [1, 240],
   'recording.durationSeconds': [2, 60],
+  'recording.segmentMinutes': [1, 30],
   'recording.maxWidth': [640, 1920],
   'recording.frameRate': [5, 30],
   'idle.thresholdMinutes': [1, 60],
@@ -100,6 +109,7 @@ function validate(settings) {
     s[group][key] = clamp(Math.round(s[group][key]), range);
   }
   if (!['pause', 'stop'].includes(s.idle.onTimeout)) s.idle.onTimeout = 'pause';
+  if (!['interval', 'session'].includes(s.recording.mode)) s.recording.mode = 'interval';
   if (!['dark', 'light'].includes(s.general.theme)) s.general.theme = 'dark';
   s.sync.serverUrl = String(s.sync.serverUrl || '').replace(/\/+$/, '');
   return s;
