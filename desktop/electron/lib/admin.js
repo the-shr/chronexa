@@ -97,6 +97,14 @@ function deleteTask(id) {
   return request(`/api/agent/admin/tasks?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
+function policy() {
+  return request('/api/agent/admin/policy');
+}
+
+function updatePolicy(patch) {
+  return request('/api/agent/admin/policy', { method: 'PATCH', body: patch });
+}
+
 function recordings({ userId = '', limit = 60 } = {}) {
   const params = new URLSearchParams({ limit: String(limit) });
   if (userId) params.set('userId', userId);
@@ -199,6 +207,8 @@ module.exports = {
   tasks,
   screenshots,
   deleteScreenshot,
+  policy,
+  updatePolicy,
   recordings,
   deleteRecording,
   clip,

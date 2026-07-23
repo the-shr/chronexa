@@ -5,6 +5,7 @@ import People from './pages/admin/People.jsx';
 import AdminTasks from './pages/admin/AdminTasks.jsx';
 import Screens from './pages/admin/Screens.jsx';
 import Recordings from './pages/admin/Recordings.jsx';
+import Policy from './pages/admin/Policy.jsx';
 import Settings from './pages/Settings.jsx';
 import Profile from './pages/Profile.jsx';
 import SessionBanner from './components/SessionBanner.jsx';
@@ -18,6 +19,7 @@ const TABS = [
   { id: 'tasks', label: 'Tasks' },
   { id: 'screens', label: 'Screens' },
   { id: 'recordings', label: 'Recordings' },
+  { id: 'policy', label: 'Policy' },
 ];
 
 /**
@@ -88,6 +90,7 @@ export default function AdminApp() {
         {tab === 'tasks' && <AdminTasks />}
         {tab === 'screens' && <Screens />}
         {tab === 'recordings' && <Recordings />}
+        {tab === 'policy' && <Policy />}
         {tab === 'settings' && <Settings />}
         {tab === 'profile' && <Profile />}
       </main>

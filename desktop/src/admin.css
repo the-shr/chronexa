@@ -1003,3 +1003,296 @@
   border-radius: var(--r);
   background: #000;
 }
+
+/* -------------------------------- policy -------------------------------- */
+
+.policy-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 320px;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+@media (max-width: 1180px) {
+  .policy-grid {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+  /* The second column of cards folds under the first. */
+  .policy-col:nth-child(2) {
+    display: none;
+  }
+}
+
+.policy-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pol-card {
+  gap: 10px;
+  overflow: hidden;
+}
+
+.pol-card h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 580;
+}
+
+.pol-row2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pol-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pol-field > span,
+.pol-label,
+.pol-seg-field > span {
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+.pol-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 0 10px 0 0;
+}
+
+.pol-input input,
+.pol-mini input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  padding: 8px 10px;
+}
+
+.pol-input input:focus {
+  outline: none;
+}
+
+.pol-input:focus-within {
+  border-color: var(--accent);
+}
+
+.pol-input em {
+  flex: none;
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.pol-days {
+  display: flex;
+  gap: 4px;
+}
+
+.pol-day {
+  flex: 1;
+  padding: 6px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.pol-day.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.pol-seg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Toggle: a real switch, since these are the consequential settings. */
+.pol-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.pol-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pol-track {
+  flex: none;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  border: 1px solid var(--line-strong);
+  position: relative;
+  transition: background 0.15s;
+}
+
+.pol-track i {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  transition: transform 0.15s, background 0.15s;
+}
+
+.pol-toggle input:checked + .pol-track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.pol-toggle input:checked + .pol-track i {
+  transform: translateX(14px);
+  background: #fff;
+}
+
+.pol-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.pol-toggle-text strong {
+  font-size: 12.5px;
+  font-weight: 520;
+}
+
+.pol-toggle-text small {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.pol-toggle.off .pol-toggle-text {
+  opacity: 0.5;
+}
+
+.pol-note {
+  margin: auto 0 0;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  line-height: 1.4;
+}
+
+.pol-estimate {
+  margin: 2px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+.pol-estimate.high {
+  background: var(--idle-soft);
+  color: var(--idle);
+}
+
+.pol-estimate strong {
+  color: var(--text);
+}
+
+.pol-estimate.high strong {
+  color: var(--idle);
+}
+
+/* --------------------------- per-person column -------------------------- */
+
+.pol-people-card {
+  overflow: hidden;
+}
+
+.pol-person {
+  height: 70px;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-2);
+}
+
+.pol-person-name {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pol-person-fields {
+  display: flex;
+  gap: 10px;
+}
+
+.pol-person-name strong {
+  font-size: 12.5px;
+  font-weight: 540;
+}
+
+.pol-person-name small {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.pol-mini {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--text-faint);
+}
+
+.pol-mini span {
+  white-space: nowrap;
+}
+
+.pol-mini input {
+  width: 54px;
+  background: var(--surface-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  padding: 5px 6px;
+  font-size: 11px;
+}
+
+.pol-mini input[type='time'] {
+  width: 78px;
+}
+
+.pol-mini input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.pol-mini em {
+  font-style: normal;
+}

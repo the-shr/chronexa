@@ -382,6 +382,23 @@ function mockAdmin() {
       })),
     }),
 
+    policy: async () => ({
+      policy: {
+        id: 'org',
+        officeStart: '09:00', officeEnd: '17:30', workDays: '1,2,3,4,5',
+        dailyTargetHours: 8, weeklyTargetHours: 40,
+        idleThresholdMinutes: 5, idleOnTimeout: 'pause', countIdleAsWork: false,
+        screenshotsEnabled: true, screenshotIntervalMinutes: 10, screenshotRandomize: true,
+        screenshotQuality: 60, screenshotAllMonitors: true, screenshotBlur: false,
+        recordingEnabled: false, recordingMode: 'interval', recordingIntervalMinutes: 3,
+        recordingDurationSeconds: 5, recordingSegmentMinutes: 5, recordingMaxWidth: 1280, recordingFrameRate: 12,
+        updatedAt: new Date().toISOString(),
+      },
+      employees: people.map((p) => ({ id: p.id, name: p.name, email: p.email, dailyTargetHours: null, weeklyTargetHours: null, officeStart: null, officeEnd: null })),
+      estimatedDailyBytes: 0,
+    }),
+    updatePolicy: async () => ({ ok: true }),
+
     deleteScreenshot: async () => ({ ok: true }),
 
     recordings: async ({ limit = 60 } = {}) => ({

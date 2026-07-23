@@ -113,6 +113,27 @@ export function useScreenshots({ userId = '', limit = 60 } = {}) {
   return { ...polled, screenshots: polled.data?.screenshots || [], remove };
 }
 
+export function usePolicy() {
+  const polled = usePolled(() => window.api.admin.policy(), { interval: 60000 });
+
+  const save = useCallback(
+    async (patch) => {
+      const result = await window.api.admin.updatePolicy(patch);
+      await polled.reload();
+      return result;
+    },
+    [polled],
+  );
+
+  return {
+    ...polled,
+    policy: polled.data?.policy || null,
+    employees: polled.data?.employees || [],
+    estimatedDailyBytes: polled.data?.estimatedDailyBytes || 0,
+    save,
+  };
+}
+
 export function useRecordings({ userId = '', limit = 60 } = {}) {
   const polled = usePolled(() => window.api.admin.recordings({ userId, limit }), {
     interval: 30000,
