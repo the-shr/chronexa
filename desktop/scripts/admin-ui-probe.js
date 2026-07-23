@@ -36,7 +36,7 @@ const SIZES = [
   [1600, 1000],
 ];
 
-const PAGES = ['Overview', 'People', 'Tasks', 'Screens'];
+const PAGES = ['Overview', 'People', 'Tasks', 'Screens', 'Recordings'];
 
 const CHECK = `(async () => {
   const problems = [];

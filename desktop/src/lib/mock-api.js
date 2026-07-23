@@ -384,6 +384,24 @@ function mockAdmin() {
 
     deleteScreenshot: async () => ({ ok: true }),
 
+    recordings: async ({ limit = 60 } = {}) => ({
+      configured: true,
+      recordings: Array.from({ length: Math.min(limit, 9) }, (_, i) => ({
+        id: `clip${i}`,
+        userId: `p${i % people.length}`,
+        name: people[i % people.length].name,
+        startedAt: new Date(Date.now() - i * 11 * 60000).toISOString(),
+        durationMs: 5000,
+        bytes: 90_000 + ((i * 7331) % 60_000),
+        driveFileId: `drive-${i}`,
+      })),
+    }),
+
+    deleteRecording: async () => ({ ok: true }),
+
+    // No bytes in the preview; the player shows its own empty state.
+    clip: async () => null,
+
     // No bytes in the preview: the placeholder shimmer is the point.
     image: async () => null,
   };

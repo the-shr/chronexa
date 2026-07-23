@@ -21,6 +21,8 @@ const events = new EventEmitter();
 /** Small cache so flipping between pages does not refetch the same picture. */
 const imageCache = new Map();
 const IMAGE_CACHE_MAX = 120;
+const clipCache = new Map();
+const CLIP_CACHE_MAX = 8;
 
 function base() {
   return settings.get().sync.serverUrl;
@@ -95,6 +97,45 @@ function deleteTask(id) {
   return request(`/api/agent/admin/tasks?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
+function recordings({ userId = '', limit = 60 } = {}) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (userId) params.set('userId', userId);
+  return request(`/api/agent/admin/recordings?${params}`);
+}
+
+async function deleteRecording(id) {
+  const result = await request(`/api/agent/admin/recordings?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+  clipCache.delete(String(id));
+  return result;
+}
+
+/**
+ * One clip as a data URL the renderer can drop into <video>. Same reasoning as
+ * images: the renderer cannot put an Authorization header on a media element,
+ * and a token in the URL would leak into logs.
+ */
+async function clip(id) {
+  const key = String(id || '');
+  if (!key) return null;
+  if (clipCache.has(key)) return clipCache.get(key);
+  if (!auth.isSignedIn() || !isAdmin()) return null;
+
+  try {
+    const res = await fetch(`${base()}/api/recording/${encodeURIComponent(key)}`, { headers: auth.authHeaders() });
+    if (!res.ok) return null;
+    const buffer = Buffer.from(await res.arrayBuffer());
+    const url = `data:${res.headers.get('content-type') || 'video/webm'};base64,${buffer.toString('base64')}`;
+
+    // Far fewer than images: video is bulky and only one plays at a time.
+    if (clipCache.size >= CLIP_CACHE_MAX) clipCache.delete(clipCache.keys().next().value);
+    clipCache.set(key, url);
+    return url;
+  } catch (err) {
+    log.warn('admin: clip', key, err.message);
+    return null;
+  }
+}
+
 async function deleteScreenshot(id) {
   const result = await request(`/api/agent/admin/screenshots?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
   // Drop the cached image too, so a re-render cannot show what was just deleted.
@@ -138,6 +179,7 @@ async function image(id) {
 
 function clearCache() {
   imageCache.clear();
+  clipCache.clear();
 }
 
 // Signing out must not leave another account's screens in memory.
@@ -157,6 +199,9 @@ module.exports = {
   tasks,
   screenshots,
   deleteScreenshot,
+  recordings,
+  deleteRecording,
+  clip,
   assignTask,
   updateTask,
   deleteTask,

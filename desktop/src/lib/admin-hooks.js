@@ -113,6 +113,54 @@ export function useScreenshots({ userId = '', limit = 60 } = {}) {
   return { ...polled, screenshots: polled.data?.screenshots || [], remove };
 }
 
+export function useRecordings({ userId = '', limit = 60 } = {}) {
+  const polled = usePolled(() => window.api.admin.recordings({ userId, limit }), {
+    interval: 30000,
+    deps: [userId, limit],
+  });
+
+  const remove = useCallback(
+    async (id) => {
+      const result = await window.api.admin.deleteRecording(id);
+      await polled.reload();
+      return result;
+    },
+    [polled],
+  );
+
+  return {
+    ...polled,
+    recordings: polled.data?.recordings || [],
+    // False when the server has no Drive set up, so the page can say why it is
+    // empty instead of implying nobody has been recorded.
+    configured: polled.data?.configured !== false,
+    remove,
+  };
+}
+
+/** One clip's bytes as a data URL, fetched only when it is actually played. */
+export function useClip(id) {
+  const [url, setUrl] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setUrl(null);
+    if (!id) return undefined;
+    setLoading(true);
+    window.api.admin
+      .clip(id)
+      .then((next) => alive && setUrl(next))
+      .catch(() => {})
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [id]);
+
+  return { url, loading };
+}
+
 /**
  * Loads one capture's bytes on demand. The main process holds the token and
  * hands back a data URL, so nothing about storage reaches the renderer.

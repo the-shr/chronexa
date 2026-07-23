@@ -975,3 +975,31 @@
 .lightbox-bar .muted {
   color: var(--text-dim);
 }
+
+/* ------------------------------ recordings ------------------------------ */
+
+.clip-row {
+  gap: 9px;
+}
+
+.row-confirm {
+  display: flex;
+  gap: 5px;
+  flex: none;
+}
+
+.btn.tiny {
+  padding: 4px 10px;
+  font-size: 11.5px;
+  border-radius: 8px;
+}
+
+/* Sized like the lightbox image so a clip and a screenshot frame alike. */
+.lightbox-inner video {
+  max-width: 100%;
+  min-height: 0;
+  flex: 1;
+  object-fit: contain;
+  border-radius: var(--r);
+  background: #000;
+}
