@@ -60,8 +60,12 @@ async function redis() {
   return redisClient;
 }
 
-async function redisLimit(key, { limit, windowMs }) {
-  const client = await redis();
+/**
+ * The fixed-window algorithm itself. The client is a parameter rather than a
+ * module-level singleton so this can be exercised against a stub -- otherwise
+ * the whole Redis path is only ever proven in production.
+ */
+export async function redisLimit(key, { limit, windowMs }, client) {
   const count = await client.incr(key);
   // Only the first hit sets the expiry, which is what makes this a fixed
   // window rather than a rolling one that never lets the key die.
@@ -80,7 +84,7 @@ async function redisLimit(key, { limit, windowMs }) {
 export async function rateLimit(key, policy) {
   if (!usingRedis) return memoryLimit(key, policy);
   try {
-    return await redisLimit(`ratelimit:${key}`, policy);
+    return await redisLimit(`ratelimit:${key}`, policy, await redis());
   } catch (err) {
     console.error('[chronexa] rate limiter unavailable, allowing request:', err.message);
     return { allowed: true, remaining: policy.limit, retryAfterSeconds: 0 };
