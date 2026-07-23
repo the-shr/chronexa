@@ -95,6 +95,13 @@ function deleteTask(id) {
   return request(`/api/agent/admin/tasks?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
+async function deleteScreenshot(id) {
+  const result = await request(`/api/agent/admin/screenshots?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+  // Drop the cached image too, so a re-render cannot show what was just deleted.
+  imageCache.delete(String(id));
+  return result;
+}
+
 function addEmployee(payload) {
   return request('/api/agent/admin/employees', { method: 'POST', body: payload });
 }
@@ -149,6 +156,7 @@ module.exports = {
   employee,
   tasks,
   screenshots,
+  deleteScreenshot,
   assignTask,
   updateTask,
   deleteTask,

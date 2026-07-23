@@ -19,6 +19,7 @@
     "test:admin": "electron scripts/admin-probe.js",
     "test:admin-ui": "electron scripts/admin-ui-probe.js",
     "test:signin": "electron scripts/signin-probe.js",
+    "test:shot-delete": "electron scripts/shot-delete-probe.js",
     "icons": "node scripts/make-icons.js",
     "start": "npm run build && electron .",
     "pack": "npm run build && electron-builder --dir",

@@ -145,6 +145,10 @@ app.whenReady().then(async () => {
     console.log('SKIP  image fetch (no captures stored yet)');
   }
 
+  // Delete round-trips through the same IPC the wall uses. A bogus id proves
+  // the path without destroying a real capture.
+  await refuses('deleting a missing capture is refused', () => admin.deleteScreenshot('does-not-exist'));
+
   /* ------------------------ signing out clears ---------------------- */
 
   auth.logout();

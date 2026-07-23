@@ -68,6 +68,7 @@ contextBridge.exposeInMainWorld('api', {
     employee: (id) => invoke('admin:employee', id),
     tasks: (query) => invoke('admin:tasks', query),
     screenshots: (query) => invoke('admin:screenshots', query),
+    deleteScreenshot: (id) => invoke('admin:delete-screenshot', id),
     assignTask: (payload) => invoke('admin:assign-task', payload),
     updateTask: (payload) => invoke('admin:update-task', payload),
     deleteTask: (id) => invoke('admin:delete-task', id),

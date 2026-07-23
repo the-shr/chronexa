@@ -227,6 +227,7 @@ handle('admin:employees', () => admin.employees());
 handle('admin:employee', (id) => admin.employee(id));
 handle('admin:tasks', (query) => admin.tasks(query || {}));
 handle('admin:screenshots', (query) => admin.screenshots(query || {}));
+handle('admin:delete-screenshot', (id) => admin.deleteScreenshot(id));
 handle('admin:assign-task', (payload) => admin.assignTask(payload || {}));
 handle('admin:update-task', (payload) => admin.updateTask(payload || {}));
 handle('admin:delete-task', (id) => admin.deleteTask(id));

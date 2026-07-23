@@ -100,7 +100,17 @@ export function useScreenshots({ userId = '', limit = 60 } = {}) {
     interval: 30000,
     deps: [userId, limit],
   });
-  return { ...polled, screenshots: polled.data?.screenshots || [] };
+
+  const remove = useCallback(
+    async (id) => {
+      const result = await window.api.admin.deleteScreenshot(id);
+      await polled.reload();
+      return result;
+    },
+    [polled],
+  );
+
+  return { ...polled, screenshots: polled.data?.screenshots || [], remove };
 }
 
 /**

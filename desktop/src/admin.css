@@ -791,10 +791,7 @@
   border: 1px solid var(--line);
   border-radius: var(--r);
   background: var(--surface-2);
-  padding: 0;
   overflow: hidden;
-  cursor: pointer;
-  display: block;
   color: inherit;
   font: inherit;
 }
@@ -803,11 +800,79 @@
   border-color: var(--accent);
 }
 
+/* The image fills the tile and is the click target for opening it. */
+.shot-open {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
 .shot-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
+}
+
+/* Sits over the tile, revealed on hover so it does not clutter the wall. */
+.shot-del {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s, background 0.12s;
+}
+
+.shot-thumb:hover .shot-del {
+  opacity: 1;
+}
+
+.shot-del:hover {
+  background: var(--danger);
+}
+
+.shot-confirm {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  right: 7px;
+  display: flex;
+  gap: 5px;
+  z-index: 1;
+}
+
+.mini {
+  flex: 1;
+  padding: 5px 0;
+  border: 0;
+  border-radius: 8px;
+  background: rgb(0 0 0 / 0.68);
+  color: #fff;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 560;
+  cursor: pointer;
+}
+
+.mini.danger {
+  background: var(--danger);
+}
+
+.mini:hover {
+  filter: brightness(1.12);
 }
 
 .shot-placeholder {

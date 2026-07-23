@@ -382,6 +382,8 @@ function mockAdmin() {
       })),
     }),
 
+    deleteScreenshot: async () => ({ ok: true }),
+
     // No bytes in the preview: the placeholder shimmer is the point.
     image: async () => null,
   };

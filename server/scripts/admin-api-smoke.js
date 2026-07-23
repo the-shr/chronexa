@@ -83,7 +83,8 @@ check('and is not labelled an admin', workerLogin.role === 'employee', workerLog
 
 const asAdmin = (path, init) =>
   fetch(`${base}${path}`, { ...init, headers: { authorization: `Bearer ${adminLogin.token}`, ...(init?.headers || {}) } });
-const asWorker = (path) => fetch(`${base}${path}`, { headers: { authorization: `Bearer ${workerLogin.token}` } });
+const asWorker = (path, init) =>
+  fetch(`${base}${path}`, { ...init, headers: { authorization: `Bearer ${workerLogin.token}`, ...(init?.headers || {}) } });
 
 /* ------------------------------ the gate -------------------------------- */
 
@@ -210,6 +211,20 @@ const shotsRes = await asAdmin('/api/agent/admin/screenshots?limit=5');
 check('the capture list opens for an admin', shotsRes.ok, `HTTP ${shotsRes.status}`);
 const { screenshots } = await shotsRes.json();
 check('it is a list', Array.isArray(screenshots), `${screenshots?.length} row(s)`);
+
+// A capture with no stored object exercises the row-delete path without R2.
+const shot = await prisma.screenshot.create({
+  data: { userId: worker.id, clientId: `${PREFIX}-shot`, capturedAt: new Date(), storagePath: 'missing/none.jpg', bytes: 1 },
+});
+const shotDenied = await asWorker(`/api/agent/admin/screenshots?id=${shot.id}`, { method: 'DELETE' });
+check('an employee cannot delete a capture', shotDenied.status === 401, `HTTP ${shotDenied.status}`);
+
+const shotDropped = await asAdmin(`/api/agent/admin/screenshots?id=${shot.id}`, { method: 'DELETE' });
+check('an admin can delete a capture', shotDropped.ok, `HTTP ${shotDropped.status}`);
+check('the row is really gone', (await prisma.screenshot.findUnique({ where: { id: shot.id } })) === null);
+
+const shotAgain = await asAdmin(`/api/agent/admin/screenshots?id=${shot.id}`, { method: 'DELETE' });
+check('deleting a missing capture is a 404', shotAgain.status === 404, `HTTP ${shotAgain.status}`);
 
 /* ---------------------------- library, direct --------------------------- */
 

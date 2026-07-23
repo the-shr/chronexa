@@ -4,6 +4,7 @@
  * app read from here, and they can be tested without a request.
  */
 import { prisma } from './db.js';
+import { removeScreenshot } from './storage.js';
 
 const DAY = 86400000;
 
@@ -258,4 +259,21 @@ export async function recentScreenshots({ limit = 60, userId = null } = {}) {
     monitorLabel: s.monitorLabel,
     activityPercent: s.activityPercent,
   }));
+}
+
+/**
+ * Removes one capture an admin no longer wants kept: the stored object first,
+ * then the row, so bytes are never orphaned. A missing object is fine -- the
+ * row still goes. Reports a missing row rather than pretending it worked.
+ */
+export async function deleteScreenshot(id) {
+  const row = await prisma.screenshot.findUnique({
+    where: { id: String(id || '') },
+    select: { id: true, storagePath: true },
+  });
+  if (!row) return { error: 'That screenshot no longer exists' };
+
+  await removeScreenshot(row.storagePath).catch(() => {});
+  await prisma.screenshot.delete({ where: { id: row.id } });
+  return { ok: true };
 }

@@ -102,6 +102,22 @@ async function waitForChecklist(win, timeoutMs = 15000) {
 }
 
 app.whenReady().then(async () => {
+  // The app opens on a sign-in screen when no account is stored (a fresh run,
+  // or after another probe signed out). Sign in as an employee first so this
+  // always lands on the task card rather than the login form.
+  const settings = require('../electron/lib/settings');
+  const auth = require('../electron/lib/auth');
+  settings.set({ sync: { enabled: true, serverUrl: process.env.CHRONEXA_SERVER || 'http://localhost:3000' } });
+  if (!auth.isSignedIn()) {
+    await auth
+      .login({
+        email: process.env.CHRONEXA_EMPLOYEE_EMAIL || 'employee@example.com',
+        password: process.env.CHRONEXA_EMPLOYEE_PASSWORD || 'employee1234',
+        deviceName: 'task-probe',
+      })
+      .catch((err) => console.log('note: could not sign in —', err.message));
+  }
+
   await new Promise((r) => setTimeout(r, 1500));
   const win = BrowserWindow.getAllWindows()[0];
   if (!win) {
@@ -109,6 +125,7 @@ app.whenReady().then(async () => {
     app.exit(1);
     return;
   }
+  await win.webContents.reload();
 
   // Surface renderer errors, which otherwise vanish into a console nobody sees.
   win.webContents.on('console-message', (_e, level, message) => {
