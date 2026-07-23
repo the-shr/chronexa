@@ -7,7 +7,17 @@
  * Skips with an explanation when the credentials are not set yet. Cleans up
  * everything it creates.
  */
-import { configured, folderId, checkConnection, uploadFile, getFile, deleteFile, ensureFolder, resetToken } from '../src/lib/drive.js';
+import {
+  configured,
+  folderId,
+  checkConnection,
+  uploadFile,
+  getFile,
+  deleteFile,
+  ensureFolder,
+  resetToken,
+  accessToken,
+} from '../src/lib/drive.js';
 
 const results = [];
 function check(name, ok, detail = '') {
@@ -38,12 +48,20 @@ if (!conn.ok) {
 }
 check('the target folder is reachable', Boolean(conn.folder) || Boolean(conn.note), conn.folder?.name || conn.note);
 
-// A second call must not hit the network again.
+// A cached token must be returned without going back to Google. Measure
+// accessToken directly: checkConnection also fetches the folder every time, so
+// timing that would say nothing about the cache.
 resetToken();
-await checkConnection();
-const before = Date.now();
-await checkConnection();
-check('the access token is cached between calls', Date.now() - before < 400, `${Date.now() - before}ms`);
+const cold = Date.now();
+const firstToken = await accessToken();
+const coldMs = Date.now() - cold;
+
+const warm = Date.now();
+const secondToken = await accessToken();
+const warmMs = Date.now() - warm;
+
+check('the same token comes back', firstToken === secondToken);
+check('and the second call skips the network', warmMs < 20, `${coldMs}ms cold vs ${warmMs}ms cached`);
 
 /* -------------------------------- round trip ---------------------------- */
 
