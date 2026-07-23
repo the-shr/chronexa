@@ -260,15 +260,31 @@ function RecordingCard({ policy, estimate, busy, onApply }) {
   );
 }
 
-const POL_PERSON_ROW = 70;
+const POL_PERSON_ROW = 58;
+
+/** Human summary of what a person has set differently from the team. */
+function overrideSummary(o) {
+  if (!o || !Object.keys(o).length) return null;
+  const bits = [];
+  if (o.screenshotsEnabled === false) bits.push('no screenshots');
+  if (o.recordingEnabled === false) bits.push('no recording');
+  if (o.recordingEnabled === true) bits.push('recording on');
+  if (o.dailyTargetHours !== undefined) bits.push(`${o.dailyTargetHours}h/day`);
+  if (o.officeStart !== undefined || o.officeEnd !== undefined) bits.push('own hours');
+  if (o.idleThresholdMinutes !== undefined) bits.push('own idle');
+  if (o.screenshotIntervalMinutes !== undefined) bits.push('own shot rate');
+  return bits.length ? bits.join(' · ') : 'custom';
+}
 
 function PeopleCard({ employees, busy, onApply, note }) {
+  const [editing, setEditing] = useState(null);
   const { ref, slice, control } = usePager(employees, { rowHeight: POL_PERSON_ROW, gap: 6 });
+  const person = employees.find((e) => e.id === editing);
 
   return (
     <section className="card pol-people-card">
       <div className="checklist-head">
-        <h2>Individual hours</h2>
+        <h2>Per employee</h2>
         <span className="head-tools">{control}</span>
       </div>
       {note && <p className={/saved/i.test(note) ? 'form-ok' : 'form-error'}>{note}</p>}
@@ -277,45 +293,156 @@ function PeopleCard({ employees, busy, onApply, note }) {
         {slice.length === 0 ? (
           <p className="empty">No employees yet.</p>
         ) : (
-          slice.map((e) => (
-            <div className="pol-person" key={e.id}>
-              <span className="pol-person-name">
-                <strong className="truncate">{e.name}</strong>
-                <small>{e.dailyTargetHours === null && e.officeStart === null ? 'Team default' : 'Custom hours'}</small>
-              </span>
-              <div className="pol-person-fields">
-                <label className="pol-mini">
-                  <span>Daily</span>
-                  <input
-                    type="number"
-                    min={0}
-                    max={24}
-                    step={0.5}
-                    placeholder="—"
-                    defaultValue={e.dailyTargetHours ?? ''}
-                    disabled={busy}
-                    onBlur={(ev) => {
-                      const v = ev.target.value === '' ? null : Number(ev.target.value);
-                      if (v !== e.dailyTargetHours) onApply({ userId: e.id, dailyTargetHours: v });
-                    }}
-                  />
-                  <em>h</em>
-                </label>
-                <label className="pol-mini">
-                  <span>Start</span>
-                  <input
-                    type="time"
-                    defaultValue={e.officeStart ?? ''}
-                    disabled={busy}
-                    onChange={(ev) => onApply({ userId: e.id, officeStart: ev.target.value || null })}
-                  />
-                </label>
-              </div>
-            </div>
-          ))
+          slice.map((e) => {
+            const summary = overrideSummary(e.overrides);
+            return (
+              <button className="pol-person" key={e.id} onClick={() => setEditing(e.id)}>
+                <span className="pol-person-name">
+                  <strong className="truncate">{e.name}</strong>
+                  <small className={summary ? 'custom' : undefined}>{summary || 'Team default'}</small>
+                </span>
+                <span className="pol-person-edit">Customise</span>
+              </button>
+            );
+          })
         )}
       </div>
-      <p className="pol-note">Leave a field blank to use the team default.</p>
+      <p className="pol-note">Anything left on the team default follows the settings on the left.</p>
+
+      {person && (
+        <PersonEditor
+          person={person}
+          busy={busy}
+          onApply={onApply}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </section>
+  );
+}
+
+/**
+ * One person's overrides. Each control is either "team default" or a set value;
+ * turning a row off sends null so it falls back. This is where an admin makes
+ * someone tracked but not captured.
+ */
+function PersonEditor({ person, busy, onApply, onClose }) {
+  const o = person.overrides || {};
+  const has = (k) => o[k] !== undefined;
+
+  // A tri-state toggle row: off = team default (null), on = a chosen value.
+  const OverrideRow = ({ label, keyName, children, hint }) => (
+    <div className={has(keyName) ? 'pol-ov on' : 'pol-ov'}>
+      <label className="pol-ov-head">
+        <input
+          type="checkbox"
+          checked={has(keyName)}
+          disabled={busy}
+          onChange={(e) => onApply({ userId: person.id, [keyName]: e.target.checked ? defaultFor(keyName) : null })}
+        />
+        <span>
+          <strong>{label}</strong>
+          {hint && <small>{hint}</small>}
+        </span>
+      </label>
+      {has(keyName) && <div className="pol-ov-body">{children}</div>}
+    </div>
+  );
+
+  return (
+    <div className="lightbox" role="presentation" onClick={onClose} onKeyDown={(e) => e.key === 'Escape' && onClose()}>
+      <div className="pol-editor" role="presentation" onClick={(e) => e.stopPropagation()}>
+        <div className="pol-editor-head">
+          <strong>{person.name}</strong>
+          <span className="muted">{person.email}</span>
+          <span className="spacer" />
+          {Object.keys(o).length > 0 && (
+            <button className="btn tiny" disabled={busy} onClick={() => onApply({ userId: person.id, clear: true })}>
+              Reset to team default
+            </button>
+          )}
+          <button className="btn tiny" onClick={onClose}>
+            Done
+          </button>
+        </div>
+
+        <div className="pol-editor-body">
+          <OverrideRow label="Take screenshots" keyName="screenshotsEnabled" hint="Turn off to track this person without any screenshots.">
+            <div className="seg-row">
+              <button className={o.screenshotsEnabled ? 'seg active' : 'seg'} disabled={busy} onClick={() => onApply({ userId: person.id, screenshotsEnabled: true })}>On</button>
+              <button className={o.screenshotsEnabled === false ? 'seg active' : 'seg'} disabled={busy} onClick={() => onApply({ userId: person.id, screenshotsEnabled: false })}>Off</button>
+            </div>
+          </OverrideRow>
+
+          <OverrideRow label="Screenshot interval" keyName="screenshotIntervalMinutes">
+            <MiniNumber value={o.screenshotIntervalMinutes ?? 10} suffix="min" min={1} max={120} busy={busy} onCommit={(v) => onApply({ userId: person.id, screenshotIntervalMinutes: v })} />
+          </OverrideRow>
+
+          <OverrideRow label="Record the screen" keyName="recordingEnabled" hint="Turn off to track this person without any recording.">
+            <div className="seg-row">
+              <button className={o.recordingEnabled ? 'seg active' : 'seg'} disabled={busy} onClick={() => onApply({ userId: person.id, recordingEnabled: true })}>On</button>
+              <button className={o.recordingEnabled === false ? 'seg active' : 'seg'} disabled={busy} onClick={() => onApply({ userId: person.id, recordingEnabled: false })}>Off</button>
+            </div>
+          </OverrideRow>
+
+          <OverrideRow label="Recording mode" keyName="recordingMode">
+            <div className="seg-row">
+              <button className={o.recordingMode === 'interval' ? 'seg active' : 'seg'} disabled={busy} onClick={() => onApply({ userId: person.id, recordingMode: 'interval' })}>Clips</button>
+              <button className={o.recordingMode === 'session' ? 'seg active' : 'seg'} disabled={busy} onClick={() => onApply({ userId: person.id, recordingMode: 'session' })}>Whole session</button>
+            </div>
+          </OverrideRow>
+
+          <OverrideRow label="Idle threshold" keyName="idleThresholdMinutes">
+            <MiniNumber value={o.idleThresholdMinutes ?? 5} suffix="min" min={1} max={60} busy={busy} onCommit={(v) => onApply({ userId: person.id, idleThresholdMinutes: v })} />
+          </OverrideRow>
+
+          <div className="pol-ov-grid">
+            <OverrideRow label="Daily target" keyName="dailyTargetHours">
+              <MiniNumber value={o.dailyTargetHours ?? 8} suffix="h" min={0} max={24} step={0.5} busy={busy} onCommit={(v) => onApply({ userId: person.id, dailyTargetHours: v })} />
+            </OverrideRow>
+            <OverrideRow label="Office start" keyName="officeStart">
+              <input className="pol-ov-time" type="time" defaultValue={o.officeStart ?? '09:00'} disabled={busy} onChange={(e) => onApply({ userId: person.id, officeStart: e.target.value })} />
+            </OverrideRow>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function defaultFor(key) {
+  const defaults = {
+    screenshotsEnabled: true,
+    screenshotIntervalMinutes: 10,
+    recordingEnabled: false,
+    recordingMode: 'interval',
+    idleThresholdMinutes: 5,
+    dailyTargetHours: 8,
+    officeStart: '09:00',
+  };
+  return defaults[key];
+}
+
+function MiniNumber({ value, suffix, min, max, step = 1, busy, onCommit }) {
+  const [draft, setDraft] = useState(String(value));
+  return (
+    <span className="pol-input">
+      <input
+        type="number"
+        value={draft}
+        min={min}
+        max={max}
+        step={step}
+        disabled={busy}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          const n = Number(draft);
+          if (Number.isFinite(n) && n !== value) onCommit(n);
+          else setDraft(String(value));
+        }}
+        onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+      />
+      {suffix && <em>{suffix}</em>}
+    </span>
   );
 }

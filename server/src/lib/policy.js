@@ -107,47 +107,82 @@ export async function updatePolicy(patch, { updatedById = null } = {}) {
   return { policy };
 }
 
-/** Per-person hours and office times. Null clears an override. */
-export async function setUserSchedule(userId, patch) {
-  const user = await prisma.user.findUnique({ where: { id: String(userId || '') }, select: { id: true } });
+/**
+ * The keys a person may override, and how to validate each. Everything an admin
+ * can set org-wide can also be set per person, including the monitoring
+ * switches -- that is what lets one employee be tracked with no screenshots and
+ * no recording while the rest are captured normally.
+ */
+const OVERRIDE_KINDS = {
+  dailyTargetHours: 'number',
+  weeklyTargetHours: 'number',
+  officeStart: 'time',
+  officeEnd: 'time',
+  idleThresholdMinutes: 'number',
+  idleOnTimeout: 'idleAction',
+  countIdleAsWork: 'boolean',
+  screenshotsEnabled: 'boolean',
+  screenshotIntervalMinutes: 'number',
+  recordingEnabled: 'boolean',
+  recordingMode: 'recordingMode',
+  recordingIntervalMinutes: 'number',
+  recordingDurationSeconds: 'number',
+  recordingSegmentMinutes: 'number',
+};
+
+function validateOverrideValue(key, value) {
+  switch (OVERRIDE_KINDS[key]) {
+    case 'number': {
+      const n = clampNumber(key, value);
+      return n === null ? { error: `${key} must be a number` } : { value: n };
+    }
+    case 'time':
+      return TIME.test(String(value)) ? { value: String(value) } : { error: `${key} must look like 09:00` };
+    case 'boolean':
+      return { value: Boolean(value) };
+    case 'idleAction':
+      return IDLE_ACTIONS.includes(value) ? { value } : { error: 'Unknown idle action' };
+    case 'recordingMode':
+      return RECORDING_MODES.includes(value) ? { value } : { error: 'Unknown recording mode' };
+    default:
+      return { error: `${key} cannot be overridden` };
+  }
+}
+
+/**
+ * Sets or clears one person's overrides. A key set to null clears just that
+ * one; passing `{ clear: true }` drops all of them back to the team default.
+ */
+export async function setUserOverride(userId, patch) {
+  const user = await prisma.user.findUnique({ where: { id: String(userId || '') }, select: { id: true, overrides: true } });
   if (!user) return { error: 'That employee no longer exists' };
 
-  const data = {};
-
-  for (const key of ['dailyTargetHours', 'weeklyTargetHours']) {
-    if (patch[key] === undefined) continue;
-    if (patch[key] === null || patch[key] === '') {
-      data[key] = null;
-      continue;
-    }
-    const value = clampNumber(key, patch[key]);
-    if (value === null) return { error: `${key} must be a number` };
-    data[key] = value;
+  if (patch.clear) {
+    const updated = await prisma.user.update({ where: { id: user.id }, data: { overrides: null }, select: { id: true, name: true, overrides: true } });
+    return { user: updated };
   }
 
-  for (const key of ['officeStart', 'officeEnd']) {
-    if (patch[key] === undefined) continue;
-    if (patch[key] === null || patch[key] === '') {
-      data[key] = null;
+  const next = { ...(user.overrides || {}) };
+  let touched = false;
+
+  for (const [key, raw] of Object.entries(patch)) {
+    if (!(key in OVERRIDE_KINDS)) continue;
+    touched = true;
+    if (raw === null || raw === '') {
+      delete next[key];
       continue;
     }
-    if (!TIME.test(String(patch[key]))) return { error: `${key} must look like 09:00` };
-    data[key] = String(patch[key]);
+    const result = validateOverrideValue(key, raw);
+    if (result.error) return { error: result.error };
+    next[key] = result.value;
   }
 
-  if (!Object.keys(data).length) return { error: 'Nothing to change' };
+  if (!touched) return { error: 'Nothing to change' };
 
   const updated = await prisma.user.update({
     where: { id: user.id },
-    data,
-    select: {
-      id: true,
-      name: true,
-      dailyTargetHours: true,
-      weeklyTargetHours: true,
-      officeStart: true,
-      officeEnd: true,
-    },
+    data: { overrides: Object.keys(next).length ? next : null },
+    select: { id: true, name: true, overrides: true },
   });
   return { user: updated };
 }
@@ -160,16 +195,15 @@ export async function setUserSchedule(userId, patch) {
 export async function effectivePolicy(userId) {
   const [policy, user] = await Promise.all([
     getPolicy(),
-    prisma.user.findUnique({
-      where: { id: String(userId) },
-      select: { dailyTargetHours: true, weeklyTargetHours: true, officeStart: true, officeEnd: true },
-    }),
+    prisma.user.findUnique({ where: { id: String(userId) }, select: { overrides: true } }),
   ]);
 
-  const pick = (key) => (user?.[key] === null || user?.[key] === undefined ? policy[key] : user[key]);
+  // A person's override wins over the org default for any key it sets.
+  const o = user?.overrides || {};
+  const pick = (key) => (o[key] === undefined ? policy[key] : o[key]);
 
   return {
-    version: policy.updatedAt.toISOString(),
+    version: `${policy.updatedAt.toISOString()}:${JSON.stringify(o)}`,
     work: {
       dailyTargetHours: pick('dailyTargetHours'),
       weeklyTargetHours: pick('weeklyTargetHours'),
@@ -178,29 +212,32 @@ export async function effectivePolicy(userId) {
       workDays: policy.workDays,
     },
     idle: {
-      thresholdMinutes: policy.idleThresholdMinutes,
-      onTimeout: policy.idleOnTimeout,
-      countIdleAsWork: policy.countIdleAsWork,
+      thresholdMinutes: pick('idleThresholdMinutes'),
+      onTimeout: pick('idleOnTimeout'),
+      countIdleAsWork: pick('countIdleAsWork'),
     },
     screenshots: {
-      enabled: policy.screenshotsEnabled,
-      intervalMinutes: policy.screenshotIntervalMinutes,
+      enabled: pick('screenshotsEnabled'),
+      intervalMinutes: pick('screenshotIntervalMinutes'),
       randomize: policy.screenshotRandomize,
       quality: policy.screenshotQuality,
       allMonitors: policy.screenshotAllMonitors,
       blur: policy.screenshotBlur,
     },
     recording: {
-      enabled: policy.recordingEnabled,
-      mode: policy.recordingMode,
-      intervalMinutes: policy.recordingIntervalMinutes,
-      durationSeconds: policy.recordingDurationSeconds,
-      segmentMinutes: policy.recordingSegmentMinutes,
+      enabled: pick('recordingEnabled'),
+      mode: pick('recordingMode'),
+      intervalMinutes: pick('recordingIntervalMinutes'),
+      durationSeconds: pick('recordingDurationSeconds'),
+      segmentMinutes: pick('recordingSegmentMinutes'),
       maxWidth: policy.recordingMaxWidth,
       frameRate: policy.recordingFrameRate,
     },
   };
 }
+
+/** The override fields, so the UI knows what it may set per person. */
+export const OVERRIDE_KEYS = Object.keys(OVERRIDE_KINDS);
 
 /**
  * A rough guide to what a recording setting will cost in storage, so the choice

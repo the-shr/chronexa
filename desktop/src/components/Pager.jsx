@@ -14,7 +14,7 @@ import { IconChevron } from './Icons.jsx';
  * Returns a ref for the list container, the visible slice, and the control to
  * render in the card header.
  */
-export function usePager(items, { rowHeight, gap = 0 }) {
+export function usePager(items, { rowHeight, gap = 0, minColWidth = null }) {
   // A callback ref rather than useRef: pages commonly render `null` until their
   // settings arrive, so the container mounts long after the first effect ran.
   // Keeping the node in state re-runs the measurement the moment it appears.
@@ -29,7 +29,14 @@ export function usePager(items, { rowHeight, gap = 0 }) {
     const measure = () => {
       const height = node.clientHeight;
       if (!height) return;
-      setPerPage(Math.max(1, Math.floor((height + gap) / (rowHeight + gap))));
+      const rows = Math.max(1, Math.floor((height + gap) / (rowHeight + gap)));
+      // A grid wall (minColWidth set) holds rows x columns per page, not one
+      // item per row. Match the CSS auto-fill so the page fills the wall
+      // instead of leaving most of it blank.
+      const cols = minColWidth
+        ? Math.max(1, Math.floor((node.clientWidth + gap) / (minColWidth + gap)))
+        : 1;
+      setPerPage(rows * cols);
     };
 
     // Three triggers, because any one of them can miss on its own:
@@ -44,7 +51,7 @@ export function usePager(items, { rowHeight, gap = 0 }) {
       cancelAnimationFrame(frame);
       observer.disconnect();
     };
-  }, [node, rowHeight, gap]);
+  }, [node, rowHeight, gap, minColWidth]);
 
   const pages = Math.max(1, Math.ceil(items.length / perPage));
 

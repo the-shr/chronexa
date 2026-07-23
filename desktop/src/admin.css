@@ -1228,28 +1228,166 @@
 }
 
 .pol-person {
-  height: 70px;
+  height: 58px;
   flex: none;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 6px;
+  align-items: center;
+  gap: 8px;
   padding: 0 11px;
   border: 1px solid var(--line);
   border-radius: var(--r);
   background: var(--surface-2);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pol-person:hover {
+  border-color: var(--accent);
 }
 
 .pol-person-name {
+  flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 1px;
 }
 
-.pol-person-fields {
+.pol-person-name strong {
+  font-size: 12.5px;
+  font-weight: 540;
+}
+
+.pol-person-name small {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.pol-person-name small.custom {
+  color: var(--accent-text);
+}
+
+.pol-person-edit {
+  flex: none;
+  font-size: 11px;
+  color: var(--accent-text);
+}
+
+/* ---------------------------- person editor ----------------------------- */
+
+.pol-editor {
+  width: min(440px, calc(100% - 40px));
+  max-height: calc(100% - 40px);
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.pol-editor-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pol-editor-head strong {
+  font-size: 14px;
+}
+
+.pol-editor-head .muted {
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+
+.pol-editor-head .spacer {
+  flex: 1;
+}
+
+/* The one place a scroll is allowed: a modal that can exceed the window. */
+.pol-editor-body {
+  overflow-y: auto;
+  padding: 8px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pol-ov {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 0;
+}
+
+.pol-ov:last-child {
+  border-bottom: 0;
+}
+
+.pol-ov-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  cursor: pointer;
+}
+
+.pol-ov-head input {
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+
+.pol-ov-head span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.pol-ov-head strong {
+  font-size: 12.5px;
+  font-weight: 520;
+}
+
+.pol-ov-head small {
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.pol-ov:not(.on) .pol-ov-head strong {
+  color: var(--text-dim);
+}
+
+.pol-ov-body {
+  margin: 8px 0 0 24px;
+}
+
+.pol-ov-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 14px;
+}
+
+.pol-ov-body .pol-input {
+  max-width: 140px;
+}
+
+.pol-ov-time {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 8px;
+}
+
+.pol-ov-time:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 .pol-person-name strong {

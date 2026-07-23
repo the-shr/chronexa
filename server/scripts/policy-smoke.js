@@ -8,7 +8,7 @@
  */
 import { prisma } from '../src/lib/db.js';
 import { createUser } from '../src/lib/users.js';
-import { getPolicy, updatePolicy, setUserSchedule, effectivePolicy, estimateDailyBytes } from '../src/lib/policy.js';
+import { getPolicy, updatePolicy, setUserOverride, effectivePolicy, estimateDailyBytes } from '../src/lib/policy.js';
 
 const base = (process.argv[2] || 'http://localhost:3000').replace(/\/+$/, '');
 const PREFIX = `policy-${Date.now()}`;
@@ -56,18 +56,35 @@ check('an unknown field alone changes nothing', Boolean(junk.error), junk.error)
 
 /* --------------------------- per-employee ------------------------------- */
 
-const sched = await setUserSchedule(worker.id, { dailyTargetHours: 6, officeStart: '11:00' });
-check('an employee gets their own hours', sched.user?.dailyTargetHours === 6 && sched.user?.officeStart === '11:00');
+const sched = await setUserOverride(worker.id, { dailyTargetHours: 6, officeStart: '11:00' });
+check('an employee gets their own hours', sched.user?.overrides?.dailyTargetHours === 6 && sched.user?.overrides?.officeStart === '11:00');
 
 const eff = await effectivePolicy(worker.id);
 check('their effective policy uses the override', eff.work.dailyTargetHours === 6 && eff.work.officeStart === '11:00');
 check('and the org policy for the rest', eff.work.officeEnd === '18:30' && eff.screenshots.intervalMinutes === 7);
 check('the capture half is shaped like agent settings', eff.recording.mode === 'session' && eff.recording.segmentMinutes === 4);
 
-const cleared = await setUserSchedule(worker.id, { dailyTargetHours: null });
-check('clearing an override falls back to the org policy', cleared.user.dailyTargetHours === null);
+// The case the whole feature exists for: tracked, but not captured.
+const noCapture = await setUserOverride(worker.id, { screenshotsEnabled: false, recordingEnabled: false });
+check('a person can be exempt from capture', !noCapture.error);
+const effNoCap = await effectivePolicy(worker.id);
+check('their screenshots are off', effNoCap.screenshots.enabled === false);
+check('and their recording is off', effNoCap.recording.enabled === false);
+check('while the org default stays on', (await effectivePolicy(boss.id)).screenshots.enabled === true);
+
+const badOverride = await setUserOverride(worker.id, { idleOnTimeout: 'explode' });
+check('an invalid override value is rejected', Boolean(badOverride.error), badOverride.error);
+
+const oneCleared = await setUserOverride(worker.id, { dailyTargetHours: null });
+check('clearing one key leaves the others', (await effectivePolicy(worker.id)).screenshots.enabled === false);
+
+const allCleared = await setUserOverride(worker.id, { clear: true });
+check('clearing all falls back to the org policy', allCleared.user.overrides === null);
 const effAfter = await effectivePolicy(worker.id);
 check('so the effective daily hours are the org default', effAfter.work.dailyTargetHours === original.dailyTargetHours, String(effAfter.work.dailyTargetHours));
+// The org policy currently has recording on (set above), so clearing the
+// person's override returns them to that, not to the start-of-test snapshot.
+check('and capture is on again', effAfter.screenshots.enabled === true && effAfter.recording.enabled === true);
 
 /* -------------------------- clamping, in isolation ---------------------- */
 

@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db.js';
 import { adminDeviceFromRequest } from '@/lib/auth.js';
-import { getPolicy, updatePolicy, setUserSchedule, estimateDailyBytes } from '@/lib/policy.js';
+import { getPolicy, updatePolicy, setUserOverride, estimateDailyBytes } from '@/lib/policy.js';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,15 +14,7 @@ export async function GET(request) {
     prisma.user.findMany({
       where: { active: true, role: 'employee' },
       orderBy: { name: 'asc' },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        dailyTargetHours: true,
-        weeklyTargetHours: true,
-        officeStart: true,
-        officeEnd: true,
-      },
+      select: { id: true, name: true, email: true, overrides: true },
     }),
   ]);
 
@@ -46,11 +38,11 @@ export async function PATCH(request) {
     return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  // A userId means "just this person's schedule"; without one it is the
+  // A userId means "just this person's overrides"; without one it is the
   // organisation policy.
   if (body.userId) {
     const { userId, ...patch } = body;
-    const result = await setUserSchedule(userId, patch);
+    const result = await setUserOverride(userId, patch);
     if (result.error) return Response.json({ error: result.error }, { status: 400 });
     return Response.json({ user: result.user });
   }

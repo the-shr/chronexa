@@ -394,7 +394,7 @@ function mockAdmin() {
         recordingDurationSeconds: 5, recordingSegmentMinutes: 5, recordingMaxWidth: 1280, recordingFrameRate: 12,
         updatedAt: new Date().toISOString(),
       },
-      employees: people.map((p) => ({ id: p.id, name: p.name, email: p.email, dailyTargetHours: null, weeklyTargetHours: null, officeStart: null, officeEnd: null })),
+      employees: people.map((p) => ({ id: p.id, name: p.name, email: p.email, overrides: null })),
       estimatedDailyBytes: 0,
     }),
     updatePolicy: async () => ({ ok: true }),

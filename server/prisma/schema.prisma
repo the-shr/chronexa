@@ -27,12 +27,12 @@ model User {
   avatarPath   String?
   createdAt    DateTime @default(now())
 
-  /// Per-person overrides. Null means "use the organisation policy", so a team
-  /// with one part-timer does not need a policy row for everyone else.
-  dailyTargetHours  Float?
-  weeklyTargetHours Float?
-  officeStart       String?
-  officeEnd         String?
+  /// Per-person policy overrides as a partial of the org policy: any key present
+  /// wins over the organisation default, anything absent falls back to it. Null
+  /// or {} means "entirely on the team default", so a team where everyone is the
+  /// same needs nothing here. This is what lets one person be tracked with no
+  /// screenshots or recording while the rest are captured normally.
+  overrides Json?
 
   devices     Device[]
   sessions    WorkSession[]

@@ -17,7 +17,9 @@ export default function Screens() {
   const { data: overview } = useOverview(7);
   const people = overview?.people || [];
 
-  const { ref, slice, control } = usePager(screenshots, { rowHeight: ROW.shot, gap: 10 });
+  // The wall is a grid, so it pages in rows x columns -- minColWidth matches the
+  // CSS auto-fill (minmax(190px, 1fr)) so a page fills the wall.
+  const { ref, slice, control } = usePager(screenshots, { rowHeight: ROW.shot, gap: 10, minColWidth: 190 });
 
   // Deleting is irreversible, so it goes through a two-step confirm rather than
   // firing on a single click.
