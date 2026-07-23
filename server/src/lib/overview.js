@@ -5,6 +5,7 @@
  */
 import { prisma } from './db.js';
 import { removeScreenshot } from './storage.js';
+import { deleteFile as deleteDriveFile } from './drive.js';
 
 const DAY = 86400000;
 
@@ -259,6 +260,47 @@ export async function recentScreenshots({ limit = 60, userId = null } = {}) {
     monitorLabel: s.monitorLabel,
     activityPercent: s.activityPercent,
   }));
+}
+
+/** The team's latest screen clips, newest first. */
+export async function recentRecordings({ limit = 60, userId = null } = {}) {
+  const rows = await prisma.recording.findMany({
+    where: userId ? { userId: String(userId) } : {},
+    orderBy: { startedAt: 'desc' },
+    take: Math.min(200, Math.max(1, Number(limit) || 60)),
+    select: {
+      id: true,
+      userId: true,
+      startedAt: true,
+      durationMs: true,
+      bytes: true,
+      driveFileId: true,
+      user: { select: { name: true } },
+    },
+  });
+
+  return rows.map((r) => ({
+    id: r.id,
+    userId: r.userId,
+    name: r.user.name,
+    startedAt: r.startedAt.toISOString(),
+    durationMs: r.durationMs,
+    bytes: r.bytes,
+    driveFileId: r.driveFileId,
+  }));
+}
+
+/** Removes one clip from Drive and from the database. */
+export async function deleteRecording(id) {
+  const row = await prisma.recording.findUnique({
+    where: { id: String(id || '') },
+    select: { id: true, driveFileId: true },
+  });
+  if (!row) return { error: 'That recording no longer exists' };
+
+  if (row.driveFileId) await deleteDriveFile(row.driveFileId).catch(() => {});
+  await prisma.recording.delete({ where: { id: row.id } });
+  return { ok: true };
 }
 
 /**

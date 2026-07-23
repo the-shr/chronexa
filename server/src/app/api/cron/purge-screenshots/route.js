@@ -1,4 +1,4 @@
-import { purgeOldScreenshots, retentionDays } from '@/lib/retention.js';
+import { purgeOldScreenshots, purgeOldRecordings, retentionDays, recordingRetentionDays } from '@/lib/retention.js';
 
 export const dynamic = 'force-dynamic';
 // A big backlog on the first run needs room; a warm daily run finishes fast.
@@ -22,10 +22,18 @@ export async function GET(request) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  if (!retentionDays()) {
-    return Response.json({ ok: true, skipped: true, reason: 'SCREENSHOT_RETENTION_DAYS not set' });
+  if (!retentionDays() && !recordingRetentionDays()) {
+    return Response.json({
+      ok: true,
+      skipped: true,
+      reason: 'Neither SCREENSHOT_RETENTION_DAYS nor RECORDING_RETENTION_DAYS is set',
+    });
   }
 
-  const result = await purgeOldScreenshots({ log: (m) => console.log(m) });
-  return Response.json({ ok: true, ...result });
+  const log = (m) => console.log(m);
+  // Clips first: they are the ones that fill a free Drive.
+  const recordings = await purgeOldRecordings({ log });
+  const screenshots = await purgeOldScreenshots({ log });
+
+  return Response.json({ ok: true, screenshots, recordings });
 }

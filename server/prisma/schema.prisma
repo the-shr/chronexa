@@ -30,6 +30,7 @@ model User {
   devices     Device[]
   sessions    WorkSession[]
   screenshots Screenshot[]
+  recordings  Recording[]
   tasks       Task[]        @relation("AssignedTasks")
 }
 
@@ -66,6 +67,7 @@ model WorkSession {
   device      Device?      @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   task        Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
   screenshots Screenshot[]
+  recordings  Recording[]
 
   @@index([userId, startedAt])
 }
@@ -117,4 +119,29 @@ model Screenshot {
 
   @@unique([userId, clientId])
   @@index([userId, capturedAt])
+}
+
+/// Short screen clips, stored in Google Drive rather than R2 -- only the id of
+/// the Drive file is kept here. Recorded only when an admin turns it on.
+model Recording {
+  id          String   @id @default(cuid())
+  /// Agent-side id, so a retried upload does not create a duplicate.
+  clientId    String
+  userId      String
+  sessionId   String?
+  startedAt   DateTime
+  durationMs  Int      @default(0)
+  width       Int      @default(0)
+  height      Int      @default(0)
+  bytes       Int      @default(0)
+  mimeType    String   @default("video/webm")
+  /// Google Drive file id. Empty while an upload is still being retried.
+  driveFileId String
+  createdAt   DateTime @default(now())
+
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session WorkSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, clientId])
+  @@index([userId, startedAt])
 }

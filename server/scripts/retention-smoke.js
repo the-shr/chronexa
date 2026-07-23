@@ -9,7 +9,7 @@
 import { prisma } from '../src/lib/db.js';
 import { createUser } from '../src/lib/users.js';
 import { putScreenshot, getScreenshot } from '../src/lib/storage.js';
-import { purgeOldScreenshots } from '../src/lib/retention.js';
+import { purgeOldScreenshots, purgeOldRecordings } from '../src/lib/retention.js';
 
 const PREFIX = `retention-${Date.now()}`;
 const results = [];
@@ -67,6 +67,44 @@ check('the old object is gone', (await getScreenshot(oldPath)) === null);
 const again = await purgeOldScreenshots({ days: 30 });
 check('running again deletes nothing new', again.deleted === 0);
 
+/* ------------------------------ recordings ------------------------------ */
+
+// A stub remover stands in for Drive, so the clip sweep is proven without
+// needing Google credentials.
+const removedFromDrive = [];
+const remove = async (fileId) => {
+  if (fileId === 'clip-gone') throw new Error('already deleted in Drive');
+  removedFromDrive.push(fileId);
+};
+
+async function makeClip(id, startedAt, driveFileId) {
+  await prisma.recording.create({
+    data: { userId: user.id, clientId: id, startedAt, driveFileId, bytes: 1024, durationMs: 5000 },
+  });
+}
+
+await makeClip('clip-old', daysAgo(20), 'drive-old-1');
+await makeClip('clip-old-2', daysAgo(15), 'drive-old-2');
+await makeClip('clip-fresh', daysAgo(2), 'drive-fresh');
+await makeClip('clip-missing', daysAgo(30), 'clip-gone');
+check('stored four clips', (await countClips()) === 4, String(await countClips()));
+
+const clipNoop = await purgeOldRecordings({ days: 0, remove });
+check('an unset clip window deletes nothing', clipNoop.skipped === true && clipNoop.deleted === 0);
+
+const clipRun = await purgeOldRecordings({ days: 14, remove });
+check('clips past the window are deleted', clipRun.deleted === 3, `deleted ${clipRun.deleted}`);
+check('the Drive files are removed too', removedFromDrive.length === 2, removedFromDrive.join(', '));
+check('a clip already gone from Drive is still counted', clipRun.failed === 1, `failed ${clipRun.failed}`);
+check('and its row goes anyway', (await countClips()) === 1, String(await countClips()));
+
+const survivor = await prisma.recording.findFirst({ where: { userId: user.id } });
+check('the fresh clip survives', survivor?.clientId === 'clip-fresh', survivor?.clientId);
+check('and its Drive file was left alone', !removedFromDrive.includes('drive-fresh'));
+
+const clipAgain = await purgeOldRecordings({ days: 14, remove });
+check('a second clip sweep deletes nothing new', clipAgain.deleted === 0);
+
 /* -------------------------------- cleanup ------------------------------- */
 
 await prisma.user.deleteMany({ where: { email: { startsWith: 'retention-' } } });
@@ -74,6 +112,10 @@ await prisma.$disconnect();
 
 async function countMine() {
   return prisma.screenshot.count({ where: { userId: user.id } });
+}
+
+async function countClips() {
+  return prisma.recording.count({ where: { userId: user.id } });
 }
 
 const failed = results.filter((r) => !r).length;
