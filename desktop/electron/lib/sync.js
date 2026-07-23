@@ -7,6 +7,7 @@ const { EventEmitter } = require('node:events');
 const db = require('./db');
 const auth = require('./auth');
 const settings = require('./settings');
+const recorder = require('./recorder');
 const log = require('./log');
 
 const MAX_ATTEMPTS = 8;
@@ -64,6 +65,7 @@ class Sync extends EventEmitter {
         try {
           if (item.type === 'session') await this.pushSession(item.payload);
           else if (item.type === 'screenshot') await this.pushScreenshot(item.payload.id);
+          else if (item.type === 'recording') await this.pushRecording(item.payload.id);
           else if (item.type === 'task') await this.pushTask(item.payload);
           else if (item.type === 'task-add') await this.pushNewTask(item.payload);
           else if (item.type === 'task-delete') await this.pushTaskDelete(item.payload);
@@ -191,6 +193,43 @@ class Sync extends EventEmitter {
     this.guard(res, 'screenshots');
     const data = await res.json().catch(() => ({}));
     db.markScreenshotUploaded(id, data.url || null);
+  }
+
+  async pushRecording(id) {
+    const row = db.getRecording(id);
+    if (!row || row.uploaded) return;
+    if (!fs.existsSync(row.filePath)) {
+      // The file went before it went up. Mark it done so the queue drains
+      // rather than retrying something that can never succeed.
+      db.markRecordingUploaded(id);
+      return;
+    }
+
+    const form = new FormData();
+    form.set('meta', JSON.stringify({ ...row, filePath: undefined }));
+    form.set('file', new Blob([fs.readFileSync(row.filePath)], { type: 'video/webm' }), path.basename(row.filePath));
+
+    const res = await fetch(`${this.base()}/api/agent/recordings`, {
+      method: 'POST',
+      headers: auth.authHeaders(),
+      body: form,
+    });
+
+    // 501 means the server has no Drive configured. Retrying cannot fix that,
+    // so drop the clip rather than filling the employee's disk with a queue
+    // that will never drain.
+    if (res.status === 501) {
+      log.info('sync: recordings are not configured on the server; discarding', id);
+      const dropped = db.removeRecording(id);
+      if (dropped) recorder.remove(dropped);
+      return;
+    }
+
+    this.guard(res, 'recordings');
+    db.markRecordingUploaded(id);
+
+    // Clips are large; keep only a few on disk once the server has them.
+    for (const stale of db.drainUploadedRecordings()) recorder.remove(stale);
   }
 }
 

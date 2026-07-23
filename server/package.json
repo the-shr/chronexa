@@ -25,7 +25,8 @@
     "test:drive": "node --env-file=.env scripts/drive-smoke.js",
     "drive:connect": "node --env-file=.env scripts/drive-connect.js",
     "clear:demo": "node --env-file=.env scripts/clear-demo-data.js",
-    "purge:screenshots": "node --env-file=.env scripts/purge-screenshots.js"
+    "purge:screenshots": "node --env-file=.env scripts/purge-screenshots.js",
+    "rl:clear": "node --env-file=.env scripts/clear-rate-limits.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1092.0",

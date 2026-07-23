@@ -10,17 +10,20 @@ const { JsonStore } = require('./jsonstore');
  */
 let sessions = null;
 let screenshots = null;
+let recordings = null;
 let outbox = null;
 
 function init() {
   sessions = new JsonStore(paths.sessionsFile(), { rows: [] });
   screenshots = new JsonStore(paths.screenshotsFile(), { rows: [] });
+  recordings = new JsonStore(paths.recordingsFile(), { rows: [] });
   outbox = new JsonStore(paths.outboxFile(), { rows: [] });
 }
 
 function flush() {
   sessions?.flush();
   screenshots?.flush();
+  recordings?.flush();
   outbox?.flush();
 }
 
@@ -134,6 +137,53 @@ function pendingScreenshots(limit = 10) {
     .slice(-limit);
 }
 
+/* ------------------------------ recordings ------------------------------ */
+
+function addRecording(row) {
+  recordings.update((data) => {
+    data.rows.unshift(row);
+    return data;
+  });
+}
+
+function getRecording(id) {
+  return recordings.read().rows.find((r) => r.id === id) || null;
+}
+
+function markRecordingUploaded(id) {
+  recordings.update((data) => {
+    const row = data.rows.find((r) => r.id === id);
+    if (row) row.uploaded = true;
+    return data;
+  });
+}
+
+function removeRecording(id) {
+  let removed = null;
+  recordings.update((data) => {
+    const i = data.rows.findIndex((r) => r.id === id);
+    if (i !== -1) [removed] = data.rows.splice(i, 1);
+    return data;
+  });
+  recordings.flush();
+  return removed;
+}
+
+/**
+ * Clips already uploaded are dead weight on the employee's disk -- each is a
+ * megabyte or so and the server has them. Returns the rows to delete.
+ */
+function drainUploadedRecordings(keep = 5) {
+  const done = recordings.read().rows.filter((r) => r.uploaded);
+  if (done.length <= keep) return [];
+  const stale = done.slice(keep);
+  recordings.update((data) => {
+    data.rows = data.rows.filter((r) => !stale.some((s) => s.id === r.id));
+    return data;
+  });
+  return stale;
+}
+
 /* -------------------------------- outbox -------------------------------- */
 
 function enqueue(item) {
@@ -177,6 +227,11 @@ module.exports = {
   removeScreenshot,
   markScreenshotUploaded,
   pendingScreenshots,
+  addRecording,
+  getRecording,
+  markRecordingUploaded,
+  removeRecording,
+  drainUploadedRecordings,
   enqueue,
   peekOutbox,
   dropOutbox,

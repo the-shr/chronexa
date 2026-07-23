@@ -23,7 +23,9 @@
     "icons": "node scripts/make-icons.js",
     "start": "npm run build && electron .",
     "pack": "npm run build && electron-builder --dir",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "test:recorder": "electron scripts/recorder-probe.js",
+    "test:recording-e2e": "electron scripts/recording-e2e-probe.js"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

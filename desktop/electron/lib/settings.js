@@ -18,6 +18,15 @@ const DEFAULTS = {
     blur: false, // privacy blur before saving
     notifyOnCapture: true, // toast the employee so capture is never a secret
   },
+  recording: {
+    // Off unless an admin turns it on. Like screenshots, nothing about this
+    // reaches the renderer -- see publicView().
+    enabled: false,
+    intervalMinutes: 3, // record once per this window
+    durationSeconds: 5, // how long each clip runs
+    maxWidth: 1280, // downscale before encoding; video is bulky
+    frameRate: 12, // enough to follow what is happening, a third the size of 30
+  },
   idle: {
     enabled: true,
     thresholdMinutes: 5, // no mouse/keyboard for this long => idle
@@ -57,6 +66,10 @@ const RANGES = {
   'screenshots.intervalMinutes': [1, 120],
   'screenshots.quality': [10, 100],
   'screenshots.maxWidth': [640, 3840],
+  'recording.intervalMinutes': [1, 240],
+  'recording.durationSeconds': [2, 60],
+  'recording.maxWidth': [640, 1920],
+  'recording.frameRate': [5, 30],
   'idle.thresholdMinutes': [1, 60],
   'idle.warningCountdownSeconds': [10, 600],
   'sync.intervalSeconds': [15, 3600],

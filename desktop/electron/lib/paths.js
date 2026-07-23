@@ -25,11 +25,13 @@ const paths = {
   authFile: () => path.join(root(), 'auth.json'),
   sessionsFile: () => path.join(root(), 'sessions.json'),
   screenshotsFile: () => path.join(root(), 'screenshots.json'),
+  recordingsFile: () => path.join(root(), 'recordings.json'),
   outboxFile: () => path.join(root(), 'outbox.json'),
   tasksFile: () => path.join(root(), 'tasks.json'),
   profileFile: () => path.join(root(), 'profile.json'),
   screenshotDir: () => ensureDir(path.join(root(), 'screenshots')),
   thumbDir: () => ensureDir(path.join(root(), 'screenshots', 'thumbs')),
+  recordingDir: () => ensureDir(path.join(root(), 'recordings')),
   logFile: () => path.join(root(), 'chronexa.log'),
   ensureDir,
 };

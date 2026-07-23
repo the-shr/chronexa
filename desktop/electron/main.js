@@ -9,6 +9,7 @@ const tracker = require('./lib/tracker');
 const tasks = require('./lib/tasks');
 const profile = require('./lib/profile');
 const admin = require('./lib/admin');
+const recorder = require('./lib/recorder');
 const sync = require('./lib/sync');
 const windows = require('./lib/windows');
 const tray = require('./lib/tray');
@@ -32,6 +33,7 @@ app.whenReady().then(() => {
   tasks.init();
   profile.init();
   admin.init();
+  recorder.init();
 
   windows.createMainWindow({ onCloseRequest: handleMainClose });
   tray.create({
@@ -89,6 +91,7 @@ app.on('activate', () => windows.createMainWindow({ onCloseRequest: handleMainCl
 app.on('before-quit', () => {
   quitting = true;
   if (tracker.state !== 'stopped') tracker.stop('app-quit');
+  recorder.stop();
   db.flush();
 });
 
@@ -105,6 +108,29 @@ function handleMainClose() {
 /* --------------------------- tracker <-> UI glue ------------------------ */
 
 function wireTracker() {
+  // Recording follows the tracker: it runs only while someone is actually
+  // working, and stops the moment they pause, go idle or stop. Driven off the
+  // state snapshot so every path into and out of running is covered, including
+  // the automatic idle pause.
+  let recordingFor = null;
+  tracker.on('state', (snapshot) => {
+    const working = snapshot.state === 'running' && snapshot.idlePhase === 'active';
+    const id = snapshot.session?.id || null;
+
+    if (working && id && id !== recordingFor) {
+      recorder.start(id);
+      recordingFor = id;
+    } else if (!working && recordingFor) {
+      recorder.stop();
+      recordingFor = null;
+    }
+  });
+
+  recorder.on('clip', (row) => {
+    db.addRecording(row);
+    db.enqueue({ id: `recording:${row.id}`, type: 'recording', payload: { id: row.id } });
+  });
+
   tracker.on('state', (snapshot) => {
     windows.broadcast('tracker:state', snapshot);
     tray.update(snapshot);
