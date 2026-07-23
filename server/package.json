@@ -22,6 +22,8 @@
     "test:admin-api": "node --env-file=.env scripts/admin-api-smoke.js",
     "test:retention": "node --env-file=.env scripts/retention-smoke.js",
     "test:upstash": "node --env-file=.env scripts/upstash-smoke.js",
+    "test:drive": "node --env-file=.env scripts/drive-smoke.js",
+    "drive:connect": "node --env-file=.env scripts/drive-connect.js",
     "clear:demo": "node --env-file=.env scripts/clear-demo-data.js",
     "purge:screenshots": "node --env-file=.env scripts/purge-screenshots.js"
   },
