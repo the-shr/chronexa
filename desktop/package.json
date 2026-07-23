@@ -25,7 +25,8 @@
     "pack": "npm run build && electron-builder --dir",
     "dist": "npm run build && electron-builder",
     "test:recorder": "electron scripts/recorder-probe.js",
-    "test:recording-e2e": "electron scripts/recording-e2e-probe.js"
+    "test:recording-e2e": "electron scripts/recording-e2e-probe.js",
+    "test:silence": "electron scripts/silence-probe.js"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

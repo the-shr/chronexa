@@ -16,7 +16,6 @@ const DEFAULTS = {
     maxWidth: 1600, // downscale wide screens to keep files small
     allMonitors: true, // capture every display, not just the primary
     blur: false, // privacy blur before saving
-    notifyOnCapture: true, // toast the employee so capture is never a secret
   },
   recording: {
     // Off unless an admin turns it on. Like screenshots, nothing about this

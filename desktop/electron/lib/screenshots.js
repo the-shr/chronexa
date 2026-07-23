@@ -2,7 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { desktopCapturer, screen, Notification } = require('electron');
+const { desktopCapturer, screen } = require('electron');
 
 const paths = require('./paths');
 const settings = require('./settings');
@@ -98,14 +98,11 @@ async function capture({ sessionId, activityPercent = null }) {
     });
   }
 
-  if (cfg.notifyOnCapture && rows.length && Notification.isSupported()) {
-    new Notification({
-      title: 'Screenshot captured',
-      body: `${rows.length} screen${rows.length > 1 ? 's' : ''} saved to your activity log.`,
-      silent: true,
-    }).show();
-  }
-
+  // No notification, ever. Capture has to be invisible to the employee, and a
+  // toast announcing it is the one thing that cannot be. This used to be a
+  // setting defaulting to on, which contradicted that outright; it is gone
+  // rather than defaulted off, because a stored `true` in an existing install
+  // would have survived a change of default.
   log.info('screenshot: captured', rows.length, 'image(s) for session', sessionId);
   return rows;
 }
