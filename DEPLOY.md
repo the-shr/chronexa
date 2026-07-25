@@ -120,16 +120,23 @@ and Drive fills up.
 
 ## Pointing the desktop app at it
 
-The agent's server URL lives in its settings. Before building the installer,
-set the default in `desktop/electron/lib/settings.js`:
+An installed build points at the deployment automatically; only a build run
+from source uses `http://localhost:3000`. The switch is `app.isPackaged` in
+`desktop/electron/lib/settings.js`, and the deployment URL is the
+`PRODUCTION_SERVER` constant there — change that one line if the deployment
+URL changes (e.g. a custom domain).
 
-```js
-sync: {
-  serverUrl: 'https://<your-deployment>',
-}
+`CHRONEXA_SERVER=<url>` overrides both, for pointing an installer at a staging
+server without rebuilding.
+
+Build the installer to hand out:
+
+```
+cd desktop
+npm run dist
 ```
 
-Then `npm run dist` in `desktop/` produces the installer to hand out.
+The Windows installer lands in `desktop/release/` as `Chronexa Setup <version>.exe`.
 
 ---
 

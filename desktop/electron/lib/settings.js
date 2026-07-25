@@ -1,7 +1,18 @@
 'use strict';
 
+const { app } = require('electron');
+
 const paths = require('./paths');
 const { JsonStore } = require('./jsonstore');
+
+// The server the agent talks to. An installed build points at the deployment;
+// running from source (npm run dev) points at the local server. CHRONEXA_SERVER
+// overrides both, for testing an installer against a staging server.
+const PRODUCTION_SERVER = 'https://chronexa-psi.vercel.app';
+function defaultServerUrl() {
+  if (process.env.CHRONEXA_SERVER) return process.env.CHRONEXA_SERVER;
+  return app?.isPackaged ? PRODUCTION_SERVER : 'http://localhost:3000';
+}
 
 /**
  * Every knob the user asked to be configurable lives here. Defaults are chosen
@@ -61,7 +72,7 @@ const DEFAULTS = {
   },
   sync: {
     enabled: false,
-    serverUrl: 'http://localhost:3000',
+    serverUrl: defaultServerUrl(),
     intervalSeconds: 60,
     uploadScreenshots: true,
   },
