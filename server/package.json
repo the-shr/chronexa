@@ -27,7 +27,8 @@
     "clear:demo": "node --env-file=.env scripts/clear-demo-data.js",
     "purge:screenshots": "node --env-file=.env scripts/purge-screenshots.js",
     "rl:clear": "node --env-file=.env scripts/clear-rate-limits.js",
-    "test:policy": "node --env-file=.env scripts/policy-smoke.js"
+    "test:policy": "node --env-file=.env scripts/policy-smoke.js",
+    "clear:everything": "node --env-file=.env scripts/clear-everything.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1092.0",
