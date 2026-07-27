@@ -1,7 +1,7 @@
 {
   "name": "chronexa-desktop",
   "version": "0.1.0",
-  "description": "Employee time tracker with interval screenshots and idle detection",
+  "description": "Chronexa",
   "main": "electron/main.js",
   "author": "Brand Macros",
   "license": "UNLICENSED",
@@ -43,6 +43,7 @@
   "build": {
     "appId": "com.brandmacros.chronexa",
     "productName": "Chronexa",
+    "copyright": "Brand Macros",
     "directories": {
       "output": "release",
       "buildResources": "build"
