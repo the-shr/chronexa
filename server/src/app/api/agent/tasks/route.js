@@ -1,7 +1,33 @@
 import { prisma } from '@/lib/db.js';
 import { deviceFromRequest } from '@/lib/auth.js';
+import * as bmos from '@/lib/bmos.js';
 
 const MAX_SELF_TASKS = 200;
+
+// Brand Macros OS priority -> Chronexa's three levels.
+const HUB_PRIORITY = { URGENT: 'high', HIGH: 'high', MEDIUM: 'normal', LOW: 'low' };
+
+/**
+ * A task from the ecosystem hub, shaped like a Chronexa task so the agent shows
+ * it alongside the rest. The id is prefixed so it never collides with a local
+ * one and so completion can be routed back to the hub. Source "bmos" means the
+ * agent treats it as assigned work -- shown and completable, never deletable.
+ */
+function serialiseHubTask(t) {
+  return {
+    id: `bmos:${t.id}`,
+    title: t.title,
+    description: t.description || '',
+    status: 'open',
+    priority: HUB_PRIORITY[t.priority] || 'normal',
+    source: 'bmos',
+    position: -1000, // hub work sorts above the employee's own
+    dueAt: t.deadline,
+    estimateMinutes: null,
+    completedAt: null,
+    updatedAt: null,
+  };
+}
 
 /** Shape sent to the agent. Never leaks fields belonging to other users. */
 export function serialiseTask(task) {
@@ -36,8 +62,18 @@ export async function GET(request) {
     orderBy: TASK_ORDER,
     take: 300,
   });
+  const local = tasks.map(serialiseTask);
 
-  return Response.json({ tasks: tasks.map(serialiseTask) });
+  // Mirror the employee's open work from the ecosystem hub, if this account came
+  // from there. A hub that is down or slow just yields no hub tasks -- the
+  // employee's own list still renders.
+  let hub = [];
+  if (device.user?.externalId) {
+    const hubTasks = await bmos.fetchTasks(device.user.email);
+    if (hubTasks) hub = hubTasks.map(serialiseHubTask);
+  }
+
+  return Response.json({ tasks: [...hub, ...local] });
 }
 
 /**

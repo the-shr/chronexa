@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db.js';
 import { deviceFromRequest } from '@/lib/auth.js';
 import { serialiseTask } from '../route.js';
+import * as bmos from '@/lib/bmos.js';
 
 const STATUSES = ['open', 'done'];
 
@@ -25,6 +26,32 @@ export async function PATCH(request, { params }) {
   const status = String(body.status || '');
   if (!STATUSES.includes(status)) {
     return Response.json({ error: `status must be one of: ${STATUSES.join(', ')}` }, { status: 400 });
+  }
+
+  // A hub task: completion is a submission back to Brand Macros OS for review.
+  // The id was prefixed on the way out so it routes here rather than to a local
+  // row. Un-ticking is a no-op -- a submitted task cannot be pulled back from
+  // the agent.
+  if (id.startsWith('bmos:')) {
+    const hubId = id.slice('bmos:'.length);
+    const synthetic = {
+      id,
+      title: '',
+      description: '',
+      status,
+      priority: 'normal',
+      source: 'bmos',
+      position: -1000,
+      dueAt: null,
+      estimateMinutes: null,
+      completedAt: status === 'done' ? new Date() : null,
+      updatedAt: new Date(),
+    };
+    if (status !== 'done') return Response.json({ task: synthetic });
+
+    const result = await bmos.submitTask(device.user.email, hubId, body.completionNote);
+    if (result.error) return Response.json({ error: result.error }, { status: 502 });
+    return Response.json({ task: synthetic });
   }
 
   // Scope the lookup to the caller so one employee cannot touch another's task.

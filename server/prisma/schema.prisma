@@ -19,9 +19,17 @@ model User {
   id           String   @id @default(cuid())
   email        String   @unique
   name         String
-  passwordHash String
+  // Null for accounts mirrored from Brand Macros OS: the ecosystem hub owns
+  // their password, so nothing to store or verify here. Local accounts (the
+  // break-glass admin) keep a real scrypt hash.
+  passwordHash String?
   role         String   @default("employee") // employee | admin
   active       Boolean  @default(true)
+  // "local" for accounts created in Chronexa, "bmos" for ones mirrored from the
+  // ecosystem hub on first sign-in.
+  source       String   @default("local")
+  // The Brand Macros OS user id, when this account is mirrored from there.
+  externalId   String?  @unique
   // Storage reference for the profile picture, in the same form as a
   // screenshot's: `r2:<key>` or a relative path. Null means use initials.
   avatarPath   String?

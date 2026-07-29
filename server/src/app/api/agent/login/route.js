@@ -2,6 +2,7 @@ import { prisma } from '@/lib/db.js';
 import { verifyPassword, newDeviceToken } from '@/lib/auth.js';
 import { normaliseEmail } from '@/lib/user-rules.js';
 import { rateLimit, clearRateLimit, clientIp, LOGIN_LIMITS } from '@/lib/rate-limit.js';
+import { loginViaHub } from '@/lib/ecosystem-login.js';
 
 /**
  * Desktop agent sign-in. Returns a long-lived device token rather than a
@@ -38,9 +39,18 @@ export async function POST(request) {
     }
   }
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  // The ecosystem hub is the source of truth for accounts; it also provisions a
+  // local mirror on first sign-in. Only if the hub rejects or cannot be reached
+  // do we try a local password, which just the break-glass admin can pass.
+  let user = await loginViaHub(email, password);
+  if (!user) {
+    const local = await prisma.user.findUnique({ where: { email } });
+    if (local?.active && local.passwordHash && verifyPassword(password, local.passwordHash)) {
+      user = local;
+    }
+  }
   // Same response for unknown user and wrong password -- no account enumeration.
-  if (!user || !user.active || !verifyPassword(password, user.passwordHash)) {
+  if (!user || !user.active) {
     return Response.json({ error: 'Incorrect email or password' }, { status: 401 });
   }
 

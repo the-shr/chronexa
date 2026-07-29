@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db.js';
 import { verifyPassword, createAdminSession, currentAdmin } from '@/lib/auth.js';
 import { normaliseEmail } from '@/lib/user-rules.js';
 import { rateLimit, clearRateLimit, clientIp, LOGIN_LIMITS } from '@/lib/rate-limit.js';
+import { loginViaHub } from '@/lib/ecosystem-login.js';
 
 export default async function LoginPage({ searchParams }) {
   if (await currentAdmin()) redirect('/dashboard');
@@ -25,8 +26,17 @@ export default async function LoginPage({ searchParams }) {
       if (!allowed) redirect('/login?error=rate');
     }
 
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.active || user.role !== 'admin' || !verifyPassword(password, user.passwordHash)) {
+    // Hub first (it also mirrors the account locally), then a local password for
+    // the break-glass admin. The dashboard is admin-only, so a non-admin who
+    // authenticates is still turned away here -- they use the desktop app.
+    let user = await loginViaHub(email, password);
+    if (!user) {
+      const local = await prisma.user.findUnique({ where: { email } });
+      if (local?.active && local.passwordHash && verifyPassword(password, local.passwordHash)) {
+        user = local;
+      }
+    }
+    if (!user || !user.active || user.role !== 'admin') {
       redirect('/login?error=1');
     }
 
