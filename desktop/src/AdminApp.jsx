@@ -9,6 +9,7 @@ import Policy from './pages/admin/Policy.jsx';
 import Settings from './pages/Settings.jsx';
 import Profile from './pages/Profile.jsx';
 import SessionBanner from './components/SessionBanner.jsx';
+import UpdateBanner from './components/UpdateBanner.jsx';
 import { useTheme, useAccount, useProfile } from './lib/hooks.js';
 import { initials } from './components/admin-bits.jsx';
 import { IconSun, IconMoon, IconSettings } from './components/Icons.jsx';
@@ -82,6 +83,7 @@ export default function AdminApp() {
         </button>
       </header>
 
+      <UpdateBanner />
       <SessionBanner account={account} onSignedIn={refreshAccount} />
 
       <main className="content">

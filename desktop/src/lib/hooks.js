@@ -132,6 +132,26 @@ export function useAccount() {
   return [account, refresh];
 }
 
+export function useUpdateCheck() {
+  const [state, setState] = useState(null);
+
+  const check = useCallback(() => window.api.app.checkUpdate().then(setState), []);
+  const open = useCallback((url) => window.api.app.openUpdate(url), []);
+
+  useEffect(() => {
+    let alive = true;
+    const run = () => window.api.app.checkUpdate().then((result) => alive && setState(result)).catch(() => {});
+    run();
+    const id = setInterval(run, 6 * 60 * 60 * 1000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, []);
+
+  return { update: state, check, open };
+}
+
 /** The employee's own account: identity, picture, and the ways to change them. */
 export function useProfile() {
   const [profile, setProfile] = useState(null);

@@ -10,8 +10,8 @@
 
 .app {
   display: grid;
-  /* topbar, optional session banner, page */
-  grid-template-rows: auto auto minmax(0, 1fr);
+  /* topbar, optional update banner, optional session banner, page */
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   height: 100%;
   overflow: hidden;
   background: var(--bg);
@@ -137,6 +137,47 @@
   border: 1.5px solid var(--surface);
 }
 
+.update-banner {
+  margin: 0 22px;
+  padding: 9px 12px;
+  border: 1px solid rgb(99 102 241 / 0.45);
+  border-radius: var(--r);
+  background: linear-gradient(135deg, rgb(99 102 241 / 0.18), rgb(45 212 191 / 0.1));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.update-banner.required {
+  border-color: rgb(239 68 68 / 0.5);
+  background: linear-gradient(135deg, rgb(239 68 68 / 0.16), rgb(99 102 241 / 0.12));
+}
+
+.update-banner strong,
+.update-banner span {
+  display: block;
+}
+
+.update-banner strong {
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.update-banner span {
+  margin-top: 1px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.update-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+
 .avatar {
   width: 34px;
   height: 34px;
@@ -175,6 +216,7 @@
 
 /* Page frame: headers stay put, body takes the rest and never overflows. */
 .content {
+  grid-row: 4;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   gap: 12px;

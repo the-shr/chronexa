@@ -111,7 +111,7 @@
  * dashboard, already signed off on, is untouched.
  */
 .app:has(.brand-role) > .content {
-  grid-row: 3;
+  grid-row: 4;
 }
 
 .brand-role {

@@ -12,6 +12,7 @@ const admin = require('./lib/admin');
 const recorder = require('./lib/recorder');
 const policy = require('./lib/policy');
 const sync = require('./lib/sync');
+const updater = require('./lib/updater');
 const windows = require('./lib/windows');
 const tray = require('./lib/tray');
 const paths = require('./lib/paths');
@@ -279,6 +280,8 @@ handle('window:minimize', () => windows.getMainWindow()?.minimize());
 handle('window:close', () => windows.getMainWindow()?.close());
 handle('window:close-idle-warning', () => windows.closeIdleWindow());
 handle('app:version', () => app.getVersion());
+handle('app:update-check', () => updater.check());
+handle('app:open-update', (url) => updater.openDownload(url));
 
 process.on('uncaughtException', (err) => {
   log.error('uncaught', err);

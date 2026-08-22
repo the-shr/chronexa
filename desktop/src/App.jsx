@@ -10,6 +10,7 @@ import SignIn from './pages/SignIn.jsx';
 import AdminApp from './AdminApp.jsx';
 import { useTrackerState, useTasks, useTheme, useAccount, useProfile } from './lib/hooks.js';
 import SessionBanner from './components/SessionBanner.jsx';
+import UpdateBanner from './components/UpdateBanner.jsx';
 import { IconSun, IconMoon, IconBell, IconSettings } from './components/Icons.jsx';
 
 const TABS = [
@@ -107,6 +108,7 @@ export default function App() {
         </button>
       </header>
 
+      <UpdateBanner />
       <SessionBanner account={account} onSignedIn={refreshAccount} />
 
       <main className="content">
