@@ -1,6 +1,6 @@
 {
   "name": "chronexa-desktop",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Chronexa",
   "main": "electron/main.js",
   "author": "Brand Macros",

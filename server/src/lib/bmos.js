@@ -60,11 +60,28 @@ export async function authenticate(email, password) {
   }
 }
 
-/** The user's open assigned tasks from the hub, or null if it could not be read. */
-export async function fetchTasks(email) {
+function statusParam(status) {
+  return ['open', 'done', 'all'].includes(status) ? status : 'open';
+}
+
+/** The user's assigned tasks from the hub, or null if it could not be read. */
+export async function fetchTasks(email, { status = 'open' } = {}) {
   if (!configured()) return null;
   try {
-    const { ok, data } = await call(`/api/ecosystem/tasks?email=${encodeURIComponent(email)}`);
+    const query = new URLSearchParams({ email, status: statusParam(status) });
+    const { ok, data } = await call(`/api/ecosystem/tasks?${query.toString()}`);
+    return ok ? data.tasks || [] : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Team-wide hub task list for the admin dashboard. */
+export async function fetchTeamTasks({ status = 'open' } = {}) {
+  if (!configured()) return null;
+  try {
+    const query = new URLSearchParams({ status: statusParam(status) });
+    const { ok, data } = await call(`/api/ecosystem/tasks?${query.toString()}`);
     return ok ? data.tasks || [] : null;
   } catch {
     return null;
