@@ -88,6 +88,30 @@ export async function fetchTeamTasks({ status = 'open' } = {}) {
   }
 }
 
+export async function fetchTaskOptions(actorEmail) {
+  if (!configured()) return null;
+  try {
+    const query = new URLSearchParams({ meta: '1', actorEmail });
+    const { ok, data } = await call(`/api/ecosystem/tasks?${query.toString()}`);
+    return ok ? data : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function createTask(actorEmail, payload) {
+  if (!configured()) return { error: 'The hub is not configured' };
+  try {
+    const { ok, status, data } = await call('/api/ecosystem/tasks', {
+      method: 'POST',
+      body: { ...payload, actorEmail },
+    });
+    return ok ? { id: data.id } : { error: data?.error || `The hub rejected the task (${status}).` };
+  } catch {
+    return { error: 'The hub could not be reached' };
+  }
+}
+
 /** Marks a hub task done (SUBMITTED for review). Returns { ok } or { error }. */
 export async function submitTask(email, taskId, completionNote) {
   if (!configured()) return { error: 'The hub is not configured' };

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { useAdminTasks, useOverview } from '../../lib/admin-hooks.js';
 import { usePager, ROW } from '../../components/Pager.jsx';
@@ -82,23 +82,56 @@ export default function AdminTasks() {
 /* -------------------------------- assign -------------------------------- */
 
 function AssignModal({ people, board, defaultUserId, onClose }) {
-  const [form, setForm] = useState({ title: '', userId: '', priority: 'normal', dueAt: '', estimateMinutes: '' });
+  const [form, setForm] = useState({
+    title: '',
+    assigneeId: '',
+    priority: 'MEDIUM',
+    startDate: '',
+    deadline: '',
+    clientId: '',
+    projectId: '',
+    parentId: '',
+    description: '',
+  });
+  const [options, setOptions] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const [done, setDone] = useState(null);
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
-  const userId = form.userId || defaultUserId || people[0]?.id || '';
+  const users = options?.users?.length ? options.users : people;
+  const priorities = options?.priorities?.length ? options.priorities : ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
+  const projects = useMemo(
+    () => (options?.projects || []).filter((project) => !form.clientId || project.clientId === form.clientId),
+    [options, form.clientId],
+  );
+  const parents = useMemo(
+    () => (options?.parents || []).filter((task) => !form.projectId || task.projectId === form.projectId),
+    [options, form.projectId],
+  );
+
+  useEffect(() => {
+    let alive = true;
+    window.api.admin
+      .taskOptions()
+      .then((data) => alive && setOptions(data))
+      .catch((err) => alive && setError(err.message));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const assigneeId = form.assigneeId || users[0]?.id || '';
 
   const submit = async (event) => {
     event.preventDefault();
-    if (!form.title.trim() || !userId) return;
+    if (!form.title.trim()) return;
     setBusy(true);
     setError(null);
     try {
-      await board.assign({ ...form, userId });
+      await board.assign({ ...form, assigneeId: assigneeId || null });
       setDone(form.title.trim());
-      setForm((f) => ({ ...f, title: '', dueAt: '', estimateMinutes: '' }));
+      setForm((f) => ({ ...f, title: '', startDate: '', deadline: '', description: '' }));
       onClose();
     } catch (err) {
       setError(err.message);
@@ -113,7 +146,7 @@ function AssignModal({ people, board, defaultUserId, onClose }) {
         <div className="modal-head">
           <div>
             <h2>Assign task</h2>
-            <p>Task details</p>
+            <p>{form.parentId ? 'Subtask' : 'Parent task'}</p>
           </div>
           <button className="modal-close" onClick={onClose} aria-label="Close">
             ×
@@ -124,10 +157,10 @@ function AssignModal({ people, board, defaultUserId, onClose }) {
           <input value={form.title} onChange={set('title')} placeholder="Task title" maxLength={200} required autoFocus />
 
           <label>
-            <span>Owner</span>
-            <select value={userId} onChange={set('userId')}>
-              {people.length === 0 && <option value="">No employees yet</option>}
-              {people.map((p) => (
+            <span>Assignee</span>
+            <select value={assigneeId} onChange={set('assigneeId')}>
+              {users.length === 0 && <option value="">Unassigned</option>}
+              {users.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
@@ -138,27 +171,74 @@ function AssignModal({ people, board, defaultUserId, onClose }) {
           <label>
             <span>Priority</span>
             <select value={form.priority} onChange={set('priority')}>
-              <option value="low">Low</option>
-              <option value="normal">Normal</option>
-              <option value="high">High</option>
+              {priorities.map((priority) => (
+                <option key={priority} value={priority}>
+                  {priority}
+                </option>
+              ))}
             </select>
           </label>
 
           <label>
-            <span>Due</span>
-            <input type="date" value={form.dueAt} onChange={set('dueAt')} />
+            <span>Client</span>
+            <select value={form.clientId} onChange={set('clientId')} disabled={Boolean(form.parentId)}>
+              <option value="">No client</option>
+              {(options?.clients || []).map((client) => (
+                <option key={client.id} value={client.id}>
+                  {client.name}
+                </option>
+              ))}
+            </select>
           </label>
 
           <label>
-            <span>Estimate</span>
-            <input type="number" min="0" step="15" value={form.estimateMinutes} onChange={set('estimateMinutes')} placeholder="Minutes" />
+            <span>Project</span>
+            <select value={form.projectId} onChange={set('projectId')} disabled={Boolean(form.parentId)}>
+              <option value="">No project</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
           </label>
+
+          <label>
+            <span>Parent</span>
+            <select value={form.parentId} onChange={set('parentId')}>
+              <option value="">Create as parent task</option>
+              {parents.map((task) => (
+                <option key={task.id} value={task.id}>
+                  {task.title}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <span>Start</span>
+            <input type="date" value={form.startDate} onChange={set('startDate')} />
+          </label>
+
+          <label>
+            <span>Deadline</span>
+            <input type="date" value={form.deadline} onChange={set('deadline')} />
+          </label>
+
+          <textarea
+            className="assign-textarea"
+            value={form.description}
+            onChange={set('description')}
+            placeholder="Description"
+            maxLength={8000}
+            rows={4}
+          />
 
           <div className="modal-actions">
             <button type="button" className="btn ghost" onClick={onClose}>
               Cancel
             </button>
-            <button className="btn primary" disabled={busy || !form.title.trim() || !userId}>
+            <button className="btn primary" disabled={busy || !form.title.trim()}>
               <IconPlus width={14} height={14} />
               {busy ? 'Assigning…' : 'Assign'}
             </button>

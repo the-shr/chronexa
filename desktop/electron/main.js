@@ -259,6 +259,7 @@ handle('admin:overview', (days) => admin.overview(days || 7));
 handle('admin:employees', () => admin.employees());
 handle('admin:employee', (id) => admin.employee(id));
 handle('admin:tasks', (query) => admin.tasks(query || {}));
+handle('admin:task-options', () => admin.taskOptions());
 handle('admin:screenshots', (query) => admin.screenshots(query || {}));
 handle('admin:policy-get', () => admin.policy());
 handle('admin:policy-set', (patch) => admin.updatePolicy(patch || {}));

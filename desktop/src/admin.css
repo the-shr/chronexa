@@ -680,7 +680,8 @@
 
 .assign-fields > input,
 .assign-fields select,
-.assign-fields label input {
+.assign-fields label input,
+.assign-textarea {
   background: var(--surface-2);
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
@@ -693,9 +694,16 @@
 }
 
 .assign-fields input:focus,
-.assign-fields select:focus {
+.assign-fields select:focus,
+.assign-textarea:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+.assign-textarea {
+  min-height: 92px;
+  resize: none;
+  line-height: 1.5;
 }
 
 .assign-fields label {

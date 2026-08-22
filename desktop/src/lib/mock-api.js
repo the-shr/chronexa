@@ -350,8 +350,17 @@ function mockAdmin() {
       ),
     }),
 
+    taskOptions: async () => ({
+      users: people.map((p) => ({ id: p.id, name: p.name, email: `${p.name.split(' ')[0].toLowerCase()}@brandmacros.com` })),
+      clients: [{ id: 'c1', name: 'Brand Macros' }],
+      projects: [{ id: 'pr1', name: 'Internal OS', clientId: 'c1' }],
+      parents: mockAdminTasks.filter((t) => !t.parentId).map((t) => ({ id: t.id, title: t.title, projectId: 'pr1', clientId: 'c1' })),
+      priorities: ['LOW', 'MEDIUM', 'HIGH', 'URGENT'],
+      source: 'mock',
+    }),
+
     assignTask: async (payload) => {
-      const task = { ...payload, id: `mt${Date.now()}`, status: 'open', source: 'assigned' };
+      const task = { ...payload, userId: payload.assigneeId || payload.userId, id: `mt${Date.now()}`, status: 'open', source: 'assigned' };
       mockAdminTasks = [task, ...mockAdminTasks];
       return { task };
     },

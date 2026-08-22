@@ -89,6 +89,10 @@ function tasks({ userId = '', status = 'all' } = {}) {
   return request(`/api/agent/admin/tasks?${params}`);
 }
 
+function taskOptions() {
+  return request('/api/agent/admin/tasks?meta=1');
+}
+
 function screenshots({ userId = '', limit = 60 } = {}) {
   const params = new URLSearchParams({ limit: String(limit) });
   if (userId) params.set('userId', userId);
@@ -226,6 +230,7 @@ module.exports = {
   employees,
   employee,
   tasks,
+  taskOptions,
   screenshots,
   deleteScreenshot,
   policy,
