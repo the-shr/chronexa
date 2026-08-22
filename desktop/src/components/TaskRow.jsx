@@ -25,10 +25,13 @@ export default function TaskRow({ task, tasks, snapshot, disabled, onAction, com
 
       <div className="task-body">
         <div className="task-title truncate">{task.title}</div>
+        {task.context && <div className="task-desc truncate">{task.context}</div>}
         {task.description && <div className="task-desc truncate">{task.description}</div>}
 
         <div className="task-meta">
+          {task.source === 'bmos' && <span className="chip accent">Brand Macros OS</span>}
           {task.priority === 'high' && <span className="chip high">High priority</span>}
+          {task.parentTitle && <span className="chip">Subtask</span>}
           {due && !done && <span className={due.overdue ? 'chip overdue' : 'chip'}>{due.text}</span>}
           {task.estimateMinutes ? <span className="chip">Est. {humanDuration(task.estimateMinutes * 60)}</span> : null}
           {isTracking && running && <span className="chip accent">Tracking now</span>}

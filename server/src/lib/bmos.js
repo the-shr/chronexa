@@ -90,8 +90,15 @@ export async function submitTask(email, taskId, completionNote) {
  * run the team dashboard; everyone else is tracked as an employee.
  */
 export function roleFor(identity) {
-  const adminRoles = ['SUPER_ADMIN', 'ADMIN'];
   if (identity.isSuperAdmin) return 'admin';
-  if (Array.isArray(identity.roleKeys) && identity.roleKeys.some((k) => adminRoles.includes(k))) return 'admin';
+  const permissions = Array.isArray(identity.permissions) ? identity.permissions : [];
+  const adminPermissions = [
+    'employee.view_all',
+    'task.view_all',
+    'task.edit_any',
+    'attendance.view_all',
+    'settings.manage',
+  ];
+  if (permissions.some((permission) => adminPermissions.includes(permission))) return 'admin';
   return 'employee';
 }

@@ -33,18 +33,25 @@ export async function POST(request) {
 
   // Only link a task the caller actually owns.
   let taskId = null;
+  let externalTaskId = null;
   if (body.taskId) {
-    const owned = await prisma.task.findFirst({
-      where: { id: String(body.taskId), userId: device.userId },
-      select: { id: true },
-    });
-    taskId = owned?.id ?? null;
+    const rawTaskId = String(body.taskId);
+    if (rawTaskId.startsWith('bmos:')) {
+      externalTaskId = rawTaskId.slice('bmos:'.length).slice(0, 120);
+    } else {
+      const owned = await prisma.task.findFirst({
+        where: { id: rawTaskId, userId: device.userId },
+        select: { id: true },
+      });
+      taskId = owned?.id ?? null;
+    }
   }
 
   const data = {
     userId: device.userId,
     deviceId: device.id,
     taskId,
+    externalTaskId,
     startedAt,
     endedAt: toDate(body.endedAt),
     activeSeconds: clampSeconds(body.activeSeconds),

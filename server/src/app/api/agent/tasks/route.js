@@ -14,6 +14,9 @@ const HUB_PRIORITY = { URGENT: 'high', HIGH: 'high', MEDIUM: 'normal', LOW: 'low
  * agent treats it as assigned work -- shown and completable, never deletable.
  */
 function serialiseHubTask(t) {
+  const projectName = t.project?.name || t.projectName || null;
+  const clientName = t.client?.name || t.clientName || null;
+  const parentTitle = t.parent?.title || t.parentTitle || null;
   return {
     id: `bmos:${t.id}`,
     title: t.title,
@@ -23,6 +26,15 @@ function serialiseHubTask(t) {
     source: 'bmos',
     position: -1000, // hub work sorts above the employee's own
     dueAt: t.deadline,
+    externalId: t.id,
+    parentExternalId: t.parent?.id || null,
+    parentTitle,
+    projectExternalId: t.project?.id || null,
+    projectName,
+    clientExternalId: t.client?.id || null,
+    clientName,
+    context: [clientName, projectName, parentTitle].filter(Boolean).join(' / '),
+    hubStatus: t.status,
     estimateMinutes: null,
     completedAt: null,
     updatedAt: null,
@@ -40,6 +52,14 @@ export function serialiseTask(task) {
     source: task.source,
     position: task.position,
     dueAt: task.dueAt,
+    externalId: task.externalId,
+    parentExternalId: task.parentExternalId,
+    parentTitle: task.parentTitle,
+    projectExternalId: task.projectExternalId,
+    projectName: task.projectName,
+    clientExternalId: task.clientExternalId,
+    clientName: task.clientName,
+    context: [task.clientName, task.projectName, task.parentTitle].filter(Boolean).join(' / '),
     estimateMinutes: task.estimateMinutes,
     completedAt: task.completedAt,
     updatedAt: task.updatedAt,

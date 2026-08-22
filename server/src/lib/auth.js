@@ -8,6 +8,20 @@ export { hashPassword, verifyPassword, newDeviceToken } from './password.js';
 const COOKIE = 'tt_admin';
 const SESSION_DAYS = 7;
 
+export function isChronexaAdmin(user) {
+  if (!user?.active) return false;
+  if (user.role === 'admin') return true;
+  if (user.bmosIsSuperAdmin) return true;
+  const permissions = Array.isArray(user.bmosPermissions) ? user.bmosPermissions : [];
+  return [
+    'employee.view_all',
+    'task.view_all',
+    'task.edit_any',
+    'attendance.view_all',
+    'settings.manage',
+  ].some((permission) => permissions.includes(permission));
+}
+
 /* ----------------------------- agent devices ---------------------------- */
 
 /** Resolves the `Authorization: Bearer <device token>` header to a device. */
@@ -34,7 +48,7 @@ export async function deviceFromRequest(request) {
  */
 export async function adminDeviceFromRequest(request) {
   const device = await deviceFromRequest(request);
-  return device && device.user.role === 'admin' ? device : null;
+  return device && isChronexaAdmin(device.user) ? device : null;
 }
 
 /* ---------------------------- admin sessions ---------------------------- */
@@ -88,5 +102,5 @@ export async function currentAdmin() {
   const payload = unsign(store.get(COOKIE)?.value);
   if (!payload) return null;
   const user = await prisma.user.findUnique({ where: { id: payload.sub } });
-  return user && user.active && user.role === 'admin' ? user : null;
+  return user && isChronexaAdmin(user) ? user : null;
 }

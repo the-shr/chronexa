@@ -30,6 +30,9 @@ model User {
   source       String   @default("local")
   // The Brand Macros OS user id, when this account is mirrored from there.
   externalId   String?  @unique
+  bmosRoleKeys String[] @default([])
+  bmosPermissions String[] @default([])
+  bmosIsSuperAdmin Boolean @default(false)
   // Storage reference for the profile picture, in the same form as a
   // screenshot's: `r2:<key>` or a relative path. Null means use initials.
   avatarPath   String?
@@ -69,6 +72,7 @@ model WorkSession {
   userId          String
   deviceId        String?
   taskId          String?
+  externalTaskId  String?
   startedAt       DateTime
   endedAt         DateTime?
   activeSeconds   Int       @default(0)
@@ -103,6 +107,13 @@ model Task {
   estimateMinutes Int?
   completedAt DateTime?
   createdById String? // the admin who assigned it
+  externalId   String?  @unique
+  parentExternalId String?
+  parentTitle  String?
+  projectExternalId String?
+  projectName  String?
+  clientExternalId String?
+  clientName   String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 

@@ -21,6 +21,11 @@ async function mirrorUser(identity) {
   const email = identity.email.toLowerCase().trim();
   const role = bmos.roleFor(identity);
   const existing = await prisma.user.findUnique({ where: { email } });
+  const accessSnapshot = {
+    bmosRoleKeys: Array.isArray(identity.roleKeys) ? identity.roleKeys.map(String) : [],
+    bmosPermissions: Array.isArray(identity.permissions) ? identity.permissions.map(String) : [],
+    bmosIsSuperAdmin: Boolean(identity.isSuperAdmin),
+  };
 
   if (existing) {
     // A pre-existing local account (the break-glass admin) keeps its own role,
@@ -28,8 +33,8 @@ async function mirrorUser(identity) {
     // mirrored account is refreshed from the hub.
     const data =
       existing.source === 'local'
-        ? { externalId: identity.userId, active: true }
-        : { name: identity.name, role, externalId: identity.userId, active: true };
+        ? { externalId: identity.userId, active: true, ...accessSnapshot }
+        : { name: identity.name, role, externalId: identity.userId, active: true, ...accessSnapshot };
     return prisma.user.update({ where: { id: existing.id }, data });
   }
 
@@ -40,6 +45,7 @@ async function mirrorUser(identity) {
       role,
       source: 'bmos',
       externalId: identity.userId,
+      ...accessSnapshot,
       passwordHash: null,
       active: true,
     },
