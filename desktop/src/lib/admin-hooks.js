@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+const viewCache = new Map();
+
 /**
  * Admin reads are plain fetches on a timer rather than pushed over IPC: the
  * numbers come from the server, not from this machine, so there is nothing
@@ -8,8 +10,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * Every hook returns { data, error, loading, reload } so a failed request shows
  * a reason instead of an empty card.
  */
-function usePolled(fn, { interval = 20000, deps = [], enabled = true } = {}) {
-  const [state, setState] = useState({ data: null, error: null, loading: true });
+function usePolled(fn, { interval = 20000, deps = [], enabled = true, cacheKey = null } = {}) {
+  const cached = cacheKey ? viewCache.get(cacheKey) : null;
+  const [state, setState] = useState({ data: cached?.data ?? null, error: null, loading: enabled && !cached });
   // Keeps the callback fresh without restarting the timer on every render.
   const latest = useRef(fn);
   latest.current = fn;
@@ -17,6 +20,7 @@ function usePolled(fn, { interval = 20000, deps = [], enabled = true } = {}) {
   const load = useCallback(async () => {
     try {
       const data = await latest.current();
+      if (cacheKey) viewCache.set(cacheKey, { data, at: Date.now() });
       setState({ data, error: null, loading: false });
       return data;
     } catch (err) {
@@ -43,11 +47,11 @@ function usePolled(fn, { interval = 20000, deps = [], enabled = true } = {}) {
 }
 
 export function useOverview(days = 7) {
-  return usePolled(() => window.api.admin.overview(days), { interval: 15000, deps: [days] });
+  return usePolled(() => window.api.admin.overview(days), { interval: 15000, deps: [days], cacheKey: `overview:${days}` });
 }
 
 export function useRoster() {
-  const polled = usePolled(() => window.api.admin.employees(), { interval: 60000 });
+  const polled = usePolled(() => window.api.admin.employees(), { interval: 60000, cacheKey: 'employees' });
 
   const add = useCallback(
     async (payload) => {
@@ -71,13 +75,14 @@ export function useRoster() {
 }
 
 export function useEmployee(id) {
-  return usePolled(() => window.api.admin.employee(id), { interval: 20000, deps: [id], enabled: Boolean(id) });
+  return usePolled(() => window.api.admin.employee(id), { interval: 20000, deps: [id], enabled: Boolean(id), cacheKey: id ? `employee:${id}` : null });
 }
 
 export function useAdminTasks({ userId = '', status = 'all' } = {}) {
   const polled = usePolled(() => window.api.admin.tasks({ userId, status }), {
     interval: 30000,
     deps: [userId, status],
+    cacheKey: `tasks:${userId}:${status}`,
   });
 
   const wrap = (fn) => async (...args) => {
@@ -99,6 +104,7 @@ export function useScreenshots({ userId = '', limit = 60 } = {}) {
   const polled = usePolled(() => window.api.admin.screenshots({ userId, limit }), {
     interval: 30000,
     deps: [userId, limit],
+    cacheKey: `screenshots:${userId}:${limit}`,
   });
 
   const remove = useCallback(
@@ -114,7 +120,7 @@ export function useScreenshots({ userId = '', limit = 60 } = {}) {
 }
 
 export function usePolicy() {
-  const polled = usePolled(() => window.api.admin.policy(), { interval: 60000 });
+  const polled = usePolled(() => window.api.admin.policy(), { interval: 60000, cacheKey: 'policy' });
 
   const save = useCallback(
     async (patch) => {
@@ -138,6 +144,7 @@ export function useRecordings({ userId = '', limit = 60 } = {}) {
   const polled = usePolled(() => window.api.admin.recordings({ userId, limit }), {
     interval: 30000,
     deps: [userId, limit],
+    cacheKey: `recordings:${userId}:${limit}`,
   });
 
   const remove = useCallback(

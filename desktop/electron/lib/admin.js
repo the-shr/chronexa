@@ -23,6 +23,8 @@ const imageCache = new Map();
 const IMAGE_CACHE_MAX = 120;
 const clipCache = new Map();
 const CLIP_CACHE_MAX = 8;
+const dataCache = new Map();
+const DATA_CACHE_MS = 12_000;
 
 function base() {
   return settings.get().sync.serverUrl;
@@ -32,9 +34,18 @@ function isAdmin() {
   return auth.get().user?.role === 'admin';
 }
 
-async function request(path, { method = 'GET', body, signal } = {}) {
+function clearDataCache() {
+  dataCache.clear();
+}
+
+async function request(path, { method = 'GET', body, signal, cacheMs = DATA_CACHE_MS } = {}) {
   if (!auth.isSignedIn()) throw new Error('Sign in to load this.');
   if (!isAdmin()) throw new Error('This account is not an administrator.');
+
+  const canCache = method === 'GET' && cacheMs > 0;
+  const cacheKey = canCache ? `${base()}${path}` : null;
+  const cached = cacheKey ? dataCache.get(cacheKey) : null;
+  if (cached && Date.now() - cached.at < cacheMs) return cached.data;
 
   const res = await fetch(`${base()}${path}`, {
     method,
@@ -53,6 +64,7 @@ async function request(path, { method = 'GET', body, signal } = {}) {
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Request failed (${res.status}).`);
+  if (cacheKey) dataCache.set(cacheKey, { data, at: Date.now() });
   return data;
 }
 
@@ -86,14 +98,17 @@ function screenshots({ userId = '', limit = 60 } = {}) {
 /* -------------------------------- writing ------------------------------- */
 
 function assignTask(payload) {
+  clearDataCache();
   return request('/api/agent/admin/tasks', { method: 'POST', body: payload });
 }
 
 function updateTask(payload) {
+  clearDataCache();
   return request('/api/agent/admin/tasks', { method: 'PATCH', body: payload });
 }
 
 function deleteTask(id) {
+  clearDataCache();
   return request(`/api/agent/admin/tasks?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
@@ -102,6 +117,7 @@ function policy() {
 }
 
 function updatePolicy(patch) {
+  clearDataCache();
   return request('/api/agent/admin/policy', { method: 'PATCH', body: patch });
 }
 
@@ -112,6 +128,7 @@ function recordings({ userId = '', limit = 60 } = {}) {
 }
 
 async function deleteRecording(id) {
+  clearDataCache();
   const result = await request(`/api/agent/admin/recordings?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
   clipCache.delete(String(id));
   return result;
@@ -145,6 +162,7 @@ async function clip(id) {
 }
 
 async function deleteScreenshot(id) {
+  clearDataCache();
   const result = await request(`/api/agent/admin/screenshots?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
   // Drop the cached image too, so a re-render cannot show what was just deleted.
   imageCache.delete(String(id));
@@ -152,10 +170,12 @@ async function deleteScreenshot(id) {
 }
 
 function addEmployee(payload) {
+  clearDataCache();
   return request('/api/agent/admin/employees', { method: 'POST', body: payload });
 }
 
 function updateEmployee(payload) {
+  clearDataCache();
   return request('/api/agent/admin/employees', { method: 'PATCH', body: payload });
 }
 
@@ -188,6 +208,7 @@ async function image(id) {
 function clearCache() {
   imageCache.clear();
   clipCache.clear();
+  clearDataCache();
 }
 
 // Signing out must not leave another account's screens in memory.

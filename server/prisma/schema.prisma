@@ -89,6 +89,8 @@ model WorkSession {
   recordings  Recording[]
 
   @@index([userId, startedAt])
+  @@index([startedAt])
+  @@index([updatedAt])
 }
 
 model Task {
@@ -145,6 +147,7 @@ model Screenshot {
 
   @@unique([userId, clientId])
   @@index([userId, capturedAt])
+  @@index([capturedAt])
 }
 
 /// What the organisation monitors and expects, set by an admin and obeyed by
@@ -216,4 +219,5 @@ model Recording {
 
   @@unique([userId, clientId])
   @@index([userId, startedAt])
+  @@index([startedAt])
 }
