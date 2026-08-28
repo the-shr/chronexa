@@ -11,12 +11,12 @@ import UpdateBanner from './components/UpdateBanner.jsx';
 import { IconSun, IconMoon, IconBell, IconSettings } from './components/Icons.jsx';
 
 const TABS = [
-  { id: 'tasks', label: 'Tasks' },
+  { id: 'tracker', label: 'Tracker' },
   { id: 'activity', label: 'My Activity' },
 ];
 
 export default function App() {
-  const [tab, setTab] = useState('tasks');
+  const [tab, setTab] = useState('tracker');
   const { snapshot, error } = useTrackerState();
   const tasks = useTasks();
   const [theme, toggleTheme] = useTheme();
@@ -67,7 +67,7 @@ export default function App() {
           {tabs.map(({ id, label }) => (
             <button key={id} className={tab === id ? 'top-tab active' : 'top-tab'} onClick={() => setTab(id)}>
               {label}
-              {id === 'tasks' && tasks.open.length > 0 && <span className="nav-badge">{tasks.open.length}</span>}
+              {id === 'tracker' && tasks.open.length > 0 && <span className="nav-badge">{tasks.open.length}</span>}
             </button>
           ))}
         </nav>
@@ -103,7 +103,7 @@ export default function App() {
       <SessionBanner account={account} onSignedIn={refreshAccount} />
 
       <main className="content">
-        {tab === 'tasks' && <Tasks snapshot={snapshot} tasks={tasks} />}
+        {tab === 'tracker' && <Tasks snapshot={snapshot} tasks={tasks} />}
         {tab === 'activity' && <Activity snapshot={snapshot} />}
         {tab === 'configuration' && canConfigure && <Policy />}
         {tab === 'profile' && <Profile />}

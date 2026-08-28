@@ -17,7 +17,7 @@ export default function Tasks({ snapshot, tasks }) {
 
   return <>
     <header className="page-head">
-      <div className="head-main"><h1>Tasks</h1><p>{tasks.open.length} open · {tasks.done.length} submitted{tasks.fetchedAt && ` · synced ${clockTime(tasks.fetchedAt)}`}</p></div>
+      <div className="head-main"><h1>Tracker</h1><p>Select a task, track your time, and submit completed work · {tasks.open.length} open · {tasks.done.length} submitted{tasks.fetchedAt && ` · synced ${clockTime(tasks.fetchedAt)}`}</p></div>
       <div className="seg"><button className={filter === 'open' ? 'active' : ''} onClick={() => setFilter('open')}>Open</button><button className={filter === 'done' ? 'active' : ''} onClick={() => setFilter('done')}>Submitted</button></div>
       <button className="btn ghost sm icon-label" onClick={() => run(tasks.refresh)} disabled={busy}><IconSync width={14} /> Refresh</button>
     </header>
