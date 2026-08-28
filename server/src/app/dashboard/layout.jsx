@@ -1,7 +1,5 @@
 import { redirect } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
-
-export default function Home() {
+export default function RetiredDashboardLayout() {
   redirect(`${String(process.env.BMOS_URL || 'https://brand-macros-os.vercel.app').replace(/\/$/, '')}/dashboard`);
 }

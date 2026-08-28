@@ -79,7 +79,7 @@ app.whenReady().then(() => {
 
   // Admins are not tracked -- they run this build to watch the team, and
   // auto-starting a session for them would put phantom hours in the reports.
-  if (settings.get().general.startTrackingOnLaunch && !admin.isAdmin()) tracker.start();
+  if (settings.get().general.startTrackingOnLaunch) tracker.start();
 
   log.info('app: ready, data dir =', paths.root());
 });
@@ -213,10 +213,7 @@ handle('history:daily', (days) => db.dailyTotals(days || 7));
 
 handle('tasks:list', () => tasks.list());
 handle('tasks:refresh', () => tasks.refresh());
-handle('tasks:set-status', ({ id, status }) => tasks.setStatus(id, status));
-handle('tasks:add', (title) => tasks.add(title));
-handle('tasks:remove', (id) => tasks.remove(id));
-handle('tasks:reorder', (ids) => tasks.reorder(ids || []));
+handle('tasks:set-status', ({ id, status, details }) => tasks.setStatus(id, status, details));
 
 handle('account:get', () => auth.status());
 handle('account:login', async (creds) => {
@@ -255,24 +252,8 @@ handle('profile:pick-avatar', async () => {
   return profile.setAvatar(bytes, require('node:path').basename(file));
 });
 
-handle('admin:overview', (days) => admin.overview(days || 7));
-handle('admin:employees', () => admin.employees());
-handle('admin:employee', (id) => admin.employee(id));
-handle('admin:tasks', (query) => admin.tasks(query || {}));
-handle('admin:task-options', () => admin.taskOptions());
-handle('admin:screenshots', (query) => admin.screenshots(query || {}));
-handle('admin:policy-get', () => admin.policy());
-handle('admin:policy-set', (patch) => admin.updatePolicy(patch || {}));
-handle('admin:delete-screenshot', (id) => admin.deleteScreenshot(id));
-handle('admin:recordings', (query) => admin.recordings(query || {}));
-handle('admin:delete-recording', (id) => admin.deleteRecording(id));
-handle('admin:clip', (id) => admin.clip(id));
-handle('admin:assign-task', (payload) => admin.assignTask(payload || {}));
-handle('admin:update-task', (payload) => admin.updateTask(payload || {}));
-handle('admin:delete-task', (id) => admin.deleteTask(id));
-handle('admin:add-employee', (payload) => admin.addEmployee(payload || {}));
-handle('admin:update-employee', (payload) => admin.updateEmployee(payload || {}));
-handle('admin:image', (id) => admin.image(id));
+handle('configuration:get', () => admin.policy());
+handle('configuration:update', (patch) => admin.updatePolicy(patch || {}));
 
 handle('sync:now', () => sync.run());
 handle('sync:status', () => sync.status());

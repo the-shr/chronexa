@@ -3,9 +3,8 @@
  *
  * Chronexa is a satellite: the hub owns accounts and the canonical task list.
  * This talks to /api/ecosystem/* with Chronexa's registered app credentials.
- * If the hub is not configured, everything here reports "not available" and the
- * caller falls back to Chronexa's own local accounts, so a missing or unreachable
- * hub can never lock everyone out.
+ * The hub owns organisation accounts and tasks. A local password is retained
+ * only for the explicit break-glass account.
  */
 
 const TIMEOUT_MS = 10_000;
@@ -113,12 +112,12 @@ export async function createTask(actorEmail, payload) {
 }
 
 /** Marks a hub task done (SUBMITTED for review). Returns { ok } or { error }. */
-export async function submitTask(email, taskId, completionNote) {
+export async function submitTask(email, taskId, completionNote, delayReason) {
   if (!configured()) return { error: 'The hub is not configured' };
   try {
     const { ok, data } = await call(`/api/ecosystem/tasks/${encodeURIComponent(taskId)}/submit`, {
       method: 'POST',
-      body: { email, completionNote },
+      body: { email, completionNote, delayReason },
     });
     return ok ? { ok: true } : { error: data?.error || 'The hub rejected the update' };
   } catch {
@@ -133,13 +132,7 @@ export async function submitTask(email, taskId, completionNote) {
 export function roleFor(identity) {
   if (identity.isSuperAdmin) return 'admin';
   const permissions = Array.isArray(identity.permissions) ? identity.permissions : [];
-  const adminPermissions = [
-    'employee.view_all',
-    'task.view_all',
-    'task.edit_any',
-    'attendance.view_all',
-    'settings.manage',
-  ];
+  const adminPermissions = ['settings.manage', 'attendance.manage'];
   if (permissions.some((permission) => adminPermissions.includes(permission))) return 'admin';
   return 'employee';
 }

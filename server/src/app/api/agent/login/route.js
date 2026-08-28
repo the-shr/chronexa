@@ -75,7 +75,15 @@ export async function POST(request) {
 
   return Response.json({
     token: device.token,
-    user: { id: user.id, email: user.email, name: user.name, role: user.role },
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      permissions: user.bmosPermissions || [],
+      canManageTrackingPolicy:
+        Boolean(user.bmosIsSuperAdmin) ||
+        (user.bmosPermissions || []).some((permission) => ['settings.manage', 'attendance.manage'].includes(permission)),
+    },
     device: { id: device.id, name: device.name },
   });
 }

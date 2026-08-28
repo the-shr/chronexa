@@ -11,17 +11,14 @@
 const DAY = 86400000;
 const listeners = { tracker: [], settings: [], tasks: [], sync: [], profile: [], account: [] };
 
-// ?role=admin in the preview URL renders the admin dashboard instead.
-const previewRole = new URLSearchParams(window.location.search).get('role') === 'admin' ? 'admin' : 'employee';
+// ?configuration=1 previews the permission-gated configuration tab.
+const canPreviewConfiguration = new URLSearchParams(window.location.search).get('configuration') === '1';
 
 let mockAccount = {
   signedIn: true,
   sessionExpired: false,
   deviceName: 'DESIGN-PREVIEW',
-  user:
-    previewRole === 'admin'
-      ? { name: 'Ayesha Karim', email: 'ayesha@example.com', role: 'admin' }
-      : { name: 'Rahim Uddin', email: 'rahim@example.com', role: 'employee' },
+  user: { name: 'Rahim Uddin', email: 'rahim@example.com', canManageTrackingPolicy: canPreviewConfiguration },
 };
 
 // Flip from the console to preview the signed-out banner:
@@ -168,22 +165,6 @@ export function installMockApi() {
     tasks: {
       list: async () => tasks,
       refresh: async () => tasks,
-      add: async (title) => {
-        tasks = { ...tasks, open: [{ id: `local-${Date.now()}`, title, description: '', status: 'open', priority: 'normal', source: 'self', position: -1, dueAt: null }, ...tasks.open] };
-        emit('tasks', tasks);
-        return tasks;
-      },
-      remove: async (id) => {
-        tasks = { ...tasks, open: tasks.open.filter((t) => t.id !== id) };
-        emit('tasks', tasks);
-        return tasks;
-      },
-      reorder: async (ids) => {
-        const by = new Map(tasks.open.map((t) => [t.id, t]));
-        tasks = { ...tasks, open: ids.map((id) => by.get(id)).filter(Boolean) };
-        emit('tasks', tasks);
-        return tasks;
-      },
       setStatus: async (id, status) => {
         const from = status === 'done' ? 'open' : 'done';
         const to = status === 'done' ? 'done' : 'open';
@@ -230,9 +211,18 @@ export function installMockApi() {
       status: async () => ({ ok: true, pending: 0, at: new Date().toISOString(), signedIn: true }),
       onStatus: (fn) => subscribe('sync', fn),
     },
+    configuration: {
+      get: () => mockAdmin().policy(),
+      update: (patch) => mockAdmin().updatePolicy(patch),
+    },
     admin: mockAdmin(),
     window: { minimize: () => {}, close: () => {}, closeIdleWarning: () => {} },
-    app: { version: async () => '0.1.0-preview', platform: 'browser' },
+    app: {
+      version: async () => '1.0.5-preview',
+      checkUpdate: async () => ({ available: false, currentVersion: '1.0.5-preview' }),
+      openUpdate: async () => false,
+      platform: 'browser',
+    },
   };
 }
 

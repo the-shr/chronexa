@@ -39,10 +39,7 @@ contextBridge.exposeInMainWorld('api', {
   tasks: {
     list: () => invoke('tasks:list'),
     refresh: () => invoke('tasks:refresh'),
-    setStatus: (id, status) => invoke('tasks:set-status', { id, status }),
-    add: (title) => invoke('tasks:add', title),
-    remove: (id) => invoke('tasks:remove', id),
-    reorder: (ids) => invoke('tasks:reorder', ids),
+    setStatus: (id, status, details) => invoke('tasks:set-status', { id, status, details }),
     onChange: (fn) => subscribe('tasks:changed', fn),
   },
   profile: {
@@ -60,27 +57,9 @@ contextBridge.exposeInMainWorld('api', {
     login: (creds) => invoke('account:login', creds),
     logout: () => invoke('account:logout'),
   },
-  // Only useful to an admin: every call is refused server-side for anyone else,
-  // so exposing it to all renderers gives an employee nothing.
-  admin: {
-    overview: (days) => invoke('admin:overview', days),
-    employees: () => invoke('admin:employees'),
-    employee: (id) => invoke('admin:employee', id),
-    tasks: (query) => invoke('admin:tasks', query),
-    taskOptions: () => invoke('admin:task-options'),
-    screenshots: (query) => invoke('admin:screenshots', query),
-    policy: () => invoke('admin:policy-get'),
-    updatePolicy: (patch) => invoke('admin:policy-set', patch),
-    deleteScreenshot: (id) => invoke('admin:delete-screenshot', id),
-    recordings: (query) => invoke('admin:recordings', query),
-    deleteRecording: (id) => invoke('admin:delete-recording', id),
-    clip: (id) => invoke('admin:clip', id),
-    assignTask: (payload) => invoke('admin:assign-task', payload),
-    updateTask: (payload) => invoke('admin:update-task', payload),
-    deleteTask: (id) => invoke('admin:delete-task', id),
-    addEmployee: (payload) => invoke('admin:add-employee', payload),
-    updateEmployee: (payload) => invoke('admin:update-employee', payload),
-    image: (id) => invoke('admin:image', id),
+  configuration: {
+    get: () => invoke('configuration:get'),
+    update: (patch) => invoke('configuration:update', patch),
   },
   sync: {
     now: () => invoke('sync:now'),

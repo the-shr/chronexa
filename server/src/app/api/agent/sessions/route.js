@@ -31,21 +31,9 @@ export async function POST(request) {
   // Clamp the counters: they arrive from a machine the employee controls.
   const clampSeconds = (n) => Math.min(MAX_SESSION_SECONDS, Math.max(0, Math.floor(Number(n) || 0)));
 
-  // Only link a task the caller actually owns.
-  let taskId = null;
-  let externalTaskId = null;
-  if (body.taskId) {
-    const rawTaskId = String(body.taskId);
-    if (rawTaskId.startsWith('bmos:')) {
-      externalTaskId = rawTaskId.slice('bmos:'.length).slice(0, 120);
-    } else {
-      const owned = await prisma.task.findFirst({
-        where: { id: rawTaskId, userId: device.userId },
-        select: { id: true },
-      });
-      taskId = owned?.id ?? null;
-    }
-  }
+  // Chronexa sessions point directly to the canonical BM OS task id.
+  const taskId = null;
+  const externalTaskId = body.taskId ? String(body.taskId).replace(/^bmos:/, '').slice(0, 120) : null;
 
   const data = {
     userId: device.userId,

@@ -67,9 +67,9 @@ class Sync extends EventEmitter {
           else if (item.type === 'screenshot') await this.pushScreenshot(item.payload.id);
           else if (item.type === 'recording') await this.pushRecording(item.payload.id);
           else if (item.type === 'task') await this.pushTask(item.payload);
-          else if (item.type === 'task-add') await this.pushNewTask(item.payload);
-          else if (item.type === 'task-delete') await this.pushTaskDelete(item.payload);
-          else if (item.type === 'task-order') await this.pushTaskOrder(item.payload);
+          else if (['task-add', 'task-delete', 'task-order'].includes(item.type)) {
+            log.info('sync: dropping retired local task operation', item.id);
+          }
           done.push(item.id);
         } catch (err) {
           log.warn('sync: item failed', item.id, err.message);
@@ -119,51 +119,15 @@ class Sync extends EventEmitter {
     this.guard(res, 'sessions');
   }
 
-  async pushTask({ id, status }) {
-    const res = await fetch(`${this.base()}/api/agent/tasks/${encodeURIComponent(id)}`, {
+  async pushTask({ id, status, completionNote, delayReason }) {
+    const canonicalId = String(id).replace(/^bmos:/, '');
+    const res = await fetch(`${this.base()}/api/agent/tasks/${encodeURIComponent(canonicalId)}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json', ...auth.authHeaders() },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify({ status, completionNote, delayReason }),
     });
     // A task deleted by the admin is not a failure worth retrying forever.
     if (res.status === 404) return;
-    this.guard(res, 'tasks');
-  }
-
-  /**
-   * A task the employee added. The server issues the real id, which replaces
-   * the local placeholder so later edits address the right row.
-   */
-  async pushNewTask({ localId, title }) {
-    const res = await fetch(`${this.base()}/api/agent/tasks`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', ...auth.authHeaders() },
-      body: JSON.stringify({ title }),
-    });
-    this.guard(res, 'tasks');
-    const { task } = await res.json();
-    // Required lazily: tasks.js already requires sync's siblings, and pulling
-    // it in at the top would close the loop.
-    require('./tasks').replaceLocalId(localId, task);
-  }
-
-  async pushTaskDelete({ id }) {
-    const res = await fetch(`${this.base()}/api/agent/tasks/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-      headers: auth.authHeaders(),
-    });
-    // Already gone, or never the employee's to remove: nothing to retry.
-    if (res.status === 404 || res.status === 403) return;
-    this.guard(res, 'tasks');
-  }
-
-  async pushTaskOrder({ order }) {
-    if (!order.length) return;
-    const res = await fetch(`${this.base()}/api/agent/tasks`, {
-      method: 'PUT',
-      headers: { 'content-type': 'application/json', ...auth.authHeaders() },
-      body: JSON.stringify({ order }),
-    });
     this.guard(res, 'tasks');
   }
 

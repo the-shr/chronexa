@@ -1,77 +1,76 @@
-import { useState } from 'react';
-
-import TaskRow from '../components/TaskRow.jsx';
-import { usePager, ROW } from '../components/Pager.jsx';
-import { clockTime } from '../lib/format.js';
+import { useEffect, useMemo, useState } from 'react';
+import { dueLabel, humanDuration, clockTime } from '../lib/format.js';
+import { IconCheck, IconChevron, IconChevronDown, IconPlay, IconSync } from '../components/Icons.jsx';
 
 export default function Tasks({ snapshot, tasks }) {
   const [filter, setFilter] = useState('open');
+  const [selectedId, setSelectedId] = useState(null);
+  const [expanded, setExpanded] = useState(new Set());
+  const [completing, setCompleting] = useState(null);
   const [busy, setBusy] = useState(false);
+  const source = filter === 'open' ? tasks.open : tasks.done;
+  const tree = useMemo(() => buildTree(source), [source]);
+  const selected = source.find((task) => task.id === selectedId) || source[0] || null;
+  useEffect(() => { if (selected && selected.id !== selectedId) setSelectedId(selected.id); }, [selected, selectedId]);
+  const run = async (fn) => { setBusy(true); try { await fn(); } finally { setBusy(false); } };
+  const toggle = (id) => setExpanded((current) => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; });
 
-  const rows = filter === 'open' ? tasks.open : tasks.done;
-  const { ref, slice, control } = usePager(rows, { rowHeight: ROW.task, gap: 7 });
+  return <>
+    <header className="page-head">
+      <div className="head-main"><h1>Tasks</h1><p>{tasks.open.length} open · {tasks.done.length} submitted{tasks.fetchedAt && ` · synced ${clockTime(tasks.fetchedAt)}`}</p></div>
+      <div className="seg"><button className={filter === 'open' ? 'active' : ''} onClick={() => setFilter('open')}>Open</button><button className={filter === 'done' ? 'active' : ''} onClick={() => setFilter('done')}>Submitted</button></div>
+      <button className="btn ghost sm icon-label" onClick={() => run(tasks.refresh)} disabled={busy}><IconSync width={14} /> Refresh</button>
+    </header>
+    <div className="task-workspace">
+      <section className="task-index">
+        {tasks.error && <p className="sync-warning">Offline list · {tasks.error}</p>}
+        {!tree.length ? <div className="task-empty"><strong>{filter === 'open' ? 'No work waiting' : 'Nothing submitted yet'}</strong><span>Tasks assigned in Brand Macros OS appear here automatically.</span></div> : tree.map(({ task, children }) => <div className="task-group" key={task.id}>
+          <TaskLine task={task} selected={selected?.id === task.id} hasChildren={children.length > 0} expanded={expanded.has(task.id)} onExpand={() => toggle(task.id)} onSelect={() => setSelectedId(task.id)} />
+          {expanded.has(task.id) && children.map((child) => <TaskLine key={child.id} task={child} child selected={selected?.id === child.id} onSelect={() => setSelectedId(child.id)} />)}
+        </div>)}
+      </section>
+      <TaskDetail task={selected} snapshot={snapshot} busy={busy} onRun={run} onComplete={() => setCompleting(selected)} />
+    </div>
+    {completing && <CompleteDialog task={completing} busy={busy} onClose={() => setCompleting(null)} onSubmit={(details) => run(async () => { await tasks.setStatus(completing.id, 'done', details); setCompleting(null); })} />}
+  </>;
+}
 
-  const run = async (fn) => {
-    setBusy(true);
-    try {
-      await fn();
-    } finally {
-      setBusy(false);
-    }
-  };
+function buildTree(rows) {
+  const byId = new Map(rows.map((task) => [task.id, task]));
+  const children = new Map(); const roots = [];
+  for (const task of rows) { if (task.parentExternalId && byId.has(task.parentExternalId)) children.set(task.parentExternalId, [...(children.get(task.parentExternalId) || []), task]); else roots.push(task); }
+  return roots.map((task) => ({ task, children: children.get(task.id) || [] }));
+}
 
-  return (
-    <>
-      <header className="page-head">
-        <div className="head-main">
-          <h1>My tasks</h1>
-          <p>
-            {tasks.open.length} open · {tasks.done.length} completed
-            {tasks.fetchedAt && ` · synced ${clockTime(tasks.fetchedAt)}`}
-          </p>
-        </div>
-        <div className="seg">
-          <button className={filter === 'open' ? 'active' : ''} onClick={() => setFilter('open')}>
-            Open
-          </button>
-          <button className={filter === 'done' ? 'active' : ''} onClick={() => setFilter('done')}>
-            Done
-          </button>
-        </div>
-        <button className="btn ghost sm" onClick={() => run(() => tasks.refresh())} disabled={busy}>
-          Refresh
-        </button>
-      </header>
+function TaskLine({ task, selected, child, hasChildren, expanded, onExpand, onSelect }) {
+  const due = dueLabel(task.dueAt);
+  return <div className={`task-line ${selected ? 'selected' : ''} ${child ? 'child' : ''}`} onClick={onSelect}>
+    <span className={`task-state ${task.status === 'done' ? 'complete' : ''}`}>{task.status === 'done' && <IconCheck width={11} />}</span>
+    <span className="task-line-copy"><strong>{task.title}</strong><small>{[task.projectName, task.clientName].filter(Boolean).join(' · ') || 'Independent task'}</small></span>
+    {task.priority === 'high' && <span className="task-priority">High</span>}{due && task.status !== 'done' && <span className={due.overdue ? 'task-due late' : 'task-due'}>{due.text}</span>}
+    {hasChildren && <button className="task-expand" title={expanded ? 'Collapse subtasks' : 'Expand subtasks'} onClick={(event) => { event.stopPropagation(); onExpand(); }}>{expanded ? <IconChevronDown width={15} /> : <IconChevron width={15} />}</button>}
+  </div>;
+}
 
-      <div className="page-body">
-        <section className="card">
-          <h2>
-            {filter === 'open' ? 'Assigned to you' : 'Completed'}
-            {control}
-          </h2>
-          {tasks.error && (
-            <p className="faint" style={{ fontSize: 12, margin: '0 0 10px' }}>
-              Showing the last synced list — {tasks.error}
-            </p>
-          )}
+function TaskDetail({ task, snapshot, busy, onRun, onComplete }) {
+  if (!task) return <aside className="task-detail empty-detail"><strong>Select a task</strong><span>Its work context and tracker controls will appear here.</span></aside>;
+  const tracking = snapshot.session?.taskId === task.id && snapshot.state === 'running';
+  const start = () => onRun(async () => { if (snapshot.state === 'running') await window.api.tracker.stop('manual'); await window.api.tracker.start({ taskId: task.id, taskNote: task.title }); });
+  return <aside className="task-detail">
+    <div className="detail-eyebrow">{task.parentTitle ? `Under ${task.parentTitle}` : 'Assigned work'}</div><h2>{task.title}</h2>
+    <div className="detail-chips"><span>{task.hubStatus?.replaceAll('_', ' ') || 'OPEN'}</span><span>{task.priority || 'normal'} priority</span>{task.dueAt && <span>Due {new Date(task.dueAt).toLocaleString()}</span>}</div>
+    {task.description && <p className="task-description">{task.description}</p>}
+    <dl className="task-context"><div><dt>Project</dt><dd>{task.projectName || 'Not linked'}</dd></div><div><dt>Client</dt><dd>{task.clientName || 'Not linked'}</dd></div>{task.estimateMinutes && <div><dt>Estimate</dt><dd>{humanDuration(task.estimateMinutes * 60)}</dd></div>}</dl>
+    <div className="detail-actions">{task.status !== 'done' && <button className="btn primary" disabled={busy || tracking} onClick={start}><IconPlay width={14} /> {tracking ? 'Tracking now' : 'Start tracking'}</button>}{task.status !== 'done' && <button className="btn" disabled={busy} onClick={onComplete}><IconCheck width={14} /> Submit work</button>}{task.status === 'done' && <div className="submitted-note"><IconCheck width={15} /> Submitted to Brand Macros OS</div>}</div>
+  </aside>;
+}
 
-          {/* The container is always rendered so the pager can measure it, even
-              while the list is empty. */}
-          <div className="task-list" ref={ref}>
-            {slice.length === 0 ? (
-              <p className="empty">
-                {filter === 'open'
-                  ? 'No open tasks. Your manager has not assigned anything yet.'
-                  : 'Nothing completed yet.'}
-              </p>
-            ) : (
-              slice.map((task) => (
-                <TaskRow key={task.id} task={task} tasks={tasks} snapshot={snapshot} disabled={busy} onAction={run} />
-              ))
-            )}
-          </div>
-        </section>
-      </div>
-    </>
-  );
+function CompleteDialog({ task, busy, onClose, onSubmit }) {
+  const [note, setNote] = useState(''); const overdue = task.dueAt && new Date(task.dueAt) < new Date(); const [delayReason, setDelayReason] = useState('');
+  return <div className="lightbox" role="presentation" onMouseDown={(e) => e.target === e.currentTarget && onClose()}><form className="complete-dialog" onSubmit={(e) => { e.preventDefault(); onSubmit({ completionNote: note.trim() || undefined, delayReason: delayReason.trim() || undefined }); }}>
+    <div><span className="detail-eyebrow">Submit for approval</span><h2>{task.title}</h2></div>
+    <label><span>Completion note</span><textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="What was completed?" rows="4" autoFocus /></label>
+    {overdue && <label><span>Reason for delay</span><textarea required value={delayReason} onChange={(e) => setDelayReason(e.target.value)} placeholder="Briefly explain why the deadline was missed." rows="3" /></label>}
+    <p>Submitting moves this task to Pending Approval in Brand Macros OS.</p><div className="dialog-actions"><button type="button" className="btn" onClick={onClose}>Cancel</button><button className="btn primary" disabled={busy || (overdue && !delayReason.trim())}>Submit work</button></div>
+  </form></div>;
 }

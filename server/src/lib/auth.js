@@ -13,13 +13,7 @@ export function isChronexaAdmin(user) {
   if (user.role === 'admin') return true;
   if (user.bmosIsSuperAdmin) return true;
   const permissions = Array.isArray(user.bmosPermissions) ? user.bmosPermissions : [];
-  return [
-    'employee.view_all',
-    'task.view_all',
-    'task.edit_any',
-    'attendance.view_all',
-    'settings.manage',
-  ].some((permission) => permissions.includes(permission));
+  return ['settings.manage', 'attendance.manage'].some((permission) => permissions.includes(permission));
 }
 
 /* ----------------------------- agent devices ---------------------------- */

@@ -2,26 +2,23 @@ import { useState } from 'react';
 
 import Home from './pages/Home.jsx';
 import Tasks from './pages/Tasks.jsx';
-import Calendar from './pages/Calendar.jsx';
 import Activity from './pages/Activity.jsx';
-import Settings from './pages/Settings.jsx';
 import Profile from './pages/Profile.jsx';
 import SignIn from './pages/SignIn.jsx';
-import AdminApp from './AdminApp.jsx';
+import Policy from './pages/admin/Policy.jsx';
 import { useTrackerState, useTasks, useTheme, useAccount, useProfile } from './lib/hooks.js';
 import SessionBanner from './components/SessionBanner.jsx';
 import UpdateBanner from './components/UpdateBanner.jsx';
 import { IconSun, IconMoon, IconBell, IconSettings } from './components/Icons.jsx';
 
 const TABS = [
-  { id: 'home', label: 'Dashboard' },
   { id: 'tasks', label: 'Tasks' },
-  { id: 'calendar', label: 'Calendar' },
-  { id: 'activity', label: 'Activity' },
+  { id: 'tracker', label: 'Tracker' },
+  { id: 'activity', label: 'My Activity' },
 ];
 
 export default function App() {
-  const [tab, setTab] = useState('home');
+  const [tab, setTab] = useState('tasks');
   const { snapshot, error } = useTrackerState();
   const tasks = useTasks();
   const [theme, toggleTheme] = useTheme();
@@ -58,11 +55,10 @@ export default function App() {
   // dashboard, since the answer decides which dashboard it should be.
   if (!account.signedIn && !account.sessionExpired) return <SignIn onSignedIn={refreshAccount} />;
 
-  // The server said this account runs the team, not a timer.
-  if (account.user?.role === 'admin') return <AdminApp />;
-
   const name = profile?.user?.name || account?.user?.name || account?.user?.email || 'Not signed in';
   const avatar = profile?.avatar || null;
+  const canConfigure = Boolean(account.user?.canManageTrackingPolicy);
+  const tabs = canConfigure ? [...TABS, { id: 'configuration', label: 'Configuration' }] : TABS;
 
   return (
     <div className="app">
@@ -70,7 +66,7 @@ export default function App() {
         <span className="brand-pill">Chronexa</span>
 
         <nav className="top-nav">
-          {TABS.map(({ id, label }) => (
+          {tabs.map(({ id, label }) => (
             <button key={id} className={tab === id ? 'top-tab active' : 'top-tab'} onClick={() => setTab(id)}>
               {label}
               {id === 'tasks' && tasks.open.length > 0 && <span className="nav-badge">{tasks.open.length}</span>}
@@ -78,12 +74,9 @@ export default function App() {
           ))}
         </nav>
 
-        <button
-          className={tab === 'settings' ? 'setting-pill active' : 'setting-pill'}
-          onClick={() => setTab('settings')}
-        >
+        <button className={tab === 'profile' ? 'setting-pill active' : 'setting-pill'} onClick={() => setTab('profile')}>
           <IconSettings width={14} height={14} />
-          Setting
+          Account
         </button>
 
         <button
@@ -112,11 +105,10 @@ export default function App() {
       <SessionBanner account={account} onSignedIn={refreshAccount} />
 
       <main className="content">
-        {tab === 'home' && <Home snapshot={snapshot} tasks={tasks} account={account} />}
+        {tab === 'tracker' && <Home snapshot={snapshot} tasks={tasks} account={account} />}
         {tab === 'tasks' && <Tasks snapshot={snapshot} tasks={tasks} />}
-        {tab === 'calendar' && <Calendar />}
         {tab === 'activity' && <Activity snapshot={snapshot} />}
-        {tab === 'settings' && <Settings />}
+        {tab === 'configuration' && canConfigure && <Policy />}
         {tab === 'profile' && <Profile />}
       </main>
     </div>

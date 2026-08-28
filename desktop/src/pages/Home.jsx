@@ -7,19 +7,14 @@ import {
   ProgressCard,
   TrackerCard,
   TodayCard,
-  ChecklistCard,
-  ScheduleCard,
 } from '../components/home-cards.jsx';
-import { usePager, ROW } from '../components/Pager.jsx';
-import { useDailyTotals, useSessions, useSettings } from '../lib/hooks.js';
+import { useDailyTotals, useSettings } from '../lib/hooks.js';
 
 export default function Home({ snapshot, tasks, account }) {
   const daily = useDailyTotals(7);
-  const sessions = useSessions(120);
   const [settings] = useSettings();
   const [busy, setBusy] = useState(false);
   const [sync, setSync] = useState(null);
-  const { ref, slice } = usePager(tasks.open, { rowHeight: ROW.check, gap: 6 });
 
   useEffect(() => {
     let alive = true;
@@ -49,7 +44,7 @@ export default function Home({ snapshot, tasks, account }) {
     <>
       <header className="greeting">
         <h1>
-          Welcome back, <span>{firstName(account)}</span>
+          Track your work, <span>{firstName(account)}</span>
         </h1>
       </header>
 
@@ -63,11 +58,18 @@ export default function Home({ snapshot, tasks, account }) {
 
         <ProgressCard rows={daily} weekSeconds={weekSeconds} countIdle={countIdle} />
         <TrackerCard snapshot={snapshot} settings={settings} busy={busy} onAction={run} />
-        <ScheduleCard sessions={sessions} />
-
         <div className="right-col">
           <TodayCard snapshot={snapshot} settings={settings} />
-          <ChecklistCard tasks={tasks} busy={busy} onAction={run} listRef={ref} slice={slice} />
+          <section className="card tracker-queue">
+            <h2>Ready to track</h2>
+            <div className="detail-list">
+              {tasks.open.slice(0, 5).map((task) => <button key={task.id} className="pol-person" disabled={busy} onClick={() => run(async () => {
+                if (snapshot.state === 'running') await window.api.tracker.stop('manual');
+                await window.api.tracker.start({ taskId: task.id, taskNote: task.title });
+              })}><span className="pol-person-name"><strong className="truncate">{task.title}</strong><small>{task.projectName || task.clientName || 'Independent task'}</small></span><span className="pol-person-edit">Start</span></button>)}
+              {!tasks.open.length && <p className="empty">No assigned work is waiting.</p>}
+            </div>
+          </section>
         </div>
       </div>
     </>

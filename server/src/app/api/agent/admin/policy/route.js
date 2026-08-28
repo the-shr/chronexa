@@ -12,7 +12,7 @@ export async function GET(request) {
   const [policy, employees] = await Promise.all([
     getPolicy(),
     prisma.user.findMany({
-      where: { active: true, role: 'employee' },
+      where: { active: true },
       orderBy: { name: 'asc' },
       select: { id: true, name: true, email: true, overrides: true },
     }),
@@ -52,7 +52,7 @@ export async function PATCH(request) {
   return Response.json({
     policy: { ...result.policy, updatedAt: result.policy.updatedAt.toISOString() },
     estimatedDailyBytes: estimateDailyBytes(result.policy, {
-      employees: Math.max(1, await prisma.user.count({ where: { active: true, role: 'employee' } })),
+      employees: Math.max(1, await prisma.user.count({ where: { active: true } })),
     }),
   });
 }
