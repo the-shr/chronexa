@@ -74,7 +74,7 @@ export default function App() {
 
         <button className={tab === 'profile' ? 'setting-pill active' : 'setting-pill'} onClick={() => setTab('profile')}>
           <IconSettings width={14} height={14} />
-          Account
+          Profile
         </button>
 
         <button

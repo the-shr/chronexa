@@ -53,24 +53,27 @@ function TaskLine({ task, selected, child, hasChildren, expanded, onExpand, onSe
 }
 
 function TaskDetail({ task, snapshot, busy, onRun, onComplete }) {
-  if (!task) return <aside className="task-detail empty-detail"><strong>Select a task</strong><span>Its work context and tracker controls will appear here.</span></aside>;
-  const ownSession = snapshot.session?.taskId === task.id;
+  const ownSession = task ? snapshot.session?.taskId === task.id : Boolean(snapshot.session);
   const tracking = ownSession && snapshot.state === 'running';
   const paused = ownSession && snapshot.state === 'paused';
-  const start = () => onRun(async () => { if (snapshot.state === 'running') await window.api.tracker.stop('manual'); await window.api.tracker.start({ taskId: task.id, taskNote: task.title }); });
+  const start = () => onRun(async () => {
+    if (snapshot.state === 'running') await window.api.tracker.stop('manual');
+    await window.api.tracker.start(task ? { taskId: task.id, taskNote: task.title } : { taskNote: 'General work' });
+  });
   return <aside className="task-detail">
-    <div className="detail-eyebrow">{task.parentTitle ? `Under ${task.parentTitle}` : 'Assigned work'}</div><h2>{task.title}</h2>
-    <div className="detail-chips"><span>{task.hubStatus?.replaceAll('_', ' ') || 'OPEN'}</span><span>{task.priority || 'normal'} priority</span>{task.dueAt && <span>Due {new Date(task.dueAt).toLocaleString()}</span>}</div>
-    {task.status !== 'done' && <section className={`task-live-tracker ${tracking ? 'running' : ''}`}>
+    <div className="detail-eyebrow">{task ? (task.parentTitle ? `Under ${task.parentTitle}` : 'Assigned work') : 'Work session'}</div><h2>{task?.title || snapshot.session?.taskNote || 'Time tracker'}</h2>
+    {task && <div className="detail-chips"><span>{task.hubStatus?.replaceAll('_', ' ') || 'OPEN'}</span><span>{task.priority || 'normal'} priority</span>{task.dueAt && <span>Due {new Date(task.dueAt).toLocaleString()}</span>}</div>}
+    {(!task || task.status !== 'done') && <section className={`task-live-tracker ${tracking ? 'running' : ''}`}>
       <div className="task-timer-copy"><span>{tracking ? 'Tracking now' : paused ? 'Paused' : 'Time tracker'}</span><strong>{timerClock(ownSession ? snapshot.session?.activeSeconds : 0)}</strong></div>
       <div className="task-timer-controls">
         {tracking ? <button className="timer-main" disabled={busy} onClick={() => onRun(() => window.api.tracker.pause())} title="Pause tracking"><IconPause width={22} /></button> : <button className="timer-main" disabled={busy} onClick={paused ? () => onRun(() => window.api.tracker.resume()) : start} title={paused ? 'Resume tracking' : 'Start tracking'}><IconPlay width={22} /></button>}
         <button className="timer-stop" disabled={busy || (!tracking && !paused)} onClick={() => onRun(() => window.api.tracker.stop('manual'))} title="Stop tracking"><IconStop width={16} /></button>
       </div>
     </section>}
-    {task.description && <p className="task-description">{task.description}</p>}
-    <dl className="task-context"><div><dt>Project</dt><dd>{task.projectName || 'Not linked'}</dd></div><div><dt>Client</dt><dd>{task.clientName || 'Not linked'}</dd></div>{task.estimateMinutes && <div><dt>Estimate</dt><dd>{humanDuration(task.estimateMinutes * 60)}</dd></div>}</dl>
-    <div className="detail-actions">{task.status !== 'done' && <button className="btn" disabled={busy} onClick={onComplete}><IconCheck width={14} /> Submit work</button>}{task.status === 'done' && <div className="submitted-note"><IconCheck width={15} /> Submitted to Brand Macros OS</div>}</div>
+    {!task && <p className="task-description">Start a general work session now, or select an assigned task when one appears.</p>}
+    {task?.description && <p className="task-description">{task.description}</p>}
+    {task && <dl className="task-context"><div><dt>Project</dt><dd>{task.projectName || 'Not linked'}</dd></div><div><dt>Client</dt><dd>{task.clientName || 'Not linked'}</dd></div>{task.estimateMinutes && <div><dt>Estimate</dt><dd>{humanDuration(task.estimateMinutes * 60)}</dd></div>}</dl>}
+    {task && <div className="detail-actions">{task.status !== 'done' && <button className="btn" disabled={busy} onClick={onComplete}><IconCheck width={14} /> Submit work</button>}{task.status === 'done' && <div className="submitted-note"><IconCheck width={15} /> Submitted to Brand Macros OS</div>}</div>}
   </aside>;
 }
 
