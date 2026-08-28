@@ -12,6 +12,8 @@ export function isChronexaAdmin(user) {
   if (!user?.active) return false;
   if (user.role === 'admin') return true;
   if (user.bmosIsSuperAdmin) return true;
+  const roles = Array.isArray(user.bmosRoleKeys) ? user.bmosRoleKeys.map((key) => String(key).toLowerCase()) : [];
+  if (roles.some((key) => ['admin', 'administrator'].includes(key))) return true;
   const permissions = Array.isArray(user.bmosPermissions) ? user.bmosPermissions : [];
   return ['settings.manage', 'attendance.manage'].some((permission) => permissions.includes(permission));
 }

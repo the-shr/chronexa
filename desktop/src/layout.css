@@ -1513,6 +1513,17 @@
 .detail-eyebrow { color: var(--accent-text); text-transform: uppercase; font-size: 10px; font-weight: 700; letter-spacing: .1em; }
 .detail-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .detail-chips span { border: 1px solid var(--line); background: var(--surface-2); border-radius: 999px; padding: 4px 8px; color: var(--text-dim); font-size: 10px; text-transform: capitalize; }
+.task-live-tracker { margin: 20px 0 0; min-height: 112px; padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; gap: 20px; border: 1px solid var(--line-strong); border-radius: 10px; background: linear-gradient(125deg, var(--surface-2), var(--accent-soft)); }
+.task-live-tracker.running { border-color: var(--accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent); }
+.task-timer-copy span { display: block; margin-bottom: 5px; color: var(--text-dim); font-size: 11px; font-weight: 650; text-transform: uppercase; }
+.task-timer-copy strong { font-size: 34px; font-weight: 650; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.task-timer-controls { display: flex; align-items: center; gap: 10px; }
+.timer-main, .timer-stop { display: grid; place-items: center; cursor: pointer; transition: transform .15s ease, background .15s ease; }
+.timer-main { width: 58px; height: 58px; padding: 0; border: 0; border-radius: 50%; color: white; background: var(--accent); box-shadow: 0 10px 28px color-mix(in srgb, var(--accent) 34%, transparent); }
+.timer-main:hover:not(:disabled) { transform: scale(1.06); }
+.timer-stop { width: 38px; height: 38px; padding: 0; border: 1px solid var(--line-strong); border-radius: 50%; color: var(--text-dim); background: var(--surface); }
+.timer-stop:hover:not(:disabled) { color: var(--danger); border-color: var(--danger); }
+.timer-main:disabled, .timer-stop:disabled { opacity: .4; cursor: not-allowed; }
 .task-description { color: var(--text-dim); line-height: 1.6; white-space: pre-wrap; margin: 20px 0; }
 .task-context { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin: 20px 0; }
 .task-context div { background: var(--surface-2); padding: 12px; }.task-context dt { color: var(--text-faint); font-size: 10px; text-transform: uppercase; }.task-context dd { margin: 5px 0 0; font-size: 13px; }

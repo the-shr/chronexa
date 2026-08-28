@@ -81,6 +81,7 @@ class Profile extends EventEmitter {
       const res = await this.request('/api/agent/me');
       const { user } = await res.json();
       const previous = this.store.read();
+      auth.updateUser(user);
       this.store.update((data) => ({ ...data, user, fetchedAt: new Date().toISOString() }));
       this.store.flush();
 

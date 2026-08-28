@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { dueLabel, humanDuration, clockTime } from '../lib/format.js';
-import { IconCheck, IconChevron, IconChevronDown, IconPlay, IconSync } from '../components/Icons.jsx';
+import { IconCheck, IconChevron, IconChevronDown, IconPause, IconPlay, IconStop, IconSync } from '../components/Icons.jsx';
 
 export default function Tasks({ snapshot, tasks }) {
   const [filter, setFilter] = useState('open');
@@ -54,15 +54,29 @@ function TaskLine({ task, selected, child, hasChildren, expanded, onExpand, onSe
 
 function TaskDetail({ task, snapshot, busy, onRun, onComplete }) {
   if (!task) return <aside className="task-detail empty-detail"><strong>Select a task</strong><span>Its work context and tracker controls will appear here.</span></aside>;
-  const tracking = snapshot.session?.taskId === task.id && snapshot.state === 'running';
+  const ownSession = snapshot.session?.taskId === task.id;
+  const tracking = ownSession && snapshot.state === 'running';
+  const paused = ownSession && snapshot.state === 'paused';
   const start = () => onRun(async () => { if (snapshot.state === 'running') await window.api.tracker.stop('manual'); await window.api.tracker.start({ taskId: task.id, taskNote: task.title }); });
   return <aside className="task-detail">
     <div className="detail-eyebrow">{task.parentTitle ? `Under ${task.parentTitle}` : 'Assigned work'}</div><h2>{task.title}</h2>
     <div className="detail-chips"><span>{task.hubStatus?.replaceAll('_', ' ') || 'OPEN'}</span><span>{task.priority || 'normal'} priority</span>{task.dueAt && <span>Due {new Date(task.dueAt).toLocaleString()}</span>}</div>
+    {task.status !== 'done' && <section className={`task-live-tracker ${tracking ? 'running' : ''}`}>
+      <div className="task-timer-copy"><span>{tracking ? 'Tracking now' : paused ? 'Paused' : 'Time tracker'}</span><strong>{timerClock(ownSession ? snapshot.session?.activeSeconds : 0)}</strong></div>
+      <div className="task-timer-controls">
+        {tracking ? <button className="timer-main" disabled={busy} onClick={() => onRun(() => window.api.tracker.pause())} title="Pause tracking"><IconPause width={22} /></button> : <button className="timer-main" disabled={busy} onClick={paused ? () => onRun(() => window.api.tracker.resume()) : start} title={paused ? 'Resume tracking' : 'Start tracking'}><IconPlay width={22} /></button>}
+        <button className="timer-stop" disabled={busy || (!tracking && !paused)} onClick={() => onRun(() => window.api.tracker.stop('manual'))} title="Stop tracking"><IconStop width={16} /></button>
+      </div>
+    </section>}
     {task.description && <p className="task-description">{task.description}</p>}
     <dl className="task-context"><div><dt>Project</dt><dd>{task.projectName || 'Not linked'}</dd></div><div><dt>Client</dt><dd>{task.clientName || 'Not linked'}</dd></div>{task.estimateMinutes && <div><dt>Estimate</dt><dd>{humanDuration(task.estimateMinutes * 60)}</dd></div>}</dl>
-    <div className="detail-actions">{task.status !== 'done' && <button className="btn primary" disabled={busy || tracking} onClick={start}><IconPlay width={14} /> {tracking ? 'Tracking now' : 'Start tracking'}</button>}{task.status !== 'done' && <button className="btn" disabled={busy} onClick={onComplete}><IconCheck width={14} /> Submit work</button>}{task.status === 'done' && <div className="submitted-note"><IconCheck width={15} /> Submitted to Brand Macros OS</div>}</div>
+    <div className="detail-actions">{task.status !== 'done' && <button className="btn" disabled={busy} onClick={onComplete}><IconCheck width={14} /> Submit work</button>}{task.status === 'done' && <div className="submitted-note"><IconCheck width={15} /> Submitted to Brand Macros OS</div>}</div>
   </aside>;
+}
+
+function timerClock(totalSeconds) {
+  const seconds = Math.max(0, Math.floor(totalSeconds || 0));
+  return [Math.floor(seconds / 3600), Math.floor((seconds % 3600) / 60), seconds % 60].map((part) => String(part).padStart(2, '0')).join(':');
 }
 
 function CompleteDialog({ task, busy, onClose, onSubmit }) {

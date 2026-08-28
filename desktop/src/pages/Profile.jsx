@@ -79,6 +79,10 @@ export default function Profile() {
           </p>
         </div>
         {notice && <span className={notice.kind === 'ok' ? 'notice ok' : 'notice error'}>{notice.text}</span>}
+        <button className="btn danger" disabled={busy} onClick={() => run(async () => {
+          await window.api.account.logout();
+          window.location.reload();
+        })}>Log out</button>
       </header>
 
       <div className="page-body" style={{ gridTemplateColumns: '236px minmax(0, 1fr) minmax(0, 1fr)' }}>

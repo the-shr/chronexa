@@ -131,6 +131,8 @@ export async function submitTask(email, taskId, completionNote, delayReason) {
  */
 export function roleFor(identity) {
   if (identity.isSuperAdmin) return 'admin';
+  const roles = Array.isArray(identity.roleKeys) ? identity.roleKeys.map((key) => String(key).toLowerCase()) : [];
+  if (roles.some((key) => ['admin', 'administrator'].includes(key))) return 'admin';
   const permissions = Array.isArray(identity.permissions) ? identity.permissions : [];
   const adminPermissions = ['settings.manage', 'attendance.manage'];
   if (permissions.some((permission) => adminPermissions.includes(permission))) return 'admin';

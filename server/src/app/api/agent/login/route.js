@@ -80,8 +80,10 @@ export async function POST(request) {
       email: user.email,
       name: user.name,
       permissions: user.bmosPermissions || [],
+      roleKeys: user.bmosRoleKeys || [],
       canManageTrackingPolicy:
         Boolean(user.bmosIsSuperAdmin) ||
+        (user.bmosRoleKeys || []).some((key) => ['admin', 'administrator'].includes(String(key).toLowerCase())) ||
         (user.bmosPermissions || []).some((permission) => ['settings.manage', 'attendance.manage'].includes(permission)),
     },
     device: { id: device.id, name: device.name },

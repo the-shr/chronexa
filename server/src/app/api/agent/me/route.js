@@ -9,6 +9,12 @@ export function serialiseMe(user) {
     name: user.name,
     email: user.email,
     role: user.role,
+    permissions: user.bmosPermissions || [],
+    roleKeys: user.bmosRoleKeys || [],
+    canManageTrackingPolicy:
+      Boolean(user.bmosIsSuperAdmin) ||
+      (user.bmosRoleKeys || []).some((key) => ['admin', 'administrator'].includes(String(key).toLowerCase())) ||
+      (user.bmosPermissions || []).some((permission) => ['settings.manage', 'attendance.manage'].includes(permission)),
     hasAvatar: Boolean(user.avatarPath),
     // Changes whenever the picture does, so the agent knows to re-fetch.
     avatarVersion: user.avatarPath ? user.avatarPath.slice(-12) : null,

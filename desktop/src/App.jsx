@@ -1,6 +1,5 @@
 import { useState } from 'react';
 
-import Home from './pages/Home.jsx';
 import Tasks from './pages/Tasks.jsx';
 import Activity from './pages/Activity.jsx';
 import Profile from './pages/Profile.jsx';
@@ -13,7 +12,6 @@ import { IconSun, IconMoon, IconBell, IconSettings } from './components/Icons.js
 
 const TABS = [
   { id: 'tasks', label: 'Tasks' },
-  { id: 'tracker', label: 'Tracker' },
   { id: 'activity', label: 'My Activity' },
 ];
 
@@ -105,7 +103,6 @@ export default function App() {
       <SessionBanner account={account} onSignedIn={refreshAccount} />
 
       <main className="content">
-        {tab === 'tracker' && <Home snapshot={snapshot} tasks={tasks} account={account} />}
         {tab === 'tasks' && <Tasks snapshot={snapshot} tasks={tasks} />}
         {tab === 'activity' && <Activity snapshot={snapshot} />}
         {tab === 'configuration' && canConfigure && <Policy />}
