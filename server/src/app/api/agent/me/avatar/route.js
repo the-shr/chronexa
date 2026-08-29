@@ -30,7 +30,9 @@ export async function GET(request) {
 
   const user = await prisma.user.findUnique({ where: { id: device.userId } });
   if (!user) return new Response('No picture set', { status: 404 });
-  if (!user.avatarPath && user.source === 'bmos') {
+  // Existing Chronexa admins may predate the BM OS bridge and therefore retain
+  // source="local". externalId still proves that login linked them to BM OS.
+  if (!user.avatarPath && (user.source === 'bmos' || user.externalId)) {
     const remote = await bmos.fetchProfilePhoto(user.email);
     if (!remote) return new Response('No picture set', { status: 404 });
     return new Response(remote.bytes, { headers: { 'content-type': remote.type, 'content-length': String(remote.bytes.length), 'cache-control': 'private, max-age=300' } });

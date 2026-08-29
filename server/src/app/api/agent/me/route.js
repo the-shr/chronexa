@@ -4,6 +4,7 @@ import { normaliseEmail, validateEmail } from '@/lib/user-rules.js';
 
 /** What the employee is allowed to know about their own account. */
 export function serialiseMe(user) {
+  const hasHubIdentity = user.source === 'bmos' || Boolean(user.externalId);
   return {
     id: user.id,
     name: user.name,
@@ -15,9 +16,9 @@ export function serialiseMe(user) {
       Boolean(user.bmosIsSuperAdmin) ||
       (user.bmosRoleKeys || []).some((key) => ['admin', 'administrator'].includes(String(key).toLowerCase())) ||
       (user.bmosPermissions || []).some((permission) => ['settings.manage', 'attendance.manage'].includes(permission)),
-    hasAvatar: Boolean(user.avatarPath || user.source === 'bmos'),
+    hasAvatar: Boolean(user.avatarPath || hasHubIdentity),
     // Changes whenever the picture does, so the agent knows to re-fetch.
-    avatarVersion: user.avatarPath ? user.avatarPath.slice(-12) : user.source === 'bmos' ? `bmos-${new Date().toISOString().slice(0, 10)}` : null,
+    avatarVersion: user.avatarPath ? user.avatarPath.slice(-12) : hasHubIdentity ? `bmos-${new Date().toISOString().slice(0, 10)}` : null,
   };
 }
 
