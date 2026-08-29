@@ -20,9 +20,9 @@ export function usePolicy() {
 
   const save = useCallback(async (patch) => {
     const result = await window.api.configuration.update(patch);
-    await reload();
+    setData((current) => current ? { ...current, ...result, policy: result.policy || current.policy } : current);
     return result;
-  }, [reload]);
+  }, []);
 
   return {
     data,

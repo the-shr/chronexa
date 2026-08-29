@@ -31,6 +31,10 @@ function serialiseHubTask(t) {
     context: [clientName, projectName, parentTitle].filter(Boolean).join(' / '),
     hubStatus: t.status,
     estimateMinutes: null,
+    resources: [...(t.resources || []), ...(t.links || []).map((link) => ({ id: link.id, name: link.label, type: link.kind, url: link.url, createdAt: link.addedAt }))],
+    comments: t.comments || [],
+    resources: [...(t.resources || []), ...(t.links || []).map((link) => ({ id: link.id, name: link.label, type: link.kind, url: link.url, createdAt: link.addedAt }))],
+    comments: t.comments || [],
     completedAt: COMPLETE.has(t.status) ? t.updatedAt : null,
     updatedAt: t.updatedAt || null,
   };

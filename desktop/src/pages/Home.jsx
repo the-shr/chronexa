@@ -1,30 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import {
   MetricRow,
   ProfileCard,
-  InfoCard,
+  WorkConsistencyCard,
   ProgressCard,
   TrackerCard,
-  TodayCard,
+  DeadlinePulseCard,
+  TodayBreakdownCard,
+  TaskHubCard,
 } from '../components/home-cards.jsx';
-import { useDailyTotals, useSettings } from '../lib/hooks.js';
+import { useDailyTotals, useSessions, useSettings } from '../lib/hooks.js';
 
-export default function Home({ snapshot, tasks, account }) {
+export default function Home({ snapshot, tasks, account, profile }) {
   const daily = useDailyTotals(7);
+  const sessions = useSessions(120);
   const [settings] = useSettings();
   const [busy, setBusy] = useState(false);
-  const [sync, setSync] = useState(null);
-
-  useEffect(() => {
-    let alive = true;
-    window.api.sync.status().then((s) => alive && setSync(s));
-    const off = window.api.sync.onStatus(setSync);
-    return () => {
-      alive = false;
-      off();
-    };
-  }, []);
 
   if (!settings) return null;
 
@@ -52,24 +44,16 @@ export default function Home({ snapshot, tasks, account }) {
 
       <div className="page-body home-grid">
         <div className="side-col">
-          <ProfileCard account={account} snapshot={snapshot} />
-          <InfoCard account={account} settings={settings} sync={sync} />
+          <ProfileCard account={account} snapshot={snapshot} profile={profile} />
+          <WorkConsistencyCard rows={daily} sessions={sessions} settings={settings} />
         </div>
 
-        <ProgressCard rows={daily} weekSeconds={weekSeconds} countIdle={countIdle} />
+        <ProgressCard rows={daily} weekSeconds={weekSeconds} countIdle={countIdle} settings={settings} />
         <TrackerCard snapshot={snapshot} settings={settings} busy={busy} onAction={run} />
+        <TaskHubCard tasks={tasks} busy={busy} onAction={run} />
         <div className="right-col">
-          <TodayCard snapshot={snapshot} settings={settings} />
-          <section className="card tracker-queue">
-            <h2>Ready to track</h2>
-            <div className="detail-list">
-              {tasks.open.slice(0, 5).map((task) => <button key={task.id} className="pol-person" disabled={busy} onClick={() => run(async () => {
-                if (snapshot.state === 'running') await window.api.tracker.stop('manual');
-                await window.api.tracker.start({ taskId: task.id, taskNote: task.title });
-              })}><span className="pol-person-name"><strong className="truncate">{task.title}</strong><small>{task.projectName || task.clientName || 'Independent task'}</small></span><span className="pol-person-edit">Start</span></button>)}
-              {!tasks.open.length && <p className="empty">No assigned work is waiting.</p>}
-            </div>
-          </section>
+          <DeadlinePulseCard tasks={tasks} />
+          <TodayBreakdownCard snapshot={snapshot} settings={settings} />
         </div>
       </div>
     </>

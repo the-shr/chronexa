@@ -56,7 +56,8 @@ export function useTasks() {
 
   const setStatus = useCallback(async (id, status, details) => setTasks(await window.api.tasks.setStatus(id, status, details)), []);
   const refresh = useCallback(async () => setTasks(await window.api.tasks.refresh()), []);
-  return { ...tasks, setStatus, refresh };
+  const addComment = useCallback(async (id, body) => setTasks(await window.api.tasks.addComment(id, body)), []);
+  return { ...tasks, setStatus, refresh, addComment };
 }
 
 /** Per-day active/idle totals for the bar chart and the calendar. */

@@ -116,6 +116,18 @@ class Tasks extends EventEmitter {
     return this.list();
   }
 
+  async addComment(id, body) {
+    const cfg = settings.get().sync;
+    const res = await fetch(`${cfg.serverUrl}/api/agent/tasks/${encodeURIComponent(id.replace(/^bmos:/, ''))}/comments`, {
+      method: 'POST',
+      headers: { ...auth.authHeaders(), 'content-type': 'application/json' },
+      body: JSON.stringify({ body }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Comment failed (${res.status})`);
+    return this.refresh();
+  }
+
 }
 
 module.exports = new Tasks();

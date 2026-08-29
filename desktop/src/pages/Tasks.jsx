@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { dueLabel, humanDuration, clockTime } from '../lib/format.js';
 import { IconCheck, IconChevron, IconChevronDown, IconPause, IconPlay, IconStop, IconSync } from '../components/Icons.jsx';
+import { useSettings } from '../lib/hooks.js';
 
 export default function Tasks({ snapshot, tasks }) {
   const [filter, setFilter] = useState('open');
@@ -8,6 +9,7 @@ export default function Tasks({ snapshot, tasks }) {
   const [expanded, setExpanded] = useState(new Set());
   const [completing, setCompleting] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [settings] = useSettings();
   const source = filter === 'open' ? tasks.open : tasks.done;
   const tree = useMemo(() => buildTree(source), [source]);
   const selected = source.find((task) => task.id === selectedId) || source[0] || null;
@@ -29,7 +31,7 @@ export default function Tasks({ snapshot, tasks }) {
           {expanded.has(task.id) && children.map((child) => <TaskLine key={child.id} task={child} child selected={selected?.id === child.id} onSelect={() => setSelectedId(child.id)} />)}
         </div>)}
       </section>
-      <TaskDetail task={selected} snapshot={snapshot} busy={busy} onRun={run} onComplete={() => setCompleting(selected)} />
+      <TaskDetail task={selected} snapshot={snapshot} settings={settings} busy={busy} onRun={run} onComplete={() => setCompleting(selected)} />
     </div>
     {completing && <CompleteDialog task={completing} busy={busy} onClose={() => setCompleting(null)} onSubmit={(details) => run(async () => { await tasks.setStatus(completing.id, 'done', details); setCompleting(null); })} />}
   </>;
@@ -52,10 +54,12 @@ function TaskLine({ task, selected, child, hasChildren, expanded, onExpand, onSe
   </div>;
 }
 
-function TaskDetail({ task, snapshot, busy, onRun, onComplete }) {
+function TaskDetail({ task, snapshot, settings, busy, onRun, onComplete }) {
   const ownSession = task ? snapshot.session?.taskId === task.id : Boolean(snapshot.session);
   const tracking = ownSession && snapshot.state === 'running';
   const paused = ownSession && snapshot.state === 'paused';
+  const dailyTarget = (settings?.work?.dailyTargetHours || 0) * 3600;
+  const progress = dailyTarget ? Math.min(1, snapshot.today.workSeconds / dailyTarget) : 0;
   const start = () => onRun(async () => {
     if (snapshot.state === 'running') await window.api.tracker.stop('manual');
     await window.api.tracker.start(task ? { taskId: task.id, taskNote: task.title } : { taskNote: 'General work' });
@@ -63,11 +67,15 @@ function TaskDetail({ task, snapshot, busy, onRun, onComplete }) {
   return <aside className="task-detail">
     <div className="detail-eyebrow">{task ? (task.parentTitle ? `Under ${task.parentTitle}` : 'Assigned work') : 'Work session'}</div><h2>{task?.title || snapshot.session?.taskNote || 'Time tracker'}</h2>
     {task && <div className="detail-chips"><span>{task.hubStatus?.replaceAll('_', ' ') || 'OPEN'}</span><span>{task.priority || 'normal'} priority</span>{task.dueAt && <span>Due {new Date(task.dueAt).toLocaleString()}</span>}</div>}
-    {(!task || task.status !== 'done') && <section className={`task-live-tracker ${tracking ? 'running' : ''}`}>
-      <div className="task-timer-copy"><span>{tracking ? 'Tracking now' : paused ? 'Paused' : 'Time tracker'}</span><strong>{timerClock(ownSession ? snapshot.session?.activeSeconds : 0)}</strong></div>
-      <div className="task-timer-controls">
-        {tracking ? <button className="timer-main" disabled={busy} onClick={() => onRun(() => window.api.tracker.pause())} title="Pause tracking"><IconPause width={22} /></button> : <button className="timer-main" disabled={busy} onClick={paused ? () => onRun(() => window.api.tracker.resume()) : start} title={paused ? 'Resume tracking' : 'Start tracking'}><IconPlay width={22} /></button>}
-        <button className="timer-stop" disabled={busy || (!tracking && !paused)} onClick={() => onRun(() => window.api.tracker.stop('manual'))} title="Stop tracking"><IconStop width={16} /></button>
+    {(!task || task.status !== 'done') && <section className="classic-tracker">
+      <div className="ring-wrap">
+        <div className="ring" data-target={dailyTarget ? 'set' : 'none'} style={{ '--progress': progress, '--ring-color': tracking ? 'var(--accent)' : paused ? 'var(--idle)' : 'var(--text-faint)' }}>
+          <div className="ring-inner"><span className="ring-time mono">{timerClock(ownSession ? snapshot.session?.activeSeconds : 0)}</span><span className="ring-label">{tracking ? 'work time' : paused ? 'paused' : 'ready'}</span></div>
+        </div>
+      </div>
+      <div className="tracker-controls classic-controls">
+        {tracking ? <button className="round-ctl primary-ctl" disabled={busy} onClick={() => onRun(() => window.api.tracker.pause())} title="Pause tracking"><IconPause width={18} /></button> : <button className="round-ctl primary-ctl" disabled={busy} onClick={paused ? () => onRun(() => window.api.tracker.resume()) : start} title={paused ? 'Resume tracking' : 'Start tracking'}><IconPlay width={18} /></button>}
+        <button className="round-ctl solid" disabled={busy || (!tracking && !paused)} onClick={() => onRun(() => window.api.tracker.stop('manual'))} title="Stop tracking"><IconStop width={14} /></button>
       </div>
     </section>}
     {!task && <p className="task-description">Start a general work session now, or select an assigned task when one appears.</p>}

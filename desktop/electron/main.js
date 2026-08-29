@@ -214,6 +214,7 @@ handle('history:daily', (days) => db.dailyTotals(days || 7));
 handle('tasks:list', () => tasks.list());
 handle('tasks:refresh', () => tasks.refresh());
 handle('tasks:set-status', ({ id, status, details }) => tasks.setStatus(id, status, details));
+handle('tasks:add-comment', ({ id, body }) => tasks.addComment(id, body));
 
 handle('account:get', () => auth.status());
 handle('account:login', async (creds) => {

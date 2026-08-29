@@ -24,6 +24,18 @@ function appHeaders() {
   };
 }
 
+export async function fetchProfilePhoto(email) {
+  if (!configured()) return null;
+  try {
+    const query = new URLSearchParams({ email });
+    const res = await fetch(`${base()}/api/ecosystem/profile-photo?${query.toString()}`, { headers: appHeaders() });
+    if (!res.ok) return null;
+    return { bytes: Buffer.from(await res.arrayBuffer()), type: res.headers.get('content-type') || 'image/jpeg' };
+  } catch {
+    return null;
+  }
+}
+
 async function call(path, { method = 'GET', body } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -120,6 +132,18 @@ export async function submitTask(email, taskId, completionNote, delayReason) {
       body: { email, completionNote, delayReason },
     });
     return ok ? { ok: true } : { error: data?.error || 'The hub rejected the update' };
+  } catch {
+    return { error: 'The hub could not be reached' };
+  }
+}
+
+export async function addTaskComment(email, taskId, body) {
+  if (!configured()) return { error: 'The hub is not configured' };
+  try {
+    const { ok, status, data } = await call(`/api/ecosystem/tasks/${encodeURIComponent(taskId)}/comments`, {
+      method: 'POST', body: { email, body },
+    });
+    return ok ? data : { error: data?.error || `The hub rejected the comment (${status}).` };
   } catch {
     return { error: 'The hub could not be reached' };
   }

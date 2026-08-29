@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db.js';
 import { deviceFromRequest } from '@/lib/auth.js';
 import { putAvatar, getAvatar, removeAvatar } from '@/lib/storage.js';
+import * as bmos from '@/lib/bmos.js';
 
 const MAX_BYTES = 3 * 1024 * 1024;
 
@@ -28,7 +29,13 @@ export async function GET(request) {
   if (!device) return new Response('Unauthorized', { status: 401 });
 
   const user = await prisma.user.findUnique({ where: { id: device.userId } });
-  if (!user?.avatarPath) return new Response('No picture set', { status: 404 });
+  if (!user) return new Response('No picture set', { status: 404 });
+  if (!user.avatarPath && user.source === 'bmos') {
+    const remote = await bmos.fetchProfilePhoto(user.email);
+    if (!remote) return new Response('No picture set', { status: 404 });
+    return new Response(remote.bytes, { headers: { 'content-type': remote.type, 'content-length': String(remote.bytes.length), 'cache-control': 'private, max-age=300' } });
+  }
+  if (!user.avatarPath) return new Response('No picture set', { status: 404 });
 
   const bytes = await getAvatar(user.avatarPath);
   if (!bytes) return new Response('Missing', { status: 404 });

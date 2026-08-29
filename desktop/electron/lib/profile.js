@@ -105,6 +105,7 @@ class Profile extends EventEmitter {
       this.store.flush();
     } catch (err) {
       log.warn('profile: avatar download failed', err.message);
+      this.clearAvatarCache();
     }
   }
 

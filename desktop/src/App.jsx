@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import Tasks from './pages/Tasks.jsx';
+import Home from './pages/Home.jsx';
 import Activity from './pages/Activity.jsx';
 import Profile from './pages/Profile.jsx';
 import SignIn from './pages/SignIn.jsx';
@@ -8,7 +8,7 @@ import Policy from './pages/admin/Policy.jsx';
 import { useTrackerState, useTasks, useTheme, useAccount, useProfile } from './lib/hooks.js';
 import SessionBanner from './components/SessionBanner.jsx';
 import UpdateBanner from './components/UpdateBanner.jsx';
-import { IconSun, IconMoon, IconBell, IconSettings } from './components/Icons.jsx';
+import { IconSun, IconMoon, IconBell } from './components/Icons.jsx';
 
 const TABS = [
   { id: 'tracker', label: 'Tracker' },
@@ -22,6 +22,11 @@ export default function App() {
   const [theme, toggleTheme] = useTheme();
   const [account, refreshAccount] = useAccount();
   const { profile } = useProfile();
+  const canConfigure = Boolean(account?.user?.canManageTrackingPolicy);
+
+  useEffect(() => {
+    if (canConfigure) window.api.configuration.get().catch(() => {});
+  }, [canConfigure]);
 
   // Say what happened rather than showing an empty window.
   if (error) {
@@ -55,7 +60,6 @@ export default function App() {
 
   const name = profile?.user?.name || account?.user?.name || account?.user?.email || 'Not signed in';
   const avatar = profile?.avatar || null;
-  const canConfigure = Boolean(account.user?.canManageTrackingPolicy);
   const tabs = canConfigure ? [...TABS, { id: 'configuration', label: 'Configuration' }] : TABS;
 
   return (
@@ -71,11 +75,6 @@ export default function App() {
             </button>
           ))}
         </nav>
-
-        <button className={tab === 'profile' ? 'setting-pill active' : 'setting-pill'} onClick={() => setTab('profile')}>
-          <IconSettings width={14} height={14} />
-          Profile
-        </button>
 
         <button
           className="round-btn"
@@ -103,7 +102,7 @@ export default function App() {
       <SessionBanner account={account} onSignedIn={refreshAccount} />
 
       <main className="content">
-        {tab === 'tracker' && <Tasks snapshot={snapshot} tasks={tasks} />}
+        {tab === 'tracker' && <Home snapshot={snapshot} tasks={tasks} account={account} profile={profile} />}
         {tab === 'activity' && <Activity snapshot={snapshot} />}
         {tab === 'configuration' && canConfigure && <Policy />}
         {tab === 'profile' && <Profile />}

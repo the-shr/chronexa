@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('api', {
     list: () => invoke('tasks:list'),
     refresh: () => invoke('tasks:refresh'),
     setStatus: (id, status, details) => invoke('tasks:set-status', { id, status, details }),
+    addComment: (id, body) => invoke('tasks:add-comment', { id, body }),
     onChange: (fn) => subscribe('tasks:changed', fn),
   },
   profile: {

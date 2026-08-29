@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { humanDuration, clockTime, dueLabel, weekdayShort, isSameDay } from '../lib/format.js';
 import {
@@ -8,7 +8,6 @@ import {
   IconStop,
   IconCheck,
   IconChevronDown,
-  IconLaptop,
   IconTarget,
   IconSync,
   IconList,
@@ -81,14 +80,14 @@ function Figure({ icon, value, label }) {
 
 /* ------------------------------- profile -------------------------------- */
 
-export function ProfileCard({ account, snapshot }) {
+export function ProfileCard({ account, snapshot, profile }) {
   const name = account?.user?.name || account?.user?.email || 'Not signed in';
   const role = account?.signedIn ? account.user?.email : 'Sign in from Settings';
 
   return (
     <section className="card profile-card">
       <div className="profile-photo">
-        <span>{initials(name)}</span>
+        {profile?.avatar ? <img src={profile.avatar} alt="" /> : <span>{initials(name)}</span>}
       </div>
       <div className="profile-over">
         <div className="profile-id">
@@ -97,6 +96,26 @@ export function ProfileCard({ account, snapshot }) {
         </div>
         <span className="profile-badge mono">{humanDuration(snapshot.today.workSeconds)}</span>
       </div>
+    </section>
+  );
+}
+
+export function WorkConsistencyCard({ rows, sessions, settings }) {
+  const target = (settings.work?.dailyTargetHours || 0) * 3600;
+  const totals = rows.map((row) => row.activeSeconds + (settings.idle?.countIdleAsWork ? row.idleSeconds : 0));
+  const achieved = target ? totals.filter((total) => total >= target).length : 0;
+  let streak = 0;
+  for (let index = totals.length - 1; index >= 0 && (!target || totals[index] >= target); index -= 1) streak += 1;
+  const starts = sessions.map((session) => new Date(session.startedAt)).filter((date) => Number.isFinite(date.getTime()));
+  const averageStart = starts.length ? new Date(2000, 0, 1, 0, Math.round(starts.reduce((sum, date) => sum + date.getHours() * 60 + date.getMinutes(), 0) / starts.length)).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : '—';
+  const averageSession = sessions.length ? Math.round(sessions.reduce((sum, session) => sum + (session.activeSeconds || 0), 0) / sessions.length) : 0;
+  return (
+    <section className="card consistency-card tone-green">
+      <span className="card-kicker">Work consistency</span>
+      <div className="consistency-score"><strong>{achieved}</strong><span>of {rows.length || 7} target days</span></div>
+      <div className="consistency-line"><i style={{ width: `${rows.length ? (achieved / rows.length) * 100 : 0}%` }} /></div>
+      <div className="consistency-grid"><span><b>{streak}</b>Current streak</span><span><b>{averageStart}</b>Average start</span><span className="wide"><b>{humanDuration(averageSession)}</b>Average focused session</span></div>
+      <p className="consistency-week-label">7-day target pattern</p><div className="consistency-week">{rows.map((row, index) => <span key={row.date} className={target && totals[index] >= target ? 'met' : totals[index] > 0 ? 'partial' : ''}><i /><small>{weekdayShort(row.date)[0]}</small></span>)}</div>
     </section>
   );
 }
@@ -114,24 +133,9 @@ function initials(name) {
 
 /** The expandable list under the profile, as in the reference. */
 export function InfoCard({ account, settings, sync }) {
-  const [open, setOpen] = useState('device');
+  const [open, setOpen] = useState('target');
 
   const rows = [
-    {
-      id: 'device',
-      label: 'This computer',
-      body: (
-        <div className="info-detail">
-          <span className="info-icon">
-            <IconLaptop width={15} height={15} />
-          </span>
-          <div className="info-detail-text">
-            <strong className="truncate">{account?.deviceName || 'Unknown device'}</strong>
-            <small>{account?.signedIn ? 'Reporting your hours' : 'Not signed in'}</small>
-          </div>
-        </div>
-      ),
-    },
     {
       id: 'target',
       label: 'Work target',
@@ -187,19 +191,15 @@ export function InfoCard({ account, settings, sync }) {
 
 /* ------------------------------- progress ------------------------------- */
 
-export function ProgressCard({ rows, weekSeconds, countIdle }) {
-  const totals = rows.map((r) => r.activeSeconds + (countIdle ? r.idleSeconds : 0));
-  const peak = Math.max(...totals, 3600);
+export function ProgressCard({ rows, weekSeconds, countIdle, settings }) {
+  const totals = rows.map((r) => r.activeSeconds || 0);
+  const dailyTarget = (settings.work?.dailyTargetHours || 0) * 3600;
+  const peak = dailyTarget || Math.max(...totals, 3600);
   const best = totals.indexOf(Math.max(...totals));
 
   return (
-    <section className="card progress-card">
-      <h2>
-        Progress
-        <span className="corner">
-          <IconArrowOut width={13} height={13} />
-        </span>
-      </h2>
+    <section className="card progress-card personal-insights-main">
+      <div className="personal-insights-title"><div><span className="card-kicker">Weekly signal</span><h2>Personal insights</h2></div></div>
 
       <div className="progress-head">
         <strong className="mono">{humanDuration(weekSeconds)}</strong>
@@ -220,7 +220,7 @@ export function ProgressCard({ rows, weekSeconds, countIdle }) {
               <div className="chart-bar-space">
                 <div
                   className={value > 0 ? 'chart-bar' : 'chart-bar empty'}
-                  style={{ height: `${Math.max(3, (value / peak) * 100)}%` }}
+                  style={{ height: value > 0 ? `${Math.max(6, Math.min(100, (value / peak) * 100))}%` : '4px' }}
                   title={`${humanDuration(row.activeSeconds)} active · ${humanDuration(row.idleSeconds)} idle`}
                 />
               </div>
@@ -244,15 +244,23 @@ export function TrackerCard({ snapshot, settings, busy, onAction }) {
   const target = (settings.work?.dailyTargetHours || 0) * 3600;
   const progress = target ? Math.min(1, today.workSeconds / target) : 0;
   const colour = idle ? 'var(--idle)' : running ? 'var(--accent)' : 'var(--text-faint)';
+  const [timerOpen, setTimerOpen] = useState(false);
+  const [timerDuration, setTimerDuration] = useState(5 * 60);
+  const [timerLeft, setTimerLeft] = useState(5 * 60);
+  const [timerRunning, setTimerRunning] = useState(false);
+  useEffect(() => {
+    if (!timerRunning || timerLeft <= 0) return undefined;
+    const id = setInterval(() => setTimerLeft((value) => Math.max(0, value - 1)), 1000);
+    return () => clearInterval(id);
+  }, [timerRunning, timerLeft]);
+  useEffect(() => { if (timerLeft === 0) setTimerRunning(false); }, [timerLeft]);
+  const timerProgress = timerDuration ? Math.max(0, Math.min(1, 1 - timerLeft / timerDuration)) : 0;
+  const addTime = (minutes) => { const seconds = minutes * 60; setTimerDuration((value) => value + seconds); setTimerLeft((value) => value + seconds); };
+  const setTimer = (minutes) => { const seconds = Math.max(1, minutes) * 60; setTimerDuration(seconds); setTimerLeft(seconds); setTimerRunning(false); };
 
   return (
     <section className="card tracker-card">
-      <h2>
-        Time tracker
-        <span className="corner">
-          <IconArrowOut width={13} height={13} />
-        </span>
-      </h2>
+      <div className="tracker-card-head"><div><span className="card-kicker">Live session</span><h2>Time tracker</h2></div><button className="tracker-timer-launch" style={{ '--timer-progress-angle': `${timerProgress * 360}deg` }} onClick={() => setTimerOpen(true)} title="Open focus timer"><span><IconClock width={14} /></span><b className="mono">{countdownClock(timerLeft)}</b></button></div>
 
       <div className="ring-wrap">
         <div
@@ -292,6 +300,7 @@ export function TrackerCard({ snapshot, settings, busy, onAction }) {
           <IconStop width={13} height={13} />
         </button>
       </div>
+      {timerOpen && <FocusTimerModal duration={timerDuration} left={timerLeft} running={timerRunning} progress={timerProgress} onClose={() => setTimerOpen(false)} onToggle={() => setTimerRunning((value) => !value)} onStop={() => { setTimerRunning(false); setTimerLeft(0); }} onReset={() => { setTimerRunning(false); setTimerLeft(timerDuration); }} onAdd={addTime} onSet={setTimer} />}
     </section>
   );
 }
@@ -331,6 +340,135 @@ export function TodayCard({ snapshot, settings }) {
       </div>
     </section>
   );
+}
+
+function countdownClock(totalSeconds) {
+  const seconds = Math.max(0, Math.floor(totalSeconds || 0));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const rest = seconds % 60;
+  return hours ? `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}` : `${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`;
+}
+
+function FocusTimerModal({ duration, left, running, progress, onClose, onToggle, onStop, onReset, onAdd, onSet }) {
+  const [custom, setCustom] = useState('');
+  return <div className="lightbox timer-lightbox" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="focus-timer-modal">
+    <button className="timer-modal-close" onClick={onClose} title="Close timer">×</button>
+    <span className="card-kicker">Focus timer</span>
+    <div className="focus-timer-progress" style={{ '--timer-progress-angle': `${progress * 360}deg` }}><div className="focus-timer-face">
+      <button className="timer-side-control play" onClick={onToggle} title={running ? 'Pause timer' : 'Start timer'}>{running ? <IconPause width={25} /> : <IconPlay width={25} />}</button>
+      <div className="timer-readout"><strong className="mono">{countdownClock(left)}</strong><span>{running ? 'Counting down' : left === 0 ? 'Stopped' : 'Timer'}</span></div>
+      <button className="timer-side-control stop" onClick={onStop} title="Stop timer"><span className="stop-x" /></button>
+    </div></div>
+    <div className="timer-presets">{[5, 10, 15].map((minutes) => <button key={minutes} onClick={() => onSet(minutes)}>{minutes} min</button>)}</div>
+    <div className="timer-modal-actions"><button className="btn" onClick={onReset}>Reset</button><button className="btn" onClick={() => onAdd(5)}>+5 min</button><button className="btn" onClick={() => onAdd(10)}>+10 min</button><span className="timer-add-custom"><input type="number" min="1" max="240" value={custom} onChange={(event) => setCustom(event.target.value)} placeholder="Custom minutes" /><button onClick={() => { const minutes = Math.min(240, Math.max(1, Number(custom))); if (minutes) { onSet(minutes); setCustom(''); } }}>Set</button></span></div>
+  </section></div>;
+}
+
+export function DeadlinePulseCard({ tasks }) {
+  const now = new Date(); const end = new Date(now); end.setHours(23, 59, 59, 999);
+  const open = tasks.open || [];
+  const overdue = open.filter((task) => task.dueAt && new Date(task.dueAt) < now);
+  const today = open.filter((task) => task.dueAt && new Date(task.dueAt) >= now && new Date(task.dueAt) <= end);
+  const upcoming = open.filter((task) => task.dueAt && new Date(task.dueAt) > end).sort((a, b) => new Date(a.dueAt) - new Date(b.dueAt));
+  const revisions = open.filter((task) => task.hubStatus === 'REVISION_REQUESTED');
+  const nearest = [...overdue, ...today, ...upcoming].slice(0, 3);
+  return <section className="card deadline-card tone-magenta"><span className="card-kicker">Deadline pulse</span><div className="deadline-metrics"><span><b>{today.length}</b>Today</span><span><b>{upcoming.length}</b>Upcoming</span><span className={overdue.length ? 'alert' : ''}><b>{overdue.length}</b>Overdue</span><span><b>{revisions.length}</b>Revision</span></div><div className="deadline-list">{nearest.map((task) => <div key={task.id}><strong>{task.title}</strong><small>{new Date(task.dueAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</small></div>)}{!nearest.length && <p className="empty">No upcoming deadlines.</p>}</div></section>;
+}
+
+export function TodayBreakdownCard({ snapshot, settings }) {
+  const active = snapshot.today.activeSeconds || 0;
+  const idle = snapshot.today.idleSeconds || 0;
+  const target = (settings.work?.dailyTargetHours || 0) * 3600;
+  const credited = snapshot.today.workSeconds || 0;
+  const remaining = Math.max(0, target - credited);
+  const scale = Math.max(target, active + idle, 1);
+  return <section className="card insights-card tone-violet"><div className="insights-head"><div><span className="card-kicker">Today breakdown</span><strong>{humanDuration(credited)}</strong><small>Credited work</small></div><div><b>{target ? `${Math.min(100, Math.round((credited / target) * 100))}%` : '—'}</b><small>Daily target</small></div></div><div className="breakdown-track"><i className="active" style={{ width: `${(active / scale) * 100}%` }} /><i className="idle" style={{ width: `${(idle / scale) * 100}%` }} /></div><div className="breakdown-list"><span><i className="active" /><b>{humanDuration(active)}</b>Active</span><span><i className="idle" /><b>{humanDuration(idle)}</b>Idle</span><span><i className="left" /><b>{target ? humanDuration(remaining) : '—'}</b>Remaining</span></div></section>;
+}
+
+/* ------------------------- focus countdown ----------------------------- */
+
+export function CountdownCard() {
+  const [duration, setDuration] = useState(15 * 60);
+  const [left, setLeft] = useState(15 * 60);
+  const [running, setRunning] = useState(false);
+  const [custom, setCustom] = useState('');
+
+  useEffect(() => {
+    if (!running || left <= 0) return undefined;
+    const id = setInterval(() => setLeft((value) => Math.max(0, value - 1)), 1000);
+    return () => clearInterval(id);
+  }, [running, left]);
+
+  useEffect(() => { if (left === 0) setRunning(false); }, [left]);
+  const choose = (minutes) => { const seconds = minutes * 60; setDuration(seconds); setLeft(seconds); setRunning(false); };
+  const progress = duration ? Math.max(0, Math.min(1, left / duration)) : 0;
+
+  return (
+    <section className="card countdown-card">
+      <div className="countdown-head"><div><span className="card-kicker">Focus timer</span><strong className="mono">{shortClock(left)}</strong></div><div className="countdown-gauge" style={{ '--timer-progress': progress }}><span>{running ? <IconPause width={20} /> : <IconPlay width={20} />}</span></div></div>
+      <div className="timer-quick">{[5, 10, 15].map((minutes) => <button key={minutes} className={duration === minutes * 60 ? 'active' : ''} onClick={() => choose(minutes)}>{minutes} min</button>)}</div>
+      <div className="timer-custom"><input type="number" min="1" max="240" value={custom} onChange={(event) => setCustom(event.target.value)} placeholder="Minutes" /><button onClick={() => { const value = Math.min(240, Math.max(1, Number(custom))); if (value) choose(value); }}>Set</button></div>
+      <div className="timer-actions"><button className="btn primary" onClick={() => setRunning((value) => !value)}>{running ? <IconPause width={14} /> : <IconPlay width={14} />}{running ? 'Pause' : left < duration ? 'Resume' : 'Start'}</button><button className="btn" onClick={() => { setRunning(false); setLeft(duration); }}>Reset</button></div>
+    </section>
+  );
+}
+
+/* --------------------------- assigned work ----------------------------- */
+
+export function TaskHubCard({ tasks, busy, onAction }) {
+  const [selectedId, setSelectedId] = useState(null);
+  const [expanded, setExpanded] = useState(new Set());
+  const [opened, setOpened] = useState(null);
+  const rows = tasks.open;
+  const tree = useMemo(() => {
+    const ids = new Set(rows.map((task) => task.id)); const children = new Map(); const roots = [];
+    for (const task of rows) {
+      if (task.parentExternalId && ids.has(task.parentExternalId)) children.set(task.parentExternalId, [...(children.get(task.parentExternalId) || []), task]);
+      else roots.push(task);
+    }
+    return roots.map((task) => ({ task, children: children.get(task.id) || [] }));
+  }, [rows]);
+  useEffect(() => {
+    if (!opened) return;
+    const fresh = [...tasks.open, ...tasks.done].find((item) => item.id === opened.id);
+    if (fresh && fresh !== opened) setOpened(fresh);
+  }, [tasks.open, tasks.done, opened]);
+  const select = (task) => setSelectedId((id) => id === task.id ? null : task.id);
+  const toggle = (id) => setExpanded((current) => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  return (
+    <section className="card schedule-card task-hub-card">
+      <div className="task-hub-head"><div><span className="card-kicker">Assigned work</span><h2>Tasks</h2></div><span>{rows.length} open</span></div>
+      <div className="task-hub-list">
+        {!tree.length && <p className="empty">No assigned work is waiting.</p>}
+        {tree.map(({ task, children }) => <div className="compact-task-group" key={task.id}>
+          <CompactTask task={task} selected={selectedId === task.id} childrenCount={children.length} expanded={expanded.has(task.id)} onSelect={() => select(task)} onExpand={() => toggle(task.id)} onOpen={() => setOpened(task)} />
+          {expanded.has(task.id) && children.map((child) => <CompactTask key={child.id} child task={child} selected={selectedId === child.id} onSelect={() => select(child)} onOpen={() => setOpened(child)} />)}
+        </div>)}
+      </div>
+      {opened && <TaskViewer task={opened} busy={busy} onClose={() => setOpened(null)} onComment={(body) => onAction(async () => { await tasks.addComment(opened.id, body); const fresh = [...tasks.open, ...tasks.done].find((item) => item.id === opened.id); if (fresh) setOpened(fresh); })} />}
+    </section>
+  );
+}
+
+function CompactTask({ task, child, selected, childrenCount = 0, expanded, onSelect, onExpand, onOpen }) {
+  return <div className={`compact-task ${child ? 'child' : ''} ${selected ? 'selected' : ''}`} onClick={onSelect}>
+    <span className={`task-state ${task.status === 'done' ? 'complete' : ''}`} />
+    <span className="compact-task-copy"><strong>{task.title}</strong><small>{[task.projectName, task.clientName].filter(Boolean).join(' · ') || 'Independent task'}</small></span>
+    {selected && <button className="compact-open" onClick={(event) => { event.stopPropagation(); onOpen(); }}>Open</button>}
+    {childrenCount > 0 && <button className="compact-expand" onClick={(event) => { event.stopPropagation(); onExpand(); }} title={expanded ? 'Hide subtasks' : 'Show subtasks'}>{expanded ? <IconChevronDown width={15} /> : <IconChevronDown width={15} style={{ transform: 'rotate(-90deg)' }} />}</button>}
+  </div>;
+}
+
+function TaskViewer({ task, busy, onClose, onComment }) {
+  const [comment, setComment] = useState('');
+  return <div className="lightbox" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="task-viewer">
+    <header><div><span className="card-kicker">{task.parentTitle ? `Under ${task.parentTitle}` : 'Task details'}</span><h2>{task.title}</h2><p>{[task.projectName, task.clientName].filter(Boolean).join(' · ')}</p></div><button className="viewer-close" onClick={onClose}>×</button></header>
+    <div className="viewer-meta"><span>{task.hubStatus?.replaceAll('_', ' ')}</span><span>{task.priority} priority</span>{task.dueAt && <span>Due {new Date(task.dueAt).toLocaleString()}</span>}</div>
+    <section><h3>Description</h3><p className="viewer-description">{task.description || 'No description added.'}</p></section>
+    <section><h3>Files & links</h3><div className="viewer-resources">{(task.resources || []).map((item) => <button key={item.id} onClick={() => window.api.app.openUpdate(item.url)}><span>{item.name}</span><small>{String(item.type || 'file').replaceAll('_', ' ')}</small></button>)}{!task.resources?.length && <p className="empty">No files or links.</p>}</div></section>
+    <section className="viewer-comments"><h3>Comments</h3><div>{(task.comments || []).map((item) => <article key={item.id}><strong>{item.author?.name || 'Team member'}</strong><time>{new Date(item.createdAt).toLocaleString()}</time><p>{item.body}</p></article>)}{!task.comments?.length && <p className="empty">No comments yet.</p>}</div><form onSubmit={(event) => { event.preventDefault(); const body = comment.trim(); if (!body) return; onComment(body); setComment(''); }}><textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Add a comment" rows="3" /><button className="btn primary" disabled={busy || !comment.trim()}>Comment</button></form></section>
+  </section></div>;
 }
 
 /* ------------------------------- checklist ------------------------------ */

@@ -15,9 +15,9 @@ export function serialiseMe(user) {
       Boolean(user.bmosIsSuperAdmin) ||
       (user.bmosRoleKeys || []).some((key) => ['admin', 'administrator'].includes(String(key).toLowerCase())) ||
       (user.bmosPermissions || []).some((permission) => ['settings.manage', 'attendance.manage'].includes(permission)),
-    hasAvatar: Boolean(user.avatarPath),
+    hasAvatar: Boolean(user.avatarPath || user.source === 'bmos'),
     // Changes whenever the picture does, so the agent knows to re-fetch.
-    avatarVersion: user.avatarPath ? user.avatarPath.slice(-12) : null,
+    avatarVersion: user.avatarPath ? user.avatarPath.slice(-12) : user.source === 'bmos' ? `bmos-${new Date().toISOString().slice(0, 10)}` : null,
   };
 }
 
