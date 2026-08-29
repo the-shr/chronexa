@@ -218,8 +218,8 @@ export function installMockApi() {
     admin: mockAdmin(),
     window: { minimize: () => {}, close: () => {}, closeIdleWarning: () => {} },
     app: {
-      version: async () => '1.0.8-preview',
-      checkUpdate: async () => ({ available: false, currentVersion: '1.0.8-preview' }),
+      version: async () => '1.1.0-preview',
+      checkUpdate: async () => ({ available: false, currentVersion: '1.1.0-preview' }),
       openUpdate: async () => false,
       platform: 'browser',
     },
