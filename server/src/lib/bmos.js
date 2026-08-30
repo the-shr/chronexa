@@ -76,10 +76,11 @@ function statusParam(status) {
 }
 
 /** The user's assigned tasks from the hub, or null if it could not be read. */
-export async function fetchTasks(email, { status = 'open' } = {}) {
+export async function fetchTasks(email, { status = 'open', userId = null } = {}) {
   if (!configured()) return null;
   try {
     const query = new URLSearchParams({ email, status: statusParam(status) });
+    if (userId) query.set('userId', userId);
     const { ok, data } = await call(`/api/ecosystem/tasks?${query.toString()}`);
     return ok ? data.tasks || [] : null;
   } catch {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { usePolicy } from '../../lib/admin-hooks.js';
 import { usePager, ROW } from '../../components/Pager.jsx';
@@ -11,18 +11,36 @@ import { LoadError } from '../../components/admin-bits.jsx';
  */
 export default function Policy() {
   const { policy, employees, estimatedDailyBytes, error, loading, reload, save } = usePolicy();
+  const [draft, setDraft] = useState(null);
+  const [baseline, setBaseline] = useState(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState(null);
 
-  if (error && !policy) return <LoadError error={error} onRetry={reload} />;
-  if (!policy) return <p className="empty">{loading ? 'Loading the policy…' : 'No policy yet.'}</p>;
+  useEffect(() => {
+    if (!policy || (draft && JSON.stringify(draft) !== JSON.stringify(baseline))) return;
+    setDraft(policy);
+    setBaseline(policy);
+  }, [policy, draft, baseline]);
 
-  const apply = async (patch) => {
+  const dirty = useMemo(() => Boolean(draft && baseline && JSON.stringify(draft) !== JSON.stringify(baseline)), [draft, baseline]);
+
+  if (error && !policy) return <LoadError error={error} onRetry={reload} />;
+  if (!policy || !draft) return <p className="empty">{loading ? 'Loading the policy…' : 'No policy yet.'}</p>;
+
+  const apply = (patch) => {
+    setDraft((current) => ({ ...current, ...patch }));
+    setNote(null);
+  };
+
+  const saveChanges = async () => {
     setBusy(true);
     setNote(null);
     try {
-      await save(patch);
-      setNote('Saved. Agents pick it up within a few minutes.');
+      const result = await save(draft);
+      const next = result.policy || draft;
+      setDraft(next);
+      setBaseline(next);
+      setNote('Configuration saved.');
     } catch (err) {
       setNote(err.message);
     } finally {
@@ -33,16 +51,21 @@ export default function Policy() {
   return (
     <div className="page-body policy-grid">
       <div className="policy-col">
-        <HoursCard policy={policy} busy={busy} onApply={apply} />
-        <IdleCard policy={policy} busy={busy} onApply={apply} />
+        <HoursCard policy={draft} busy={busy} onApply={apply} />
+        <IdleCard policy={draft} busy={busy} onApply={apply} />
       </div>
 
       <div className="policy-col">
-        <ScreenshotCard policy={policy} busy={busy} onApply={apply} />
-        <RecordingCard policy={policy} estimate={estimatedDailyBytes} busy={busy} onApply={apply} />
+        <ScreenshotCard policy={draft} busy={busy} onApply={apply} />
+        <RecordingCard policy={draft} estimate={estimatedDailyBytes} busy={busy} onApply={apply} />
       </div>
 
-      <PeopleCard employees={employees} busy={busy} onApply={apply} note={note} />
+      <PeopleCard employees={employees} busy={busy} onSave={save} />
+      <div className="policy-actions">
+        <span>{note ? <span className={/saved/i.test(note) ? 'form-ok' : 'form-error'}>{note}</span> : dirty ? 'Unsaved changes' : 'All changes saved'}</span>
+        <button className="btn" disabled={!dirty || busy} onClick={() => { setDraft(baseline); setNote(null); }}>Cancel</button>
+        <button className="btn primary" disabled={!dirty || busy} onClick={saveChanges}>{busy ? 'Saving…' : 'Save changes'}</button>
+      </div>
     </div>
   );
 }
@@ -276,8 +299,9 @@ function overrideSummary(o) {
   return bits.length ? bits.join(' · ') : 'custom';
 }
 
-function PeopleCard({ employees, busy, onApply, note }) {
+function PeopleCard({ employees, busy, onSave }) {
   const [editing, setEditing] = useState(null);
+  const [note, setNote] = useState(null);
   const { ref, slice, control } = usePager(employees, { rowHeight: POL_PERSON_ROW, gap: 6 });
   const person = employees.find((e) => e.id === editing);
 
@@ -311,9 +335,20 @@ function PeopleCard({ employees, busy, onApply, note }) {
 
       {person && (
         <PersonEditor
+          key={person.id}
           person={person}
           busy={busy}
-          onApply={onApply}
+          onSave={async (patch) => {
+            setNote(null);
+            try {
+              await onSave({ userId: person.id, ...patch });
+              setNote('Employee configuration saved.');
+              setEditing(null);
+            } catch (err) {
+              setNote(err.message);
+              throw err;
+            }
+          }}
           onClose={() => setEditing(null)}
         />
       )}
@@ -327,10 +362,34 @@ function PeopleCard({ employees, busy, onApply, note }) {
  * where an admin makes someone tracked but not captured, or gives them their
  * own hours.
  */
-function PersonEditor({ person, busy, onApply, onClose }) {
-  const o = person.overrides || {};
+function PersonEditor({ person, busy, onSave, onClose }) {
+  const original = person.overrides || {};
+  const [o, setOverrides] = useState(original);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
   const has = (k) => o[k] !== undefined;
-  const set = (patch) => onApply({ userId: person.id, ...patch });
+  const set = (patch) => {
+    setOverrides((current) => {
+      const next = { ...current };
+      for (const [key, value] of Object.entries(patch)) value === null ? delete next[key] : next[key] = value;
+      return next;
+    });
+    setError(null);
+  };
+  const changed = JSON.stringify(o) !== JSON.stringify(original);
+  const commit = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      const patch = {};
+      for (const key of new Set([...Object.keys(original), ...Object.keys(o)])) patch[key] = o[key] === undefined ? null : o[key];
+      await onSave(Object.keys(o).length ? patch : { clear: true });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   // Recording detail (mode + timing) is one override, keyed off the mode.
   const recDetailOn = has('recordingMode');
@@ -346,14 +405,15 @@ function PersonEditor({ person, busy, onApply, onClose }) {
           </span>
           <span className="spacer" />
           {Object.keys(o).length > 0 && (
-            <button className="btn tiny" disabled={busy} onClick={() => set({ clear: true })}>
+            <button className="btn tiny" disabled={busy || saving} onClick={() => setOverrides({})}>
               Reset to team default
             </button>
           )}
-          <button className="btn tiny" onClick={onClose}>
-            Done
-          </button>
+          <button className="btn tiny" disabled={saving} onClick={onClose}>Cancel</button>
+          <button className="btn tiny primary" disabled={!changed || busy || saving} onClick={commit}>{saving ? 'Saving…' : 'Save changes'}</button>
         </div>
+
+        {error && <p className="form-error pol-editor-error">{error}</p>}
 
         <div className="pol-editor-body">
           {/* --------------------------- screenshots -------------------------- */}

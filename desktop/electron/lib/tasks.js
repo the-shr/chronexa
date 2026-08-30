@@ -8,7 +8,7 @@ const auth = require('./auth');
 const db = require('./db');
 const log = require('./log');
 
-const REFRESH_MS = 2 * 60 * 1000;
+const REFRESH_MS = 30 * 1000;
 
 /**
  * Tasks assigned by an admin. The list is cached on disk so it still renders

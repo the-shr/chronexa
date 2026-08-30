@@ -20,7 +20,11 @@ export function usePolicy() {
 
   const save = useCallback(async (patch) => {
     const result = await window.api.configuration.update(patch);
-    setData((current) => current ? { ...current, ...result, policy: result.policy || current.policy } : current);
+    setData((current) => {
+      if (!current) return current;
+      if (result.user) return { ...current, employees: current.employees.map((employee) => employee.id === result.user.id ? { ...employee, ...result.user } : employee) };
+      return { ...current, ...result, policy: result.policy || current.policy };
+    });
     return result;
   }, []);
 

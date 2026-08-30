@@ -48,7 +48,7 @@ export async function GET(request) {
   if (!device) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   if (!device.user?.externalId) return Response.json({ error: 'This account is not linked to Brand Macros OS.' }, { status: 409 });
-  const hubTasks = await bmos.fetchTasks(device.user.email, { status: 'all' });
+  const hubTasks = await bmos.fetchTasks(device.user.email, { status: 'all', userId: device.user.externalId });
   if (!hubTasks) return Response.json({ error: 'Brand Macros OS is temporarily unavailable.' }, { status: 503 });
   return Response.json({ tasks: hubTasks.map(serialiseHubTask) });
 }

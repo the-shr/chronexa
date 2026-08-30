@@ -48,9 +48,15 @@ export function useTasks() {
     let alive = true;
     window.api.tasks.list().then((t) => alive && setTasks(t));
     const off = window.api.tasks.onChange(setTasks);
+    const refreshNow = () => window.api.tasks.refresh().then((t) => alive && setTasks(t)).catch(() => {});
+    const id = setInterval(refreshNow, 30000);
+    window.addEventListener('focus', refreshNow);
+    refreshNow();
     return () => {
       alive = false;
       off();
+      clearInterval(id);
+      window.removeEventListener('focus', refreshNow);
     };
   }, []);
 
