@@ -5,6 +5,7 @@ import Activity from './pages/Activity.jsx';
 import Profile from './pages/Profile.jsx';
 import SignIn from './pages/SignIn.jsx';
 import Policy from './pages/admin/Policy.jsx';
+import Employees from './pages/admin/Employees.jsx';
 import { useTrackerState, useTasks, useTheme, useAccount, useProfile } from './lib/hooks.js';
 import SessionBanner from './components/SessionBanner.jsx';
 import UpdateBanner from './components/UpdateBanner.jsx';
@@ -60,7 +61,7 @@ export default function App() {
 
   const name = profile?.user?.name || account?.user?.name || account?.user?.email || 'Not signed in';
   const avatar = profile?.avatar || null;
-  const tabs = canConfigure ? [...TABS, { id: 'configuration', label: 'Configuration' }] : TABS;
+  const tabs = canConfigure ? [...TABS, { id: 'employees', label: 'Employees' }, { id: 'configuration', label: 'Configuration' }] : TABS;
 
   return (
     <div className="app">
@@ -104,6 +105,7 @@ export default function App() {
       <main className="content">
         {tab === 'tracker' && <Home snapshot={snapshot} tasks={tasks} account={account} profile={profile} />}
         {tab === 'activity' && <Activity snapshot={snapshot} />}
+        {tab === 'employees' && canConfigure && <Employees />}
         {tab === 'configuration' && canConfigure && <Policy />}
         {tab === 'profile' && <Profile />}
       </main>

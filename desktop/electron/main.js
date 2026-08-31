@@ -256,6 +256,12 @@ handle('profile:pick-avatar', async () => {
 
 handle('configuration:get', () => admin.policy());
 handle('configuration:update', (patch) => admin.updatePolicy(patch || {}));
+handle('admin:employees', () => admin.employees());
+handle('admin:employee', (id) => admin.employee(id));
+handle('admin:screenshots', (query) => admin.screenshots(query || {}));
+handle('admin:recordings', (query) => admin.recordings(query || {}));
+handle('admin:image', (id) => admin.image(id));
+handle('admin:clip', (id) => admin.clip(id));
 
 handle('sync:now', () => sync.run());
 handle('sync:status', () => sync.status());

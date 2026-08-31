@@ -62,6 +62,14 @@ contextBridge.exposeInMainWorld('api', {
     get: () => invoke('configuration:get'),
     update: (patch) => invoke('configuration:update', patch),
   },
+  admin: {
+    employees: () => invoke('admin:employees'),
+    employee: (id) => invoke('admin:employee', id),
+    screenshots: (query) => invoke('admin:screenshots', query),
+    recordings: (query) => invoke('admin:recordings', query),
+    image: (id) => invoke('admin:image', id),
+    clip: (id) => invoke('admin:clip', id),
+  },
   sync: {
     now: () => invoke('sync:now'),
     status: () => invoke('sync:status'),

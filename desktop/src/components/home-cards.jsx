@@ -416,7 +416,7 @@ export function CountdownCard() {
 
 /* --------------------------- assigned work ----------------------------- */
 
-export function TaskHubCard({ tasks, busy, onAction }) {
+export function TaskHubCard({ tasks, snapshot, account, busy, onAction }) {
   const [selectedId, setSelectedId] = useState(null);
   const [expanded, setExpanded] = useState(new Set());
   const [opened, setOpened] = useState(null);
@@ -446,7 +446,7 @@ export function TaskHubCard({ tasks, busy, onAction }) {
           {expanded.has(task.id) && children.map((child) => <CompactTask key={child.id} child task={child} selected={selectedId === child.id} onSelect={() => select(child)} onOpen={() => setOpened(child)} />)}
         </div>)}
       </div>
-      {opened && <TaskViewer task={opened} busy={busy} onClose={() => setOpened(null)} onComment={(body) => onAction(async () => { await tasks.addComment(opened.id, body); const fresh = [...tasks.open, ...tasks.done].find((item) => item.id === opened.id); if (fresh) setOpened(fresh); })} />}
+      {opened && <TaskViewer task={opened} snapshot={snapshot} account={account} busy={busy} onClose={() => setOpened(null)} onSubmit={(details) => onAction(async () => { await tasks.setStatus(opened.id, 'done', details); setOpened(null); })} onComment={(body) => onAction(async () => { await tasks.addComment(opened.id, body); const fresh = [...tasks.open, ...tasks.done].find((item) => item.id === opened.id); if (fresh) setOpened(fresh); })} />}
     </section>
   );
 }
@@ -460,11 +460,23 @@ function CompactTask({ task, child, selected, childrenCount = 0, expanded, onSel
   </div>;
 }
 
-function TaskViewer({ task, busy, onClose, onComment }) {
+function TaskViewer({ task, snapshot, account, busy, onClose, onComment, onSubmit }) {
   const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [completionNote, setCompletionNote] = useState('');
+  const [delayReason, setDelayReason] = useState('');
+  const trackingThis = snapshot.session?.taskId === task.id && ['running', 'paused'].includes(snapshot.state);
+  const overdue = task.dueAt && new Date(task.dueAt) < new Date();
+  const direct = Boolean(account?.user?.canManageTrackingPolicy);
+  const start = () => onComment && (async () => {
+    if (snapshot.state === 'running' || snapshot.state === 'paused') await window.api.tracker.stop('manual');
+    await window.api.tracker.start({ taskId: task.id, taskNote: task.title });
+  })();
   return <div className="lightbox" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="task-viewer">
     <header><div><span className="card-kicker">{task.parentTitle ? `Under ${task.parentTitle}` : 'Task details'}</span><h2>{task.title}</h2><p>{[task.projectName, task.clientName].filter(Boolean).join(' · ')}</p></div><button className="viewer-close" onClick={onClose}>×</button></header>
     <div className="viewer-meta"><span>{task.hubStatus?.replaceAll('_', ' ')}</span><span>{task.priority} priority</span>{task.dueAt && <span>Due {new Date(task.dueAt).toLocaleString()}</span>}</div>
+    <div className="viewer-actions"><button className="btn primary" disabled={busy || trackingThis} onClick={start}><IconPlay width={14} /> {trackingThis ? 'Tracking now' : 'Track this task'}</button><button className="btn" disabled={busy} onClick={() => setSubmitting((value) => !value)}><IconCheck width={14} /> Submit work</button></div>
+    {submitting && <form className="viewer-submit" onSubmit={(event) => { event.preventDefault(); onSubmit({ completionNote: completionNote.trim() || undefined, delayReason: delayReason.trim() || undefined }); }}><label><span>Completion note</span><textarea rows="3" value={completionNote} onChange={(event) => setCompletionNote(event.target.value)} placeholder="What was completed?" /></label>{overdue && !direct && <label><span>Reason for delay</span><textarea rows="2" required value={delayReason} onChange={(event) => setDelayReason(event.target.value)} /></label>}<p>{direct ? 'This will be completed immediately.' : 'This will be sent for approval.'}</p><div><button type="button" className="btn" onClick={() => setSubmitting(false)}>Cancel</button><button className="btn primary" disabled={busy}>Submit work</button></div></form>}
     <section><h3>Description</h3><p className="viewer-description">{task.description || 'No description added.'}</p></section>
     <section><h3>Files & links</h3><div className="viewer-resources">{(task.resources || []).map((item) => <button key={item.id} onClick={() => window.api.app.openUpdate(item.url)}><span>{item.name}</span><small>{String(item.type || 'file').replaceAll('_', ' ')}</small></button>)}{!task.resources?.length && <p className="empty">No files or links.</p>}</div></section>
     <section className="viewer-comments"><h3>Comments</h3><div>{(task.comments || []).map((item) => <article key={item.id}><strong>{item.author?.name || 'Team member'}</strong><time>{new Date(item.createdAt).toLocaleString()}</time><p>{item.body}</p></article>)}{!task.comments?.length && <p className="empty">No comments yet.</p>}</div><form onSubmit={(event) => { event.preventDefault(); const body = comment.trim(); if (!body) return; onComment(body); setComment(''); }}><textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Add a comment" rows="3" /><button className="btn primary" disabled={busy || !comment.trim()}>Comment</button></form></section>

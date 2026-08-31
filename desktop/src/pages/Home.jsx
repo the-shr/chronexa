@@ -50,7 +50,7 @@ export default function Home({ snapshot, tasks, account, profile }) {
 
         <ProgressCard rows={daily} weekSeconds={weekSeconds} countIdle={countIdle} settings={settings} />
         <TrackerCard snapshot={snapshot} settings={settings} busy={busy} onAction={run} />
-        <TaskHubCard tasks={tasks} busy={busy} onAction={run} />
+        <TaskHubCard tasks={tasks} snapshot={snapshot} account={account} busy={busy} onAction={run} />
         <div className="right-col">
           <DeadlinePulseCard tasks={tasks} />
           <TodayBreakdownCard snapshot={snapshot} settings={settings} />
