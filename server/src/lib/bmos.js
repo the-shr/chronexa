@@ -138,6 +138,28 @@ export async function submitTask(email, taskId, completionNote, delayReason) {
   }
 }
 
+/** Mirrors one completed Chronexa tracking segment into the canonical BM OS task timeline. */
+export async function syncTaskSession(email, taskId, session) {
+  if (!configured()) return { error: 'The hub is not configured' };
+  try {
+    const { ok, data } = await call(`/api/ecosystem/tasks/${encodeURIComponent(taskId)}/timer`, {
+      method: 'POST',
+      body: {
+        email,
+        action: 'SYNC_SESSION',
+        syncId: `chronexa:${session.id}`,
+        startedAt: session.startedAt,
+        endedAt: session.endedAt,
+        activeSeconds: session.activeSeconds,
+        stopReason: session.stopReason,
+      },
+    });
+    return ok ? { ok: true, id: data.id } : { error: data?.error || 'The hub rejected the tracked session' };
+  } catch {
+    return { error: 'The hub could not be reached' };
+  }
+}
+
 export async function addTaskComment(email, taskId, body) {
   if (!configured()) return { error: 'The hub is not configured' };
   try {

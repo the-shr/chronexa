@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db.js';
 import { deviceFromRequest } from '@/lib/auth.js';
+import { syncTaskSession } from '@/lib/bmos.js';
 
 const MAX_SESSION_SECONDS = 24 * 3600;
 
@@ -60,6 +61,11 @@ export async function POST(request) {
     create: { id: body.id, ...data },
     update: data,
   });
+
+  if (externalTaskId && data.endedAt) {
+    const synced = await syncTaskSession(device.user.email, externalTaskId, { id: session.id, ...data });
+    if (synced.error) return Response.json({ error: synced.error }, { status: 502 });
+  }
 
   return Response.json({ ok: true, id: session.id });
 }

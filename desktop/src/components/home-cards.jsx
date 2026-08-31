@@ -435,6 +435,10 @@ export function TaskHubCard({ tasks, snapshot, account, busy, onAction }) {
     if (fresh && fresh !== opened) setOpened(fresh);
   }, [tasks.open, tasks.done, opened]);
   const select = (task) => setSelectedId((id) => id === task.id ? null : task.id);
+  const track = (task) => onAction(async () => {
+    if (snapshot.state === 'running' || snapshot.state === 'paused') await window.api.tracker.stop('manual');
+    await window.api.tracker.start({ taskId: task.id, taskNote: task.title });
+  });
   const toggle = (id) => setExpanded((current) => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; });
   return (
     <section className="card schedule-card task-hub-card">
@@ -442,25 +446,25 @@ export function TaskHubCard({ tasks, snapshot, account, busy, onAction }) {
       <div className="task-hub-list">
         {!tree.length && <p className="empty">No assigned work is waiting.</p>}
         {tree.map(({ task, children }) => <div className="compact-task-group" key={task.id}>
-          <CompactTask task={task} selected={selectedId === task.id} childrenCount={children.length} expanded={expanded.has(task.id)} onSelect={() => select(task)} onExpand={() => toggle(task.id)} onOpen={() => setOpened(task)} />
-          {expanded.has(task.id) && children.map((child) => <CompactTask key={child.id} child task={child} selected={selectedId === child.id} onSelect={() => select(child)} onOpen={() => setOpened(child)} />)}
+          <CompactTask task={task} selected={selectedId === task.id} tracking={snapshot.session?.taskId === task.id} childrenCount={children.length} expanded={expanded.has(task.id)} onSelect={() => select(task)} onExpand={() => toggle(task.id)} onOpen={() => setOpened(task)} onTrack={() => track(task)} />
+          {expanded.has(task.id) && children.map((child) => <CompactTask key={child.id} child task={child} selected={selectedId === child.id} tracking={snapshot.session?.taskId === child.id} onSelect={() => select(child)} onOpen={() => setOpened(child)} onTrack={() => track(child)} />)}
         </div>)}
       </div>
-      {opened && <TaskViewer task={opened} snapshot={snapshot} account={account} busy={busy} onClose={() => setOpened(null)} onSubmit={(details) => onAction(async () => { await tasks.setStatus(opened.id, 'done', details); setOpened(null); })} onComment={(body) => onAction(async () => { await tasks.addComment(opened.id, body); const fresh = [...tasks.open, ...tasks.done].find((item) => item.id === opened.id); if (fresh) setOpened(fresh); })} />}
+      {opened && <TaskViewer task={opened} snapshot={snapshot} account={account} busy={busy} onTrack={() => track(opened)} onClose={() => setOpened(null)} onSubmit={(details) => onAction(async () => { if (snapshot.session?.taskId === opened.id) await window.api.tracker.stop('completed'); await tasks.setStatus(opened.id, 'done', details); setOpened(null); })} onComment={(body) => onAction(async () => { await tasks.addComment(opened.id, body); const fresh = [...tasks.open, ...tasks.done].find((item) => item.id === opened.id); if (fresh) setOpened(fresh); })} />}
     </section>
   );
 }
 
-function CompactTask({ task, child, selected, childrenCount = 0, expanded, onSelect, onExpand, onOpen }) {
+function CompactTask({ task, child, selected, tracking, childrenCount = 0, expanded, onSelect, onExpand, onOpen, onTrack }) {
   return <div className={`compact-task ${child ? 'child' : ''} ${selected ? 'selected' : ''}`} onClick={onSelect}>
     <span className={`task-state ${task.status === 'done' ? 'complete' : ''}`} />
     <span className="compact-task-copy"><strong>{task.title}</strong><small>{[task.projectName, task.clientName].filter(Boolean).join(' · ') || 'Independent task'}</small></span>
-    {selected && <button className="compact-open" onClick={(event) => { event.stopPropagation(); onOpen(); }}>Open</button>}
+    {selected && <span className="compact-actions"><button className="compact-open" onClick={(event) => { event.stopPropagation(); onOpen(); }}>Open</button><button className={tracking ? 'compact-track active' : 'compact-track'} disabled={tracking} onClick={(event) => { event.stopPropagation(); onTrack(); }}><IconPlay width={11} /> {tracking ? 'Tracking' : 'Track'}</button></span>}
     {childrenCount > 0 && <button className="compact-expand" onClick={(event) => { event.stopPropagation(); onExpand(); }} title={expanded ? 'Hide subtasks' : 'Show subtasks'}>{expanded ? <IconChevronDown width={15} /> : <IconChevronDown width={15} style={{ transform: 'rotate(-90deg)' }} />}</button>}
   </div>;
 }
 
-function TaskViewer({ task, snapshot, account, busy, onClose, onComment, onSubmit }) {
+function TaskViewer({ task, snapshot, account, busy, onClose, onComment, onSubmit, onTrack }) {
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [completionNote, setCompletionNote] = useState('');
@@ -468,14 +472,10 @@ function TaskViewer({ task, snapshot, account, busy, onClose, onComment, onSubmi
   const trackingThis = snapshot.session?.taskId === task.id && ['running', 'paused'].includes(snapshot.state);
   const overdue = task.dueAt && new Date(task.dueAt) < new Date();
   const direct = Boolean(account?.user?.canManageTrackingPolicy);
-  const start = () => onComment && (async () => {
-    if (snapshot.state === 'running' || snapshot.state === 'paused') await window.api.tracker.stop('manual');
-    await window.api.tracker.start({ taskId: task.id, taskNote: task.title });
-  })();
   return <div className="lightbox" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="task-viewer">
     <header><div><span className="card-kicker">{task.parentTitle ? `Under ${task.parentTitle}` : 'Task details'}</span><h2>{task.title}</h2><p>{[task.projectName, task.clientName].filter(Boolean).join(' · ')}</p></div><button className="viewer-close" onClick={onClose}>×</button></header>
     <div className="viewer-meta"><span>{task.hubStatus?.replaceAll('_', ' ')}</span><span>{task.priority} priority</span>{task.dueAt && <span>Due {new Date(task.dueAt).toLocaleString()}</span>}</div>
-    <div className="viewer-actions"><button className="btn primary" disabled={busy || trackingThis} onClick={start}><IconPlay width={14} /> {trackingThis ? 'Tracking now' : 'Track this task'}</button><button className="btn" disabled={busy} onClick={() => setSubmitting((value) => !value)}><IconCheck width={14} /> Submit work</button></div>
+    <div className="viewer-actions"><button className="btn primary" disabled={busy || trackingThis} onClick={onTrack}><IconPlay width={14} /> {trackingThis ? 'Tracking now' : 'Track this task'}</button><button className="btn" disabled={busy} onClick={() => setSubmitting((value) => !value)}><IconCheck width={14} /> Submit work</button></div>
     {submitting && <form className="viewer-submit" onSubmit={(event) => { event.preventDefault(); onSubmit({ completionNote: completionNote.trim() || undefined, delayReason: delayReason.trim() || undefined }); }}><label><span>Completion note</span><textarea rows="3" value={completionNote} onChange={(event) => setCompletionNote(event.target.value)} placeholder="What was completed?" /></label>{overdue && !direct && <label><span>Reason for delay</span><textarea rows="2" required value={delayReason} onChange={(event) => setDelayReason(event.target.value)} /></label>}<p>{direct ? 'This will be completed immediately.' : 'This will be sent for approval.'}</p><div><button type="button" className="btn" onClick={() => setSubmitting(false)}>Cancel</button><button className="btn primary" disabled={busy}>Submit work</button></div></form>}
     <section><h3>Description</h3><p className="viewer-description">{task.description || 'No description added.'}</p></section>
     <section><h3>Files & links</h3><div className="viewer-resources">{(task.resources || []).map((item) => <button key={item.id} onClick={() => window.api.app.openUpdate(item.url)}><span>{item.name}</span><small>{String(item.type || 'file').replaceAll('_', ' ')}</small></button>)}{!task.resources?.length && <p className="empty">No files or links.</p>}</div></section>

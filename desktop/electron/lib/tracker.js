@@ -42,6 +42,7 @@ class Tracker extends EventEmitter {
     this.state = 'stopped'; // stopped | running | paused
     this.idlePhase = 'active'; // active | warning | idle
     this.session = null;
+    this.pausedContext = null;
     this.timer = null;
     this.ticks = 0;
     this.warningDeadline = 0;
@@ -52,41 +53,43 @@ class Tracker extends EventEmitter {
 
   /* ------------------------------ lifecycle ----------------------------- */
 
-  start({ taskId = null, taskNote = '' } = {}) {
-    if (this.state === 'running') return this.snapshot();
-    if (this.state === 'paused') return this.resume();
-
+  beginSession({ taskId = null, taskNote = '' } = {}) {
     this.session = {
-      id: randomUUID(),
-      startedAt: new Date().toISOString(),
-      endedAt: null,
-      activeSeconds: 0,
-      idleSeconds: 0,
-      taskId,
-      taskNote,
-      stopReason: null,
-      screenshotCount: 0,
-      synced: false,
+      id: randomUUID(), startedAt: new Date().toISOString(), endedAt: null,
+      activeSeconds: 0, idleSeconds: 0, taskId, taskNote, stopReason: null,
+      screenshotCount: 0, synced: false,
     };
     db.upsertSession(this.session);
-
-    this.state = 'running';
-    this.idlePhase = 'active';
-    this.activitySamples = [];
-    this.ticks = 0;
-    this.scheduleNextShot();
-    this.timer = setInterval(() => this.tick(), TICK_MS);
-
-    log.info('tracker: started session', this.session.id);
+    this.state = 'running'; this.idlePhase = 'active'; this.activitySamples = []; this.ticks = 0;
+    this.scheduleNextShot(); this.timer = setInterval(() => this.tick(), TICK_MS);
+    log.info('tracker: started session', this.session.id, taskId ? `task=${taskId}` : 'general');
     this.emitState();
     return this.snapshot();
   }
 
+  finishSession(reason) {
+    if (!this.session) return null;
+    clearInterval(this.timer); this.timer = null; this.closeWarning();
+    this.session.endedAt = new Date().toISOString(); this.session.stopReason = reason;
+    this.persist(); db.enqueue({ id: `session:${this.session.id}`, type: 'session', payload: this.session });
+    const finished = this.session; this.session = null;
+    this.emit('stopped', { session: finished, reason });
+    return finished;
+  }
+
+  start({ taskId = null, taskNote = '' } = {}) {
+    if (this.state === 'running') return this.snapshot();
+    if (this.state === 'paused') return this.resume();
+
+    this.pausedContext = null;
+    return this.beginSession({ taskId, taskNote });
+  }
+
   pause() {
     if (this.state !== 'running') return this.snapshot();
+    this.pausedContext = { taskId: this.session?.taskId || null, taskNote: this.session?.taskNote || '' };
+    this.finishSession('paused');
     this.state = 'paused';
-    this.closeWarning();
-    this.persist();
     log.info('tracker: paused');
     this.emitState();
     return this.snapshot();
@@ -94,39 +97,18 @@ class Tracker extends EventEmitter {
 
   resume() {
     if (this.state !== 'paused') return this.snapshot();
-    this.state = 'running';
-    this.idlePhase = 'active';
-    this.scheduleNextShot();
     log.info('tracker: resumed');
-    this.emitState();
-    return this.snapshot();
+    return this.beginSession(this.pausedContext || {});
   }
 
   stop(reason = 'manual') {
     if (this.state === 'stopped') return this.snapshot();
 
-    clearInterval(this.timer);
-    this.timer = null;
-    this.closeWarning();
-
-    this.session.endedAt = new Date().toISOString();
-    this.session.stopReason = reason;
-    this.persist();
-    db.enqueue({ id: `session:${this.session.id}`, type: 'session', payload: this.session });
-
-    log.info(
-      'tracker: stopped session',
-      this.session.id,
-      `reason=${reason}`,
-      `active=${this.session.activeSeconds}s`,
-      `idle=${this.session.idleSeconds}s`,
-    );
-
-    const finished = this.session;
+    const finished = this.finishSession(reason);
     this.state = 'stopped';
+    this.pausedContext = null;
     this.idlePhase = 'active';
     this.session = null;
-    this.emit('stopped', { session: finished, reason });
     this.emitState();
     return this.snapshot();
   }
