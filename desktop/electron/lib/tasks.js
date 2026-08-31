@@ -67,7 +67,7 @@ class Tasks extends EventEmitter {
 
   async refresh() {
     const cfg = settings.get().sync;
-    if (!cfg.enabled || !auth.isSignedIn()) return this.list();
+    if (!auth.isSignedIn()) return this.list();
 
     try {
       const res = await fetch(`${cfg.serverUrl}/api/agent/tasks`, { headers: auth.authHeaders() });

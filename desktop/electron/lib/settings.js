@@ -71,7 +71,7 @@ const DEFAULTS = {
     minimizeToTray: true,
   },
   sync: {
-    enabled: false,
+    enabled: true,
     serverUrl: defaultServerUrl(),
     intervalSeconds: 60,
     uploadScreenshots: true,
@@ -115,6 +115,10 @@ function merge(defaults, stored) {
 
 function validate(settings) {
   const s = merge(DEFAULTS, settings);
+  // Chronexa is an online execution companion. Task, policy and tracked-work
+  // sync are core services, not a user preference; also repair older installs
+  // that persisted the retired Sync toggle as disabled.
+  s.sync.enabled = true;
   for (const [dotted, range] of Object.entries(RANGES)) {
     const [group, key] = dotted.split('.');
     s[group][key] = clamp(Math.round(s[group][key]), range);

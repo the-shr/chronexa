@@ -223,6 +223,7 @@ handle('account:login', async (creds) => {
   // Pull the organisation policy before the first session so it never runs on
   // stale local settings.
   await policy.refresh().catch(() => {});
+  await tasks.refresh().catch(() => {});
   profile.refresh().catch(() => {});
   return user;
 });
