@@ -147,7 +147,7 @@ export async function teamOverview({ days = 7, now = new Date() } = {}) {
 }
 
 /** One employee, in depth: recent sessions, their tasks and their screenshots. */
-export async function employeeDetail(userId, { days = 14, sessionLimit = 60, shotLimit = 60 } = {}) {
+export async function employeeDetail(userId, { days = 30, sessionLimit = 200 } = {}) {
   const user = await prisma.user.findUnique({
     where: { id: String(userId || '') },
     select: { id: true, name: true, email: true, role: true, active: true, avatarPath: true, createdAt: true },
@@ -156,8 +156,7 @@ export async function employeeDetail(userId, { days = 14, sessionLimit = 60, sho
 
   const since = startOfDay(-(days - 1));
 
-  const [sessions, tasks, screenshots, devices] = await Promise.all([
-    prisma.workSession.findMany({
+  const sessions = await prisma.workSession.findMany({
       where: { userId: user.id, startedAt: { gte: since } },
       orderBy: { startedAt: 'desc' },
       take: sessionLimit,
@@ -173,33 +172,7 @@ export async function employeeDetail(userId, { days = 14, sessionLimit = 60, sho
         screenshotCount: true,
         task: { select: { id: true, title: true } },
       },
-    }),
-    prisma.task.findMany({
-      where: { userId: user.id },
-      orderBy: [{ status: 'asc' }, { position: 'asc' }],
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        priority: true,
-        source: true,
-        dueAt: true,
-        estimateMinutes: true,
-        completedAt: true,
-      },
-    }),
-    prisma.screenshot.findMany({
-      where: { userId: user.id },
-      orderBy: { capturedAt: 'desc' },
-      take: shotLimit,
-      select: { id: true, capturedAt: true, monitorLabel: true, activityPercent: true, width: true, height: true },
-    }),
-    prisma.device.findMany({
-      where: { userId: user.id },
-      orderBy: { lastSeenAt: 'desc' },
-      select: { id: true, name: true, platform: true, lastSeenAt: true },
-    }),
-  ]);
+    });
 
   return {
     user: {
@@ -223,20 +196,9 @@ export async function employeeDetail(userId, { days = 14, sessionLimit = 60, sho
       screenshotCount: s.screenshotCount,
       taskTitle: s.task?.title || null,
     })),
-    tasks: tasks.map((t) => ({
-      ...t,
-      dueAt: t.dueAt?.toISOString() || null,
-      completedAt: t.completedAt?.toISOString() || null,
-    })),
-    screenshots: screenshots.map((s) => ({
-      id: s.id,
-      capturedAt: s.capturedAt.toISOString(),
-      monitorLabel: s.monitorLabel,
-      activityPercent: s.activityPercent,
-      width: s.width,
-      height: s.height,
-    })),
-    devices: devices.map((d) => ({ ...d, lastSeenAt: d.lastSeenAt?.toISOString() || null })),
+    tasks: [],
+    screenshots: [],
+    devices: [],
   };
 }
 

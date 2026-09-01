@@ -40,18 +40,22 @@ export function usePolicy() {
   };
 }
 
-function useAdminRead(loader, deps = []) {
+function useAdminRead(loader, deps = [], enabled = true) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const reload = useCallback(async () => {
+    if (!enabled) return;
     setLoading(true);
     try { setData(await loader()); setError(null); }
     catch (err) { setError(err); }
     finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
-  useEffect(() => { reload(); }, [reload]);
+  }, [...deps, enabled]);
+  useEffect(() => {
+    if (enabled) reload();
+    else setLoading(false);
+  }, [enabled, reload]);
   return { data, error, loading, reload };
 }
 
@@ -61,16 +65,16 @@ export function useRoster() {
 }
 
 export function useEmployee(id) {
-  return useAdminRead(() => id ? window.api.admin.employee(id) : Promise.resolve(null), [id]);
+  return useAdminRead(() => window.api.admin.employee(id), [id], Boolean(id));
 }
 
-export function useScreenshots(userId) {
-  const result = useAdminRead(() => window.api.admin.screenshots({ userId, limit: 80 }), [userId]);
+export function useScreenshots(userId, enabled = true) {
+  const result = useAdminRead(() => window.api.admin.screenshots({ userId, limit: 80 }), [userId], Boolean(userId) && enabled);
   return { ...result, rows: result.data?.screenshots || [] };
 }
 
-export function useRecordings(userId) {
-  const result = useAdminRead(() => window.api.admin.recordings({ userId, limit: 80 }), [userId]);
+export function useRecordings(userId, enabled = true) {
+  const result = useAdminRead(() => window.api.admin.recordings({ userId, limit: 80 }), [userId], Boolean(userId) && enabled);
   return { ...result, rows: result.data?.recordings || [] };
 }
 

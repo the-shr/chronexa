@@ -1634,9 +1634,25 @@
 .monitor-empty { color: var(--text-dim); padding: 24px; text-align: center; grid-column: 1 / -1; }
 .viewer-actions { display: flex; gap: 8px; }
 .compact-actions { display: flex; align-items: center; gap: 5px; }
-.compact-track { display: inline-flex; align-items: center; gap: 4px; border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); color: var(--text); border-radius: var(--r-sm); padding: 5px 8px; white-space: nowrap; }
+.compact-actions > button { width: 58px; height: 28px; padding: 0 7px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; font-size: 9px; line-height: 1; }
+.compact-track { border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); color: var(--text); border-radius: var(--r-sm); white-space: nowrap; }
 .compact-track:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 22%, var(--surface-2)); }
 .compact-track.active { color: white; background: var(--accent); }
+.task-state { padding: 0; background: transparent; cursor: pointer; }
+.task-state:hover { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent); }
+.viewer-meta { margin-top: 10px; padding: 6px 0 9px; border-bottom: 1px solid var(--line); }
+.viewer-actions { position: static; justify-content: flex-end; margin: 0 -18px -18px; padding: 10px 18px; border-top: 1px solid var(--line); background: var(--surface); }
+.task-viewer .viewer-comments { padding-bottom: 11px; }
+.submit-task-dialog { width: min(500px, calc(100vw - 34px)); display: grid; gap: 16px; padding: 22px; border: 1px solid var(--line-strong); border-radius: 10px; color: var(--text); background: var(--surface); box-shadow: 0 28px 80px rgba(0,0,0,.46); }
+.submit-task-dialog header { display: grid; grid-template-columns: 42px minmax(0,1fr) 30px; align-items: start; gap: 12px; }
+.submit-task-dialog h2 { margin: 4px 0 0; font-size: 18px; line-height: 1.25; }
+.submit-check { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%; color: white; background: var(--accent); box-shadow: 0 0 24px color-mix(in srgb, var(--accent) 42%, transparent); }
+.submit-copy { margin: 0; color: var(--text-dim); line-height: 1.55; }
+.submit-task-dialog label > span { display: flex; justify-content: space-between; margin-bottom: 7px; font-size: 11px; color: var(--text-dim); }
+.submit-task-dialog label small { color: var(--text-faint); }
+.submit-task-dialog textarea { width: 100%; min-height: 82px; resize: vertical; border: 1px solid var(--line); border-radius: 7px; padding: 10px; color: var(--text); background: var(--surface-2); }
+.submit-task-dialog textarea:focus { outline: none; border-color: var(--accent); }
+.submit-task-dialog footer { display: flex; justify-content: flex-end; gap: 8px; padding-top: 3px; }
 .viewer-submit { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--line); background: var(--surface-2); border-radius: var(--r-sm); }
 .viewer-submit label span { display: block; color: var(--text-dim); margin-bottom: 5px; }
 .viewer-submit textarea { width: 100%; resize: vertical; }

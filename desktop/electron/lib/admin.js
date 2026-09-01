@@ -15,11 +15,18 @@ const clipCache = new Map();
 async function request(method, body, path = '/api/agent/admin/policy') {
   if (!auth.isSignedIn()) throw new Error('Sign in to load configuration.');
   if (!canManage()) throw new Error('This account cannot manage tracking configuration.');
-  const res = await fetch(`${base()}${path}`, {
-    method,
-    headers: { ...auth.authHeaders(), ...(body ? { 'content-type': 'application/json' } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let res;
+  try {
+    res = await fetch(`${base()}${path}`, {
+      method,
+      headers: { ...auth.authHeaders(), ...(body ? { 'content-type': 'application/json' } : {}) },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch (error) {
+    if (error?.name === 'TimeoutError' || error?.name === 'AbortError') throw new Error('The server took too long to respond. Try again.');
+    throw error;
+  }
   if (res.status === 401) throw new Error('Your account cannot manage tracking configuration.');
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Configuration request failed (${res.status}).`);

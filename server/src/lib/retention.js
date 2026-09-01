@@ -18,7 +18,7 @@ export function retentionDays() {
 
 export function recordingRetentionDays() {
   const raw = Number(process.env.RECORDING_RETENTION_DAYS);
-  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 0;
+  return Number.isFinite(raw) && raw > 0 ? Math.min(15, Math.floor(raw)) : 15;
 }
 
 /**
@@ -92,7 +92,7 @@ export async function purgeOldRecordings({
   remove = deleteDriveFile,
 } = {}) {
   if (!days) {
-    log('retention: RECORDING_RETENTION_DAYS not set — keeping every clip');
+    log('retention: recording retention is disabled for this run');
     return { deleted: 0, failed: 0, cutoff: null, skipped: true };
   }
 
