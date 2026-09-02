@@ -6,21 +6,20 @@ export default function Employees() {
   const roster = useRoster();
   const [userId, setUserId] = useState('');
   const [view, setView] = useState('time');
-  const [screenshotPage, setScreenshotPage] = useState(0);
+  const [screenshotPage, setScreenshotPage] = useState(1);
   useEffect(() => { if (!userId && roster.users[0]) setUserId(roster.users[0].id); }, [roster.users, userId]);
   const detail = useEmployee(userId);
-  const shots = useScreenshots(userId, view === 'screens');
+  const shots = useScreenshots(userId, screenshotPage, view === 'screens');
   const clips = useRecordings(userId, view === 'recordings');
   const user = roster.users.find((row) => row.id === userId);
   const tracked = (detail.data?.sessions || []).reduce((sum, row) => sum + (row.activeSeconds || 0), 0);
   const screenshotDays = groupScreenshotsByDay(shots.rows);
-  const screenshotPageCount = Math.max(1, Math.ceil(screenshotDays.length / 3));
-  const visibleScreenshotDays = screenshotDays.slice(screenshotPage * 3, screenshotPage * 3 + 3);
+  const screenshotPageCount = Math.max(1, Math.ceil(shots.total / shots.pageSize));
 
-  useEffect(() => { setScreenshotPage(0); }, [userId]);
+  useEffect(() => { setScreenshotPage(1); }, [userId]);
   useEffect(() => {
-    if (screenshotPage >= screenshotPageCount) setScreenshotPage(screenshotPageCount - 1);
-  }, [screenshotPage, screenshotPageCount]);
+    if (!shots.loading && screenshotPage > screenshotPageCount) setScreenshotPage(screenshotPageCount);
+  }, [shots.loading, screenshotPage, screenshotPageCount]);
 
   return <>
     <header className="page-head"><div className="head-main"><h1>Employees</h1><p>Tracked time and captured work, together in one place.</p></div></header>
@@ -37,15 +36,15 @@ export default function Employees() {
         {view === 'screens' && <div className="monitor-screenshots">
           {shots.loading && <Empty text="Loading screenshots..." />}
           {shots.error && <LoadError error={shots.error} retry={shots.reload} />}
-          {!shots.loading && !shots.error && visibleScreenshotDays.map((day) => <section className="monitor-day" key={day.key}>
+          {!shots.loading && !shots.error && screenshotDays.map((day) => <section className="monitor-day" key={day.key}>
             <header><div><strong>{day.label}</strong><small>{day.rows.length} screenshot{day.rows.length === 1 ? '' : 's'}</small></div></header>
             <div className="monitor-grid">{day.rows.map((row) => <Screenshot key={row.id} row={row} />)}</div>
           </section>)}
           {!shots.loading && !shots.error && !shots.rows.length && <Empty text="No screenshots yet." />}
-          {!shots.loading && !shots.error && screenshotDays.length > 3 && <nav className="monitor-pagination" aria-label="Screenshot pages">
-            <button className="btn" disabled={screenshotPage === 0} onClick={() => setScreenshotPage((page) => page - 1)}>Previous</button>
-            <span>Page {screenshotPage + 1} of {screenshotPageCount}</span>
-            <button className="btn" disabled={screenshotPage + 1 >= screenshotPageCount} onClick={() => setScreenshotPage((page) => page + 1)}>Next</button>
+          {!shots.loading && !shots.error && screenshotPageCount > 1 && <nav className="monitor-pagination" aria-label="Screenshot pages">
+            <button className="btn" disabled={screenshotPage === 1} onClick={() => setScreenshotPage((page) => page - 1)}>Previous</button>
+            <span>Page {screenshotPage} of {screenshotPageCount}</span>
+            <button className="btn" disabled={screenshotPage >= screenshotPageCount} onClick={() => setScreenshotPage((page) => page + 1)}>Next</button>
           </nav>}
         </div>}
         {view === 'recordings' && <div className="monitor-list">{clips.loading && <Empty text="Loading recordings..." />}{clips.error && <LoadError error={clips.error} retry={clips.reload} />}{clips.rows.map((row) => <Recording key={row.id} row={row} />)}{!clips.loading && !clips.error && !clips.rows.length && <Empty text="No recordings yet." />}</div>}

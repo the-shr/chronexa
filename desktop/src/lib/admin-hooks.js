@@ -76,9 +76,9 @@ export function useEmployee(id) {
   return useAdminRead(() => window.api.admin.employee(id), [id], Boolean(id));
 }
 
-export function useScreenshots(userId, enabled = true) {
-  const result = useAdminRead(() => window.api.admin.screenshots({ userId, limit: 5000 }), [userId], Boolean(userId) && enabled);
-  return { ...result, rows: result.data?.screenshots || [] };
+export function useScreenshots(userId, page = 1, enabled = true) {
+  const result = useAdminRead(() => window.api.admin.screenshots({ userId, page, pageSize: 24 }), [userId, page], Boolean(userId) && enabled);
+  return { ...result, rows: result.data?.screenshots || [], total: result.data?.total || 0, pageSize: result.data?.pageSize || 24 };
 }
 
 export function useRecordings(userId, enabled = true) {

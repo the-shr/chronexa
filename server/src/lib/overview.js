@@ -203,13 +203,12 @@ export async function employeeDetail(userId, { days = 30, sessionLimit = 200 } =
 }
 
 /** The team's latest captures, newest first, for the admin's screenshot wall. */
-export async function recentScreenshots({ limit = 60, userId = null } = {}) {
+export async function recentScreenshots({ limit = 60, skip = 0, userId = null } = {}) {
   const rows = await prisma.screenshot.findMany({
     where: userId ? { userId: String(userId) } : {},
     orderBy: { capturedAt: 'desc' },
-    // Only metadata is returned here. The desktop loads image bytes lazily for
-    // the visible date page, so a full 30-day index stays lightweight.
-    take: Math.min(5000, Math.max(1, Number(limit) || 60)),
+    skip: Math.max(0, Number(skip) || 0),
+    take: Math.min(100, Math.max(1, Number(limit) || 60)),
     select: {
       id: true,
       userId: true,
@@ -228,6 +227,10 @@ export async function recentScreenshots({ limit = 60, userId = null } = {}) {
     monitorLabel: s.monitorLabel,
     activityPercent: s.activityPercent,
   }));
+}
+
+export async function screenshotCount({ userId = null } = {}) {
+  return prisma.screenshot.count({ where: userId ? { userId: String(userId) } : {} });
 }
 
 /** The team's latest screen clips, newest first. */

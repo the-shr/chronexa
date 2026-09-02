@@ -57,8 +57,8 @@ module.exports = {
   },
   employees() { return request('GET', null, '/api/agent/admin/employees'); },
   employee(id) { return request('GET', null, `/api/agent/admin/employees/${encodeURIComponent(id)}`); },
-  screenshots({ userId = '', limit = 60 } = {}) {
-    const params = new URLSearchParams({ limit: String(limit) });
+  screenshots({ userId = '', page = 1, pageSize = 24 } = {}) {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (userId) params.set('userId', userId);
     return request('GET', null, `/api/agent/admin/screenshots?${params}`);
   },
