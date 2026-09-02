@@ -59,9 +59,10 @@ async function check() {
 }
 
 async function openDownload(url) {
-  const target = String(url || '');
-  if (!/^https?:\/\//i.test(target)) return false;
-  await shell.openExternal(target);
+  let target;
+  try { target = new URL(String(url || '')); } catch { return false; }
+  if (target.protocol !== 'https:' || target.hostname !== 'github.com') return false;
+  await shell.openExternal(target.toString());
   return true;
 }
 

@@ -6,12 +6,21 @@ export default function Employees() {
   const roster = useRoster();
   const [userId, setUserId] = useState('');
   const [view, setView] = useState('time');
+  const [screenshotPage, setScreenshotPage] = useState(0);
   useEffect(() => { if (!userId && roster.users[0]) setUserId(roster.users[0].id); }, [roster.users, userId]);
   const detail = useEmployee(userId);
   const shots = useScreenshots(userId, view === 'screens');
   const clips = useRecordings(userId, view === 'recordings');
   const user = roster.users.find((row) => row.id === userId);
   const tracked = (detail.data?.sessions || []).reduce((sum, row) => sum + (row.activeSeconds || 0), 0);
+  const screenshotDays = groupScreenshotsByDay(shots.rows);
+  const screenshotPageCount = Math.max(1, Math.ceil(screenshotDays.length / 3));
+  const visibleScreenshotDays = screenshotDays.slice(screenshotPage * 3, screenshotPage * 3 + 3);
+
+  useEffect(() => { setScreenshotPage(0); }, [userId]);
+  useEffect(() => {
+    if (screenshotPage >= screenshotPageCount) setScreenshotPage(screenshotPageCount - 1);
+  }, [screenshotPage, screenshotPageCount]);
 
   return <>
     <header className="page-head"><div className="head-main"><h1>Employees</h1><p>Tracked time and captured work, together in one place.</p></div></header>
@@ -25,7 +34,20 @@ export default function Employees() {
         <div className="monitor-summary"><div><small>EMPLOYEE</small><strong>{user?.name || 'Select an employee'}</strong></div><div><small>TIME · LAST 30 DAYS</small><strong>{detail.loading ? '—' : humanDuration(tracked)}</strong></div><div><small>SESSIONS · LAST 30 DAYS</small><strong>{detail.loading ? '—' : detail.data?.sessions?.length || 0}</strong></div></div>
         <div className="monitor-tabs"><button className={view === 'time' ? 'active' : ''} onClick={() => setView('time')}>Tracked time</button><button className={view === 'screens' ? 'active' : ''} onClick={() => setView('screens')}>Screenshots</button><button className={view === 'recordings' ? 'active' : ''} onClick={() => setView('recordings')}>Recordings</button></div>
         {view === 'time' && <div className="monitor-list">{detail.loading && <Empty text="Loading tracked time..." />}{detail.error && <LoadError error={detail.error} retry={detail.reload} />}{(detail.data?.sessions || []).map((row) => <div className="monitor-session" key={row.id}><span><strong>{dayLabel(row.startedAt)}</strong><small>{clockTime(row.startedAt)} - {row.endedAt ? clockTime(row.endedAt) : 'Now'}</small></span><span>{row.note || row.taskTitle || 'Tracked work'}</span><strong>{humanDuration(row.activeSeconds)}</strong></div>)}{!detail.loading && !detail.error && !detail.data?.sessions?.length && <Empty text="No tracked sessions in the last 30 days." />}</div>}
-        {view === 'screens' && <div className="monitor-grid">{shots.loading && <Empty text="Loading screenshots..." />}{shots.error && <LoadError error={shots.error} retry={shots.reload} />}{shots.rows.map((row) => <Screenshot key={row.id} row={row} />)}{!shots.loading && !shots.error && !shots.rows.length && <Empty text="No screenshots yet." />}</div>}
+        {view === 'screens' && <div className="monitor-screenshots">
+          {shots.loading && <Empty text="Loading screenshots..." />}
+          {shots.error && <LoadError error={shots.error} retry={shots.reload} />}
+          {!shots.loading && !shots.error && visibleScreenshotDays.map((day) => <section className="monitor-day" key={day.key}>
+            <header><div><strong>{day.label}</strong><small>{day.rows.length} screenshot{day.rows.length === 1 ? '' : 's'}</small></div></header>
+            <div className="monitor-grid">{day.rows.map((row) => <Screenshot key={row.id} row={row} />)}</div>
+          </section>)}
+          {!shots.loading && !shots.error && !shots.rows.length && <Empty text="No screenshots yet." />}
+          {!shots.loading && !shots.error && screenshotDays.length > 3 && <nav className="monitor-pagination" aria-label="Screenshot pages">
+            <button className="btn" disabled={screenshotPage === 0} onClick={() => setScreenshotPage((page) => page - 1)}>Previous</button>
+            <span>Page {screenshotPage + 1} of {screenshotPageCount}</span>
+            <button className="btn" disabled={screenshotPage + 1 >= screenshotPageCount} onClick={() => setScreenshotPage((page) => page + 1)}>Next</button>
+          </nav>}
+        </div>}
         {view === 'recordings' && <div className="monitor-list">{clips.loading && <Empty text="Loading recordings..." />}{clips.error && <LoadError error={clips.error} retry={clips.reload} />}{clips.rows.map((row) => <Recording key={row.id} row={row} />)}{!clips.loading && !clips.error && !clips.rows.length && <Empty text="No recordings yet." />}</div>}
       </section>
     </div>}
@@ -59,3 +81,13 @@ function Recording({ row }) { const [open, setOpen] = useState(false); const url
 function Empty({ text }) { return <p className="monitor-empty">{text}</p>; }
 function LoadError({ error, retry }) { return <div className="monitor-empty"><p>{error?.message || 'This data could not be loaded.'}</p><button className="btn" onClick={retry}>Retry</button></div>; }
 function initials(name) { return String(name || '?').split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join(''); }
+function groupScreenshotsByDay(rows) {
+  const days = new Map();
+  rows.forEach((row) => {
+    const date = new Date(row.capturedAt);
+    const key = Number.isNaN(date.getTime()) ? 'unknown' : `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+    if (!days.has(key)) days.set(key, { key, label: dayLabel(row.capturedAt), rows: [] });
+    days.get(key).rows.push(row);
+  });
+  return Array.from(days.values());
+}

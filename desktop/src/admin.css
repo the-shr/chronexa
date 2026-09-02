@@ -1621,10 +1621,18 @@
 .monitor-tabs { display: flex; gap: 5px; margin: 12px 0; }
 .monitor-tabs button { border: 1px solid var(--line); background: var(--surface-2); color: var(--text-dim); padding: 7px 11px; border-radius: var(--r-sm); }
 .monitor-tabs button.active { color: white; border-color: var(--accent); background: var(--accent); }
-.monitor-list, .monitor-grid { min-height: 0; overflow-y: auto; }
+.monitor-list, .monitor-screenshots { min-height: 0; overflow-y: auto; }
 .monitor-session, .monitor-recording { display: grid; grid-template-columns: 150px 1fr auto; align-items: center; gap: 12px; padding: 10px; border-bottom: 1px solid var(--line); }
 .monitor-session small, .monitor-recording small { display: block; color: var(--text-dim); margin-top: 3px; }
-.monitor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 9px; align-content: start; }
+.monitor-screenshots { display: flex; flex-direction: column; gap: 18px; padding-right: 3px; }
+.monitor-day { display: grid; gap: 9px; }
+.monitor-day > header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 7px; border-bottom: 1px solid var(--line); }
+.monitor-day > header strong, .monitor-day > header small { display: block; }
+.monitor-day > header small { margin-top: 3px; color: var(--text-dim); }
+.monitor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: 10px; align-content: start; }
+.monitor-pagination { position: sticky; bottom: 0; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 11px; border-top: 1px solid var(--line); background: color-mix(in srgb, var(--surface-1) 94%, transparent); backdrop-filter: blur(10px); }
+.monitor-pagination span { min-width: 92px; color: var(--text-dim); text-align: center; }
+.monitor-pagination .btn:disabled { opacity: .42; cursor: default; }
 .monitor-shot { width: 100%; min-width: 0; padding: 0 0 8px; overflow: hidden; border: 1px solid transparent; border-radius: var(--r-sm); color: var(--text); text-align: left; background: var(--surface-2); cursor: pointer; transition: border-color .15s ease, transform .15s ease, background .15s ease; }
 .monitor-shot:hover:not(:disabled) { border-color: var(--accent); background: var(--surface-3); transform: translateY(-1px); }
 .monitor-shot:disabled { cursor: wait; opacity: 1; }

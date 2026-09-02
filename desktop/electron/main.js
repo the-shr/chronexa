@@ -67,7 +67,10 @@ app.whenReady().then(() => {
 
   // A rejected token used to be a log line and nothing else; the employee saw
   // a dashboard that had quietly stopped syncing.
-  auth.on('changed', (status) => windows.broadcast('account:changed', status));
+  auth.on('changed', (status) => {
+    if (!status.signedIn && tracker.state !== 'stopped') tracker.stop('signed-out');
+    windows.broadcast('account:changed', status);
+  });
 
   profile.on('changed', (p) => windows.broadcast('profile:changed', p));
   profile.refresh().catch(() => {});
@@ -79,7 +82,7 @@ app.whenReady().then(() => {
 
   // Admins are not tracked -- they run this build to watch the team, and
   // auto-starting a session for them would put phantom hours in the reports.
-  if (settings.get().general.startTrackingOnLaunch) tracker.start();
+  if (auth.isSignedIn() && settings.get().general.startTrackingOnLaunch) tracker.start();
 
   log.info('app: ready, data dir =', paths.root());
 });
@@ -190,7 +193,14 @@ function applyLaunchOnLogin() {
 
 const handle = (channel, fn) => ipcMain.handle(channel, (_event, payload) => fn(payload));
 
-handle('tracker:start', (opts) => tracker.start(opts || {}));
+handle('tracker:start', (opts = {}) => {
+  if (opts.taskId) {
+    const task = tasks.get(String(opts.taskId));
+    if (!task || task.status === 'done') throw new Error('Choose an open task assigned to this account.');
+    return tracker.start({ taskId: task.id, taskNote: task.title });
+  }
+  return tracker.start({ taskNote: String(opts.taskNote || '').slice(0, 200) });
+});
 handle('tracker:pause', () => tracker.pause());
 handle('tracker:resume', () => tracker.resume());
 handle('tracker:stop', (reason) => tracker.stop(reason || 'manual'));
@@ -228,6 +238,7 @@ handle('account:login', async (creds) => {
   return user;
 });
 handle('account:logout', () => {
+  if (tracker.state !== 'stopped') tracker.stop('signed-out');
   auth.logout();
   return true;
 });

@@ -207,7 +207,9 @@ export async function recentScreenshots({ limit = 60, userId = null } = {}) {
   const rows = await prisma.screenshot.findMany({
     where: userId ? { userId: String(userId) } : {},
     orderBy: { capturedAt: 'desc' },
-    take: Math.min(200, Math.max(1, Number(limit) || 60)),
+    // Only metadata is returned here. The desktop loads image bytes lazily for
+    // the visible date page, so a full 30-day index stays lightweight.
+    take: Math.min(5000, Math.max(1, Number(limit) || 60)),
     select: {
       id: true,
       userId: true,

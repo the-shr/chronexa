@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export function usePolicy() {
   const [data, setData] = useState(null);
@@ -44,12 +44,20 @@ function useAdminRead(loader, deps = [], enabled = true) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const request = useRef(0);
   const reload = useCallback(async () => {
     if (!enabled) return;
+    const id = ++request.current;
     setLoading(true);
-    try { setData(await loader()); setError(null); }
-    catch (err) { setError(err); }
-    finally { setLoading(false); }
+    setData(null);
+    try {
+      const next = await loader();
+      if (id === request.current) { setData(next); setError(null); }
+    } catch (err) {
+      if (id === request.current) setError(err);
+    } finally {
+      if (id === request.current) setLoading(false);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, enabled]);
   useEffect(() => {
@@ -69,7 +77,7 @@ export function useEmployee(id) {
 }
 
 export function useScreenshots(userId, enabled = true) {
-  const result = useAdminRead(() => window.api.admin.screenshots({ userId, limit: 80 }), [userId], Boolean(userId) && enabled);
+  const result = useAdminRead(() => window.api.admin.screenshots({ userId, limit: 5000 }), [userId], Boolean(userId) && enabled);
   return { ...result, rows: result.data?.screenshots || [] };
 }
 
@@ -80,12 +88,12 @@ export function useRecordings(userId, enabled = true) {
 
 export function useImage(id) {
   const [url, setUrl] = useState(null);
-  useEffect(() => { let live = true; window.api.admin.image(id).then((value) => live && setUrl(value)); return () => { live = false; }; }, [id]);
+  useEffect(() => { let live = true; window.api.admin.image(id).then((value) => live && setUrl(value)).catch(() => live && setUrl(null)); return () => { live = false; }; }, [id]);
   return url;
 }
 
 export function useClip(id) {
   const [url, setUrl] = useState(null);
-  useEffect(() => { let live = true; if (id) window.api.admin.clip(id).then((value) => live && setUrl(value)); return () => { live = false; }; }, [id]);
+  useEffect(() => { let live = true; if (id) window.api.admin.clip(id).then((value) => live && setUrl(value)).catch(() => live && setUrl(null)); return () => { live = false; }; }, [id]);
   return url;
 }

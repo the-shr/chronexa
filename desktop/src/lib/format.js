@@ -60,4 +60,5 @@ export const STOP_REASONS = {
   'system-suspended': 'Computer slept',
   'system-shutdown': 'Shut down',
   'app-quit': 'App closed',
+  'signed-out': 'Signed out',
 };

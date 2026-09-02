@@ -56,6 +56,7 @@ function ensureWindow() {
       preload: RECORDER_PRELOAD,
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
       // Keeps encoding running at full speed while the window is hidden;
       // otherwise Chromium throttles it and clips come out stuttering.
       backgroundThrottling: false,
