@@ -9,7 +9,7 @@ import Employees from './pages/admin/Employees.jsx';
 import { useTrackerState, useTasks, useTheme, useAccount, useProfile } from './lib/hooks.js';
 import SessionBanner from './components/SessionBanner.jsx';
 import UpdateBanner from './components/UpdateBanner.jsx';
-import { IconSun, IconMoon, IconBell } from './components/Icons.jsx';
+import { IconSun, IconMoon } from './components/Icons.jsx';
 
 const TABS = [
   { id: 'tracker', label: 'Tracker' },
@@ -83,11 +83,6 @@ export default function App() {
           title={theme === 'dark' ? 'Switch to light' : 'Switch to dark'}
         >
           {theme === 'dark' ? <IconSun width={15} height={15} /> : <IconMoon width={15} height={15} />}
-        </button>
-
-        <button className="round-btn" title={`${tasks.open.length} open task(s)`}>
-          <IconBell width={15} height={15} />
-          {tasks.open.length > 0 && <i className="dot" />}
         </button>
 
         <button
