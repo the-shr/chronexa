@@ -32,7 +32,29 @@ export default function Employees() {
   </>;
 }
 
-function Screenshot({ row }) { const url = useImage(row.id); return <article className="monitor-shot">{url ? <img src={url} alt="" /> : <div className="monitor-media-loading" />}<strong>{dayLabel(row.capturedAt)} · {clockTime(row.capturedAt)}</strong><small>{row.activityPercent ?? 0}% activity</small></article>; }
+function Screenshot({ row }) {
+  const url = useImage(row.id);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (event) => event.key === 'Escape' && setOpen(false);
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [open]);
+  const captured = `${dayLabel(row.capturedAt)} · ${clockTime(row.capturedAt)}`;
+  return <>
+    <button type="button" className="monitor-shot" disabled={!url} onClick={() => setOpen(true)} title={url ? 'Open screenshot' : 'Loading screenshot'}>
+      {url ? <img src={url} alt={`Screenshot captured ${captured}`} /> : <div className="monitor-media-loading" />}
+      <strong>{captured}</strong><small>{row.activityPercent ?? 0}% activity</small>
+    </button>
+    {open && <div className="lightbox monitor-lightbox" onMouseDown={(event) => event.target === event.currentTarget && setOpen(false)}>
+      <section className="lightbox-inner" aria-modal="true" role="dialog" aria-label={`Screenshot captured ${captured}`}>
+        <img src={url} alt={`Screenshot captured ${captured}`} />
+        <div className="lightbox-bar"><strong>{captured}</strong><span className="muted">{row.activityPercent ?? 0}% activity</span><span className="spacer" /><button type="button" className="btn" onClick={() => setOpen(false)}>Close</button></div>
+      </section>
+    </div>}
+  </>;
+}
 function Recording({ row }) { const [open, setOpen] = useState(false); const url = useClip(open ? row.id : null); return <article className="monitor-recording"><span><strong>{dayLabel(row.startedAt)} · {clockTime(row.startedAt)}</strong><small>{humanDuration(Math.round(row.durationMs / 1000))}</small></span><button className="btn" onClick={() => setOpen((value) => !value)}>{open ? 'Close' : 'Play'}</button>{open && url && <video src={url} controls autoPlay />}</article>; }
 function Empty({ text }) { return <p className="monitor-empty">{text}</p>; }
 function LoadError({ error, retry }) { return <div className="monitor-empty"><p>{error?.message || 'This data could not be loaded.'}</p><button className="btn" onClick={retry}>Retry</button></div>; }

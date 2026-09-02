@@ -1625,10 +1625,14 @@
 .monitor-session, .monitor-recording { display: grid; grid-template-columns: 150px 1fr auto; align-items: center; gap: 12px; padding: 10px; border-bottom: 1px solid var(--line); }
 .monitor-session small, .monitor-recording small { display: block; color: var(--text-dim); margin-top: 3px; }
 .monitor-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 9px; align-content: start; }
-.monitor-shot { background: var(--surface-2); border-radius: var(--r-sm); overflow: hidden; padding-bottom: 8px; }
+.monitor-shot { width: 100%; min-width: 0; padding: 0 0 8px; overflow: hidden; border: 1px solid transparent; border-radius: var(--r-sm); color: var(--text); text-align: left; background: var(--surface-2); cursor: pointer; transition: border-color .15s ease, transform .15s ease, background .15s ease; }
+.monitor-shot:hover:not(:disabled) { border-color: var(--accent); background: var(--surface-3); transform: translateY(-1px); }
+.monitor-shot:disabled { cursor: wait; opacity: 1; }
 .monitor-shot img, .monitor-media-loading { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: var(--surface-3); }
 .monitor-shot strong, .monitor-shot small { display: block; padding: 0 8px; margin-top: 7px; }
 .monitor-shot small { color: var(--text-dim); }
+.monitor-lightbox .lightbox-inner { width: min(1100px, 100%); height: min(760px, 100%); }
+.monitor-lightbox .lightbox-bar strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .monitor-recording { grid-template-columns: 1fr auto; }
 .monitor-recording video { grid-column: 1 / -1; width: 100%; max-height: 360px; background: black; }
 .monitor-empty { color: var(--text-dim); padding: 24px; text-align: center; grid-column: 1 / -1; }
