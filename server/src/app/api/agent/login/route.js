@@ -26,7 +26,8 @@ export async function POST(request) {
   const ipKey = `agent-login:ip:${ip}`;
   const accountKey = `agent-login:email:${email}`;
 
-  for (const [key, policy] of [
+  // Temporarily disabled at the owner's request. Set this flag to true to restore limits.
+  if (process.env.LOGIN_RATE_LIMIT_ENABLED === 'true') for (const [key, policy] of [
     [ipKey, LOGIN_LIMITS.perIp],
     [accountKey, LOGIN_LIMITS.perAccount],
   ]) {
@@ -55,7 +56,7 @@ export async function POST(request) {
   }
 
   // Success: don't let earlier typos count against this account.
-  await clearRateLimit(accountKey);
+  if (process.env.LOGIN_RATE_LIMIT_ENABLED === 'true') await clearRateLimit(accountKey);
 
   const deviceName = String(body.deviceName || 'Unknown device').slice(0, 120);
   const platform = String(body.platform || 'unknown').slice(0, 40);

@@ -190,15 +190,16 @@ if (!live) {
   }
 
   check('wrong passwords start as 401', statuses[0] === 401, `first: ${statuses[0]}`);
+  const loginLimitsEnabled = process.env.LOGIN_RATE_LIMIT_ENABLED === 'true';
   check(
-    'brute force is eventually rate limited',
-    statuses.includes(429),
+    'sign-in respects the configured attempt-limit policy',
+    loginLimitsEnabled ? statuses.includes(429) : statuses.every(status => status === 401),
     `statuses: ${statuses.join(',')}`,
   );
 
   const limited = await attempt(TEST_PASSWORD, ip);
-  check('the correct password is also blocked while limited', limited.status === 429, `HTTP ${limited.status}`);
-  check('sends a Retry-After header', Boolean(limited.headers.get('retry-after')), limited.headers.get('retry-after'));
+  check('valid credentials follow the configured limit policy', limited.status === (loginLimitsEnabled ? 429 : 200), `HTTP ${limited.status}`);
+  check('sends a Retry-After header', Boolean(limited.headers.get('retry-after')) === loginLimitsEnabled, limited.headers.get('retry-after'));
 
   // A different source address must not inherit the block.
   const otherIpEmail = `hardening-other-${Date.now()}@example.com`;
