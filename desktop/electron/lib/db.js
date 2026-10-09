@@ -1,6 +1,7 @@
 'use strict';
 
 const paths = require('./paths');
+const { dayBounds } = require('./workday');
 const { JsonStore } = require('./jsonstore');
 
 /**
@@ -50,11 +51,6 @@ function getSession(id) {
   return sessions.read().rows.find((r) => r.id === id) || null;
 }
 
-function dayBounds(date) {
-  const start = new Date(date);
-  start.setHours(0, 0, 0, 0);
-  return [start.getTime(), start.getTime() + 86400000];
-}
 
 /**
  * Active and idle seconds for a calendar day in the local timezone. `excludeId`
@@ -188,7 +184,10 @@ function drainUploadedRecordings(keep = 5) {
 
 function enqueue(item) {
   outbox.update((data) => {
-    data.rows.push({ ...item, queuedAt: new Date().toISOString(), attempts: 0 });
+    const existing = data.rows.findIndex((row) => row.id === item.id);
+    const next = { ...item, payload: { ...item.payload }, queuedAt: new Date().toISOString(), attempts: 0 };
+    if (existing < 0) data.rows.push(next);
+    else data.rows[existing] = next;
     return data;
   });
 }
@@ -198,9 +197,10 @@ function peekOutbox(limit = 20) {
 }
 
 function dropOutbox(ids) {
-  const set = new Set(ids);
+  const set = new Set(ids.map((item) => typeof item === 'string' ? item : item.id));
+  const sent = new Map(ids.filter((item) => typeof item !== 'string').map((item) => [item.id, JSON.stringify(item.payload)]));
   outbox.update((data) => {
-    data.rows = data.rows.filter((r) => !set.has(r.id));
+    data.rows = data.rows.filter((r) => !set.has(r.id) || (sent.has(r.id) && JSON.stringify(r.payload) !== sent.get(r.id)));
     return data;
   });
 }

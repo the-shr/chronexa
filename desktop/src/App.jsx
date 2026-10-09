@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Home from './pages/Home.jsx';
 import Activity from './pages/Activity.jsx';
 import Profile from './pages/Profile.jsx';
+import Preferences from './pages/Preferences.jsx';
 import SignIn from './pages/SignIn.jsx';
 import Policy from './pages/admin/Policy.jsx';
 import Employees from './pages/admin/Employees.jsx';
@@ -14,6 +15,7 @@ import { IconSun, IconMoon } from './components/Icons.jsx';
 const TABS = [
   { id: 'tracker', label: 'Tracker' },
   { id: 'activity', label: 'My Activity' },
+  { id: 'settings', label: 'Settings' },
 ];
 
 export default function App() {
@@ -103,6 +105,7 @@ export default function App() {
         {tab === 'employees' && canConfigure && <Employees />}
         {tab === 'configuration' && canConfigure && <Policy />}
         {tab === 'profile' && <Profile />}
+        {tab === 'settings' && <Preferences />}
       </main>
     </div>
   );

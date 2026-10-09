@@ -52,12 +52,18 @@ class Sync extends EventEmitter {
       return this.status();
     }
 
+    for (const session of db.listSessions({ limit: Number.MAX_SAFE_INTEGER })) {
+      if (!session.synced && !db.peekOutbox(999999).some((item) => item.id === `session:${session.id}`)) {
+        db.enqueue({ id: `session:${session.id}`, type: 'session', payload: session });
+      }
+    }
     this.running = true;
     const done = [];
     const failed = [];
     try {
-      for (const item of db.peekOutbox(BATCH)) {
-        if (item.attempts >= MAX_ATTEMPTS) {
+      const pending = db.peekOutbox(999999).sort((a, b) => (a.type === 'session' ? 0 : 1) - (b.type === 'session' ? 0 : 1) || a.attempts - b.attempts).slice(0, BATCH);
+      for (const item of pending) {
+        if (item.attempts >= MAX_ATTEMPTS && item.type !== 'session') {
           log.warn('sync: giving up on', item.id);
           done.push(item.id);
           continue;
@@ -70,7 +76,7 @@ class Sync extends EventEmitter {
           else if (['task-add', 'task-delete', 'task-order'].includes(item.type)) {
             log.info('sync: dropping retired local task operation', item.id);
           }
-          done.push(item.id);
+          done.push(item);
         } catch (err) {
           log.warn('sync: item failed', item.id, err.message);
           failed.push(item.id);
@@ -117,6 +123,8 @@ class Sync extends EventEmitter {
       body: JSON.stringify(session),
     });
     this.guard(res, 'sessions');
+    const current = db.getSession(session.id);
+    if (current && current.activeSeconds === session.activeSeconds && current.idleSeconds === session.idleSeconds && current.endedAt === session.endedAt) db.upsertSession({ ...current, synced: true });
   }
 
   async pushTask({ id, status, completionNote, delayReason }) {

@@ -1,4 +1,6 @@
 !macro customUnInstall
-  ; A reinstall should require authentication, while time/session history stays intact.
-  Delete "$APPDATA\Chronexa\auth.json"
+  ; Keep the current login during an in-app update. A real uninstall signs out.
+  ${ifNot} ${isUpdated}
+    Delete "$APPDATA\Chronexa\auth.json"
+  ${endif}
 !macroend

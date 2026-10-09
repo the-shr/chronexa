@@ -4,16 +4,15 @@
  * app read from here, and they can be tested without a request.
  */
 import { prisma } from './db.js';
+import { effectivePolicy } from './policy.js';
 import { removeScreenshot } from './storage.js';
 import { deleteFile as deleteDriveFile } from './drive.js';
 
 const DAY = 86400000;
 
 export function startOfDay(offsetDays = 0, from = new Date()) {
-  const d = new Date(from);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() + offsetDays);
-  return d;
+  const key = new Date(new Date(from).getTime() + 6 * 3600000).toISOString().slice(0, 10);
+  return new Date(Date.parse(`${key}T00:00:00+06:00`) + offsetDays * DAY);
 }
 
 /** An employee counts as tracking if a session is open and was touched lately. */
@@ -87,7 +86,7 @@ export async function teamOverview({ days = 7, now = new Date() } = {}) {
       const to = new Date(from.getTime() + DAY);
       const inDay = mine.filter((s) => s.startedAt >= from && s.startedAt < to);
       daily.push({
-        date: from.toISOString().slice(0, 10),
+        date: new Date(from.getTime() + 6 * 3600000).toISOString().slice(0, 10),
         activeSeconds: inDay.reduce((sum, s) => sum + s.activeSeconds, 0),
         idleSeconds: inDay.reduce((sum, s) => sum + s.idleSeconds, 0),
       });
@@ -121,7 +120,7 @@ export async function teamOverview({ days = 7, now = new Date() } = {}) {
   const teamDaily = [];
   for (let i = 0; i < days; i += 1) {
     teamDaily.push({
-      date: people[0]?.daily[i]?.date || startOfDay(-(days - 1 - i), now).toISOString().slice(0, 10),
+      date: people[0]?.daily[i]?.date || new Date(startOfDay(-(days - 1 - i), now).getTime() + 6 * 3600000).toISOString().slice(0, 10),
       activeSeconds: people.reduce((total, p) => total + (p.daily[i]?.activeSeconds || 0), 0),
       idleSeconds: people.reduce((total, p) => total + (p.daily[i]?.idleSeconds || 0), 0),
     });
@@ -147,7 +146,7 @@ export async function teamOverview({ days = 7, now = new Date() } = {}) {
 }
 
 /** One employee, in depth: recent sessions, their tasks and their screenshots. */
-export async function employeeDetail(userId, { days = 30, sessionLimit = 200 } = {}) {
+export async function employeeDetail(userId, { days = 30 } = {}) {
   const user = await prisma.user.findUnique({
     where: { id: String(userId || '') },
     select: { id: true, name: true, email: true, role: true, active: true, avatarPath: true, createdAt: true },
@@ -159,7 +158,6 @@ export async function employeeDetail(userId, { days = 30, sessionLimit = 200 } =
   const sessions = await prisma.workSession.findMany({
       where: { userId: user.id, startedAt: { gte: since } },
       orderBy: { startedAt: 'desc' },
-      take: sessionLimit,
       select: {
         id: true,
         startedAt: true,
@@ -174,7 +172,23 @@ export async function employeeDetail(userId, { days = 30, sessionLimit = 200 } =
       },
     });
 
+  const policy = await effectivePolicy(user.id);
+  const countIdle = policy.idle.countIdleAsWork;
+  const groups = new Map();
+  for (const session of sessions) {
+    const date = new Date(session.startedAt.getTime() + 6 * 3600000).toISOString().slice(0, 10);
+    if (!groups.has(date)) groups.set(date, { date, activeSeconds: 0, idleSeconds: 0, workSeconds: 0, sessionIds: [] });
+    const group = groups.get(date);
+    group.activeSeconds += session.activeSeconds;
+    group.idleSeconds += session.idleSeconds;
+    group.workSeconds += session.activeSeconds + (countIdle ? session.idleSeconds : 0);
+    group.sessionIds.push(session.id);
+  }
   return {
+    timeZone: 'Asia/Dhaka',
+    countIdleAsWork: countIdle,
+    daily: [...groups.values()],
+    totals: { activeSeconds: sessions.reduce((sum, row) => sum + row.activeSeconds, 0), idleSeconds: sessions.reduce((sum, row) => sum + row.idleSeconds, 0), workSeconds: sessions.reduce((sum, row) => sum + row.activeSeconds + (countIdle ? row.idleSeconds : 0), 0), sessions: sessions.length },
     user: {
       id: user.id,
       name: user.name,

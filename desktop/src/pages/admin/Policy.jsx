@@ -60,7 +60,7 @@ export default function Policy() {
         <RecordingCard policy={draft} estimate={estimatedDailyBytes} busy={busy} onApply={apply} />
       </div>
 
-      <PeopleCard employees={employees} busy={busy} onSave={save} />
+      <PeopleCard employees={employees} policy={policy} busy={busy} onSave={save} />
       <div className="policy-actions">
         <span>{note ? <span className={/saved/i.test(note) ? 'form-ok' : 'form-error'}>{note}</span> : dirty ? 'Unsaved changes' : 'All changes saved'}</span>
         <button className="btn" disabled={!dirty || busy} onClick={() => { setDraft(baseline); setNote(null); }}>Cancel</button>
@@ -299,7 +299,7 @@ function overrideSummary(o) {
   return bits.length ? bits.join(' · ') : 'custom';
 }
 
-function PeopleCard({ employees, busy, onSave }) {
+function PeopleCard({ employees, policy, busy, onSave }) {
   const [editing, setEditing] = useState(null);
   const [note, setNote] = useState(null);
   const { ref, slice, control } = usePager(employees, { rowHeight: POL_PERSON_ROW, gap: 6 });
@@ -334,7 +334,7 @@ function PeopleCard({ employees, busy, onSave }) {
       <p className="pol-note">Anything left on the team default follows the settings on the left.</p>
 
       {person && (
-        <PersonEditor
+        <PersonEditor policy={policy}
           key={person.id}
           person={person}
           busy={busy}
@@ -362,7 +362,7 @@ function PeopleCard({ employees, busy, onSave }) {
  * where an admin makes someone tracked but not captured, or gives them their
  * own hours.
  */
-function PersonEditor({ person, busy, onSave, onClose }) {
+function PersonEditor({ person, policy, busy, onSave, onClose }) {
   const original = person.overrides || {};
   const [o, setOverrides] = useState(original);
   const [saving, setSaving] = useState(false);
@@ -420,15 +420,7 @@ function PersonEditor({ person, busy, onSave, onClose }) {
           <div className="pol-ov-section">
             <span className="pol-ov-title">Screenshots</span>
 
-            <OverrideToggle
-              label="Take screenshots"
-              hint="Off tracks this person with no screenshots at all."
-              active={has('screenshotsEnabled')}
-              busy={busy}
-              onToggle={(on) => set({ screenshotsEnabled: on ? true : null })}
-            >
-              <OnOff value={o.screenshotsEnabled} busy={busy} onChange={(v) => set({ screenshotsEnabled: v })} />
-            </OverrideToggle>
+            <label className="pol-ov on"><strong>Take screenshots</strong><select className="pol-ov-time" disabled={busy || saving} value={o.screenshotsEnabled === undefined ? 'inherit' : String(o.screenshotsEnabled)} onChange={(e) => set({ screenshotsEnabled: e.target.value === 'inherit' ? null : e.target.value === 'true' })}><option value="inherit">Team default ({policy?.screenshotsEnabled ? 'On' : 'Off'})</option><option value="true">On for this person</option><option value="false">Off for this person</option></select><small>Choose Off to disable capture for this person, even when the team default is On.</small></label>
 
             <OverrideToggle
               label="Screenshot interval"
@@ -444,15 +436,7 @@ function PersonEditor({ person, busy, onSave, onClose }) {
           <div className="pol-ov-section">
             <span className="pol-ov-title">Screen recording</span>
 
-            <OverrideToggle
-              label="Record the screen"
-              hint="Off tracks this person with no recording at all."
-              active={has('recordingEnabled')}
-              busy={busy}
-              onToggle={(on) => set({ recordingEnabled: on ? true : null })}
-            >
-              <OnOff value={o.recordingEnabled} busy={busy} onChange={(v) => set({ recordingEnabled: v })} />
-            </OverrideToggle>
+            <label className="pol-ov on"><strong>Record the screen</strong><select className="pol-ov-time" disabled={busy || saving} value={o.recordingEnabled === undefined ? 'inherit' : String(o.recordingEnabled)} onChange={(e) => set({ recordingEnabled: e.target.value === 'inherit' ? null : e.target.value === 'true' })}><option value="inherit">Team default ({policy?.recordingEnabled ? 'On' : 'Off'})</option><option value="true">On for this person</option><option value="false">Off for this person</option></select><small>Choose Off to disable capture for this person, even when the team default is On.</small></label>
 
             <OverrideToggle
               label="Recording timing"

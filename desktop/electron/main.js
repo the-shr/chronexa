@@ -54,11 +54,13 @@ app.whenReady().then(() => {
   applyLaunchOnLogin();
   settings.onChange(() => {
     windows.broadcast('settings:changed', settings.publicView());
+    windows.updateOverlay(tracker.snapshot());
     applyLaunchOnLogin();
     sync.start();
   });
 
   sync.on('status', (status) => windows.broadcast('sync:status', status));
+  updater.on('status', (status) => windows.broadcast('app:update-status', status));
   sync.start();
   policy.start();
 
@@ -139,6 +141,7 @@ function wireTracker() {
   });
 
   tracker.on('state', (snapshot) => {
+    windows.updateOverlay(snapshot);
     windows.broadcast('tracker:state', snapshot);
     tray.update(snapshot);
   });
@@ -148,7 +151,9 @@ function wireTracker() {
     // The window may still be loading; resend once it is ready to receive.
     const send = () => windows.broadcast('tracker:idle-warning', payload);
     send();
-    setTimeout(send, 400);
+    const win = windows.getIdleWindow();
+    if (win && win.webContents.isLoading()) win.webContents.once('did-finish-load', send);
+    setTimeout(() => { if (tracker.idlePhase === 'warning') send(); }, 400);
   });
 
   tracker.on('idle-warning-close', () => {
@@ -282,6 +287,13 @@ handle('window:close', () => windows.getMainWindow()?.close());
 handle('window:close-idle-warning', () => windows.closeIdleWindow());
 handle('app:version', () => app.getVersion());
 handle('app:update-check', () => updater.check());
+handle('app:update-status', () => updater.status());
+handle('app:install-update', () => updater.install({ beforeInstall: async () => {
+  if (tracker.state !== 'stopped') tracker.stop('app-update');
+  db.flush();
+  await Promise.race([sync.run().catch(() => {}), new Promise((resolve) => setTimeout(resolve, 5000))]);
+  db.flush();
+} }));
 handle('app:open-update', (url) => updater.openDownload(url));
 
 process.on('uncaughtException', (err) => {

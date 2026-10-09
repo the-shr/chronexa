@@ -12,7 +12,8 @@ export default function Employees() {
   const shots = useScreenshots(userId, screenshotPage, view === 'screens');
   const clips = useRecordings(userId, view === 'recordings');
   const user = roster.users.find((row) => row.id === userId);
-  const tracked = (detail.data?.sessions || []).reduce((sum, row) => sum + (row.activeSeconds || 0), 0);
+  const tracked = detail.data?.totals?.workSeconds ?? (detail.data?.sessions || []).reduce((sum, row) => sum + (row.activeSeconds || 0), 0);
+  const sessionDays = detail.data?.daily || groupSessionDays(detail.data?.sessions || []);
   const screenshotDays = groupScreenshotsByDay(shots.rows);
   const screenshotPageCount = Math.max(1, Math.ceil(shots.total / shots.pageSize));
 
@@ -32,7 +33,7 @@ export default function Employees() {
       <section className="monitor-content">
         <div className="monitor-summary"><div><small>EMPLOYEE</small><strong>{user?.name || 'Select an employee'}</strong></div><div><small>TIME · LAST 30 DAYS</small><strong>{detail.loading ? '—' : humanDuration(tracked)}</strong></div><div><small>SESSIONS · LAST 30 DAYS</small><strong>{detail.loading ? '—' : detail.data?.sessions?.length || 0}</strong></div></div>
         <div className="monitor-tabs"><button className={view === 'time' ? 'active' : ''} onClick={() => setView('time')}>Tracked time</button><button className={view === 'screens' ? 'active' : ''} onClick={() => setView('screens')}>Screenshots</button><button className={view === 'recordings' ? 'active' : ''} onClick={() => setView('recordings')}>Recordings</button></div>
-        {view === 'time' && <div className="monitor-list">{detail.loading && <Empty text="Loading tracked time..." />}{detail.error && <LoadError error={detail.error} retry={detail.reload} />}{(detail.data?.sessions || []).map((row) => <div className="monitor-session" key={row.id}><span><strong>{dayLabel(row.startedAt)}</strong><small>{clockTime(row.startedAt)} - {row.endedAt ? clockTime(row.endedAt) : 'Now'}</small></span><span>{row.note || row.taskTitle || 'Tracked work'}</span><strong>{humanDuration(row.activeSeconds)}</strong></div>)}{!detail.loading && !detail.error && !detail.data?.sessions?.length && <Empty text="No tracked sessions in the last 30 days." />}</div>}
+        {view === 'time' && <div className="monitor-list">{detail.loading && <Empty text="Loading tracked time..." />}{detail.error && <LoadError error={detail.error} retry={detail.reload} />}{sessionDays.map((day) => <section className="monitor-day" key={day.date}><header><div><strong>{dayLabel(day.date + 'T12:00:00+06:00')}</strong><small>{day.sessionIds.length} sessions · Asia/Dhaka</small></div><div><strong>{humanDuration(day.workSeconds)} work</strong><small>{humanDuration(day.activeSeconds)} active · {humanDuration(day.idleSeconds)} idle</small></div></header>{(detail.data?.sessions || []).filter((row) => day.sessionIds.includes(row.id)).map((row) => <div className="monitor-session" key={row.id}><span><strong>{dhakaTime(row.startedAt)} – {row.endedAt ? dhakaTime(row.endedAt) : 'Running'}</strong></span><span>{row.note || row.taskTitle || 'Tracked work'}<small style={{ display: 'block' }}>{humanDuration(row.idleSeconds)} idle</small></span><strong>{humanDuration(row.activeSeconds + (detail.data?.countIdleAsWork ? row.idleSeconds : 0))}</strong></div>)}</section>)}{!detail.loading && !detail.error && !detail.data?.sessions?.length && <Empty text="No tracked sessions in the last 30 days." />}</div>}
         {view === 'screens' && <div className="monitor-screenshots">
           {shots.loading && <Empty text="Loading screenshots..." />}
           {shots.error && <LoadError error={shots.error} retry={shots.reload} />}
@@ -90,3 +91,6 @@ function groupScreenshotsByDay(rows) {
   });
   return Array.from(days.values());
 }
+
+function dhakaTime(value) { return new Date(value).toLocaleTimeString([], { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit' }); }
+function groupSessionDays(rows) { const groups = new Map(); for (const row of rows) { const date = new Date(new Date(row.startedAt).getTime() + 6 * 3600000).toISOString().slice(0, 10); if (!groups.has(date)) groups.set(date, { date, activeSeconds: 0, idleSeconds: 0, workSeconds: 0, sessionIds: [] }); const day = groups.get(date); day.activeSeconds += row.activeSeconds; day.idleSeconds += row.idleSeconds; day.workSeconds += row.activeSeconds; day.sessionIds.push(row.id); } return [...groups.values()]; }

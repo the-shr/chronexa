@@ -5,6 +5,7 @@ import { syncTaskSession } from '@/lib/bmos.js';
 const MAX_SESSION_SECONDS = 24 * 3600;
 
 function toDate(value) {
+  if (value === null || value === undefined || value === '') return null;
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? null : d;
 }
@@ -55,6 +56,8 @@ export async function POST(request) {
   if (existing && existing.userId !== device.userId) {
     return Response.json({ error: 'Session belongs to another user' }, { status: 403 });
   }
+
+  if (existing?.endedAt && !data.endedAt) return Response.json({ ok: true, id: existing.id });
 
   const session = await prisma.workSession.upsert({
     where: { id: body.id },

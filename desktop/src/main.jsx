@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 
 import App from './App.jsx';
 import IdleWarning from './pages/IdleWarning.jsx';
+import TimerOverlay from './pages/TimerOverlay.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { installMockApi } from './lib/mock-api.js';
 import './styles.css';
@@ -23,6 +24,6 @@ const view = new URLSearchParams(window.location.search).get('view');
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ErrorBoundary>{view === 'idle' ? <IdleWarning /> : <App />}</ErrorBoundary>
+    <ErrorBoundary>{view === 'idle' ? <IdleWarning /> : view === 'overlay' ? <TimerOverlay /> : <App />}</ErrorBoundary>
   </React.StrictMode>,
 );

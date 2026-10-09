@@ -17,6 +17,7 @@ export async function GET() {
     serverVersion: pkg.version,
     latestVersion: latestVersion || null,
     downloadUrl,
+    downloadSha256: /^[a-f0-9]{64}$/i.test(process.env.DESKTOP_DOWNLOAD_SHA256 || '') ? process.env.DESKTOP_DOWNLOAD_SHA256.toLowerCase() : null,
     releaseNotesUrl,
     required: process.env.DESKTOP_UPDATE_REQUIRED === 'true',
     notes: String(process.env.DESKTOP_UPDATE_NOTES || '').trim() || null,

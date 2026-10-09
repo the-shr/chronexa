@@ -140,6 +140,24 @@ The Windows installer lands in `desktop/release/` as `Chronexa Setup <version>.e
 
 ---
 
+
+## Desktop release configuration (1.1.8 and later)
+
+Set these in the Chronexa server's Vercel project, Production environment, then redeploy:
+
+| Variable | Value |
+|---|---|
+| `DESKTOP_LATEST_VERSION` | Release version without `v`, for example `1.1.8` |
+| `DESKTOP_DOWNLOAD_URL` | Direct HTTPS EXE asset URL from the GitHub Release, under `the-shr/chronexa` |
+| `DESKTOP_DOWNLOAD_SHA256` | 64-character lowercase SHA-256 of that published EXE |
+| `DESKTOP_RELEASE_NOTES_URL` | GitHub release page URL |
+| `DESKTOP_UPDATE_REQUIRED` | `false` for an optional update, `true` to remove Later |
+| `DESKTOP_UPDATE_NOTES` | Short employee-facing release summary |
+
+The version endpoint is `/api/agent/version`. A 1.1.8 client downloads and verifies an update before invoking the NSIS installer. Earlier clients need the initial manual installer upgrade. Do not reuse a local installer checksum for a CI-built release: verify the actual published asset digest.
+
+The tag-triggered desktop workflow publishes the Windows EXE to GitHub. Wait for the workflow to complete before recording the asset URL and checksum. No database migration is needed for the 1.1.8 reporting and session fixes.
+
 ## After deploying, check
 
 - `npm run test:drive` — Drive credentials work and a file round-trips

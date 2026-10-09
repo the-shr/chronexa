@@ -84,6 +84,9 @@ contextBridge.exposeInMainWorld('api', {
     version: () => invoke('app:version'),
     checkUpdate: () => invoke('app:update-check'),
     openUpdate: (url) => invoke('app:open-update', url),
+    installUpdate: () => invoke('app:install-update'),
+    updateStatus: () => invoke('app:update-status'),
+    onUpdateStatus: (fn) => subscribe('app:update-status', fn),
     platform: process.platform,
   },
 });

@@ -1405,6 +1405,19 @@
   overflow: hidden;
 }
 
+.pol-ov:has(> select) {
+  display: grid;
+  gap: 8px;
+}
+.pol-ov > select {
+  width: 100%;
+}
+.pol-ov > small {
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .pol-editor-head {
   flex: none;
   display: flex;

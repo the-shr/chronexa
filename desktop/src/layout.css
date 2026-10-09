@@ -2240,3 +2240,10 @@
   font-size: 12px;
   color: var(--danger);
 }
+
+html.overlay-document, .overlay-document body, .overlay-document #root { background: transparent !important; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
+.timer-overlay { height: 80px; margin: 4px; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; border: 1px solid #ffffff33; border-radius: 16px; background: #171626; color: #fff; }
+.timer-overlay-drag { -webkit-app-region: drag; flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.timer-overlay small { font-size: 11px; color: #c7bddb; }
+.timer-overlay strong { font-size: 26px; font-variant-numeric: tabular-nums; }
+.timer-overlay button { -webkit-app-region: no-drag; background: transparent; border: 0; color: #fff; font-size: 24px; cursor: pointer; padding: 8px; }

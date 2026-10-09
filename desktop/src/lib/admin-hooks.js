@@ -73,7 +73,9 @@ export function useRoster() {
 }
 
 export function useEmployee(id) {
-  return useAdminRead(() => window.api.admin.employee(id), [id], Boolean(id));
+  const result = useAdminRead(() => window.api.admin.employee(id), [id], Boolean(id));
+  useEffect(() => { if (!id) return; const timer = setInterval(result.reload, 60000); return () => clearInterval(timer); }, [id, result.reload]);
+  return result;
 }
 
 export function useScreenshots(userId, page = 1, enabled = true) {

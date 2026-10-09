@@ -20,6 +20,14 @@ export default function IdleWarning() {
       setRemaining(Math.max(0, Math.round((payload.deadline - Date.now()) / 1000)));
     });
     const offClose = window.api.tracker.onIdleWarningClose(() => window.api.window.closeIdleWarning());
+    window.api.tracker.snapshot().then((snapshot) => {
+      if (snapshot.idlePhase !== 'warning') return;
+      const seconds = snapshot.warningRemainingSeconds || 0;
+      window.api.settings.get().then((settings) => {
+        setInfo({ deadline: Date.now() + seconds * 1000, countdownSeconds: seconds, thresholdMinutes: settings.idle.thresholdMinutes, onTimeout: settings.idle.onTimeout, playSound: false });
+        setRemaining(seconds);
+      });
+    });
     return () => {
       offWarn();
       offClose();
@@ -53,7 +61,7 @@ export default function IdleWarning() {
 
       <h1>Are you still there?</h1>
       <p>
-        No mouse or keyboard activity for {info?.thresholdMinutes ?? '—'} minutes.
+        No mouse or keyboard activity for {info?.thresholdMinutes ?? '—'} minutes. Click I'm still here to continue.
         <br />
         {willStop
           ? `The timer stops in ${remaining ?? '—'}s.`

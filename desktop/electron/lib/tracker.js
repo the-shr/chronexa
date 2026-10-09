@@ -5,6 +5,7 @@ const { randomUUID } = require('node:crypto');
 const { powerMonitor } = require('electron');
 
 const settings = require('./settings');
+const { dayKey } = require('./workday');
 const screenshots = require('./screenshots');
 const db = require('./db');
 const log = require('./log');
@@ -119,6 +120,18 @@ class Tracker extends EventEmitter {
     if (this.state !== 'running' || !this.session) return;
 
     const cfg = settings.get();
+    if (dayKey(this.session.startedAt) !== dayKey()) {
+      const context = { taskId: this.session.taskId, taskNote: this.session.taskNote };
+      const phase = this.idlePhase;
+      const deadline = this.warningDeadline;
+      this.finishSession('day-boundary');
+      this.beginSession(context);
+      this.idlePhase = phase;
+      if (phase === 'warning') {
+        this.warningDeadline = deadline;
+        this.emit('idle-warning', { deadline, countdownSeconds: cfg.idle.warningCountdownSeconds, thresholdMinutes: cfg.idle.thresholdMinutes, onTimeout: cfg.idle.onTimeout, playSound: false });
+      }
+    }
     const systemIdle = powerMonitor.getSystemIdleTime();
     const now = Date.now();
 
@@ -129,7 +142,7 @@ class Tracker extends EventEmitter {
     } else {
       const threshold = cfg.idle.thresholdMinutes * 60;
 
-      if (systemIdle < threshold) {
+      if (systemIdle < threshold && this.idlePhase !== 'warning') {
         // Input detected -- if we were warning or idle, the employee is back.
         if (this.idlePhase !== 'active') {
           log.info('tracker: activity resumed after idle');
@@ -192,7 +205,7 @@ class Tracker extends EventEmitter {
   }
 
   closeWarning() {
-    if (this.idlePhase === 'warning' || this.warningDeadline) {
+    if (this.warningDeadline) {
       this.warningDeadline = 0;
       this.emit('idle-warning-close');
     }
@@ -203,6 +216,7 @@ class Tracker extends EventEmitter {
     if (this.idlePhase === 'warning') {
       this.idlePhase = 'active';
       this.closeWarning();
+      this.emitState();
     }
     return this.snapshot();
   }
@@ -251,7 +265,10 @@ class Tracker extends EventEmitter {
   /* -------------------------------- state ------------------------------- */
 
   persist() {
-    if (this.session) db.upsertSession(this.session);
+    if (this.session) {
+      db.upsertSession(this.session);
+      db.enqueue({ id: `session:${this.session.id}`, type: 'session', payload: { ...this.session } });
+    }
   }
 
   snapshot() {
