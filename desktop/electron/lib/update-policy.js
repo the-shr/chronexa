@@ -16,6 +16,7 @@ let error = null;
 let refreshing = null;
 let timer = null;
 let installer = null;
+let canAutoInstall = () => true;
 let lastAttempt = { version: null, at: 0 };
 
 function snapshot() {
@@ -35,17 +36,19 @@ function requireVersion(version) {
   store.write({ manifest }); store.flush();
   emit();
 }
-function init({ onInstall } = {}) {
+function init({ onInstall, canInstallAutomatically } = {}) {
   store = new JsonStore(path.join(app.getPath('userData'), 'release-policy.json'), { manifest: null }, { debounceMs: 0 });
   manifest = store.read().manifest;
   error = null;
   checked = false;
   installer = onInstall || null;
+  canAutoInstall = canInstallAutomatically || (() => true);
   checking = true;
+  lastAttempt = { version: null, at: 0 };
 }
 async function maybeInstall() {
   const update = snapshot().manifest;
-  if (!checked || !update?.available || !settings.get().general.autoUpdate || !app.isPackaged || process.platform !== 'win32' || !installer) return;
+  if (!checked || !update?.available || !settings.get().general.autoUpdate || !app.isPackaged || process.platform !== 'win32' || !installer || !canAutoInstall()) return;
   if (lastAttempt.version === update.latestVersion && Date.now() - lastAttempt.at < INTERVAL) return;
   lastAttempt = { version: update.latestVersion, at: Date.now() };
   try { await installer(); } catch { /* updater status exposes the error; no immediate retry loop */ }
@@ -76,6 +79,6 @@ function refresh() {
 function start() { stop(); timer = setInterval(() => refresh().catch(() => {}), INTERVAL); return refresh(); }
 function stop() { if (timer) clearInterval(timer); timer = null; }
 function allowsChannel(channel) {
-  return channel.startsWith('app:') || channel.startsWith('window:') || ['settings:get', 'settings:set', 'tracker:snapshot', 'account:get', 'tracker:stop', 'sync:now', 'sync:status'].includes(channel);
+  return channel.startsWith('app:') || channel.startsWith('window:') || ['settings:get', 'settings:set', 'tracker:snapshot', 'account:get', 'account:login', 'account:logout', 'tracker:stop', 'sync:now', 'sync:status'].includes(channel);
 }
 module.exports = { init, start, stop, refresh, snapshot, assertAllowed, allowsChannel, preferencesChanged, requireVersion, on: (event, fn) => events.on(event, fn) };

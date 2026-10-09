@@ -31,7 +31,7 @@ let quitting = false;
 
 app.whenReady().then(() => {
   settings.init();
-  updatePolicy.init({ onInstall: () => updater.install({ beforeInstall: saveBeforeUpdate }) });
+  updatePolicy.init({ onInstall: () => updater.install({ beforeInstall: saveBeforeUpdate }), canInstallAutomatically: () => auth.isSignedIn() });
   auth.init();
   db.init();
   tasks.init();
@@ -80,6 +80,7 @@ app.whenReady().then(() => {
   auth.on('changed', (status) => {
     if (!status.signedIn && tracker.state !== 'stopped') tracker.stop('signed-out');
     windows.broadcast('account:changed', status);
+    if (status.signedIn) updatePolicy.preferencesChanged();
   });
 
   profile.on('changed', (p) => windows.broadcast('profile:changed', p));
@@ -258,6 +259,7 @@ handle('account:login', async (creds) => {
   sync.start();
   // Pull the organisation policy before the first session so it never runs on
   // stale local settings.
+  if (updatePolicy.snapshot().blocked) return user;
   await policy.refresh().catch(() => {});
   await tasks.refresh().catch(() => {});
   profile.refresh().catch(() => {});

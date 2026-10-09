@@ -21,16 +21,18 @@ const TABS = [
 
 export default function App() {
   const policy = useReleasePolicy();
+  const [account, refreshAccount] = useAccount();
+  if (!account) return <div className="fallback"><div className="fallback-card"><p>Starting…</p></div></div>;
+  if (!account.signedIn) return <SignIn onSignedIn={refreshAccount} />;
   if (policy.blocked) return <RequiredUpdate policy={policy} />;
-  return <Application update={policy.manifest} />;
+  return <Application update={policy.manifest} account={account} refreshAccount={refreshAccount} />;
 }
 
-function Application({ update }) {
+function Application({ update, account, refreshAccount }) {
   const [tab, setTab] = useState('tracker');
   const { snapshot, error } = useTrackerState();
   const tasks = useTasks();
   const [theme, toggleTheme] = useTheme();
-  const [account, refreshAccount] = useAccount();
   const { profile } = useProfile();
   const canConfigure = Boolean(account?.user?.canManageTrackingPolicy);
 

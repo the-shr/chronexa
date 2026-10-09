@@ -7,14 +7,14 @@ export async function middleware(request) {
   if (/^\/api\/agent\/admin\/(overview|tasks)(\/|$)/.test(pathname)) {
     return NextResponse.json({ error: 'This Chronexa admin surface has been retired. Use Brand Macros OS.' }, { status: 410 });
   }
-  // The version manifest must remain reachable for clients blocked from working.
-  if (pathname === '/api/agent/version' || !desktopUpdateRequired()) return NextResponse.next();
+  // Authentication and updates stay reachable; work remains version-gated.
+  if (['/api/agent/version', '/api/agent/login'].includes(pathname) || !desktopUpdateRequired()) return NextResponse.next();
   const release = await getDesktopRelease();
   const minimum = release?.latestVersion || MINIMUM_DESKTOP_VERSION;
   if (!validVersion(minimum)) return NextResponse.json({ error: 'The required update is not configured correctly.' }, { status: 503 });
   const version = request.headers.get('x-chronexa-version');
   if (isOlderVersion(version, minimum)) {
-    return NextResponse.json({ code: 'UPDATE_REQUIRED', error: `Install Chronexa ${minimum} before continuing.`, latestVersion: minimum }, { status: version ? 426 : 401 });
+    return NextResponse.json({ code: 'UPDATE_REQUIRED', error: `Install Chronexa ${minimum} before continuing.`, latestVersion: minimum }, { status: 426 });
   }
   return NextResponse.next();
 }

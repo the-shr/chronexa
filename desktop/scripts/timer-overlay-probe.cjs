@@ -16,6 +16,7 @@ const windows = require(path.join(desktop, 'electron/lib/windows'));
 const updatePolicy = require(path.join(desktop, 'electron/lib/update-policy'));
 const updater = require(path.join(desktop, 'electron/lib/updater'));
 let ui;
+let signedIn = true;
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until(check, message) {
   const deadline = Date.now() + 10000;
@@ -35,7 +36,13 @@ app.whenReady().then(async () => {
   handle('tracker:snapshot', () => tracker.snapshot());
   handle('settings:get', () => settings.publicView());
   handle('settings:set', (patch) => settings.setFromRenderer(patch));
-  handle('account:get', () => ({ signedIn: true, user }));
+  const account = () => ({ signedIn, user: signedIn ? user : null });
+  handle('account:get', account);
+  handle('account:logout', () => { signedIn = false; ui.webContents.send('account:changed', account()); return account(); });
+  handle('account:login', (credentials) => {
+    assert.equal(credentials.email, 'test@example.invalid'); assert.equal(credentials.password, 'test');
+    signedIn = true; ui.webContents.send('account:changed', account()); return user;
+  });
   handle('profile:get', () => profile);
   handle('profile:refresh', () => profile);
   handle('tasks:list', () => tasks); handle('tasks:refresh', () => tasks);
@@ -97,13 +104,26 @@ app.whenReady().then(async () => {
   assert.equal(lockedControls.includes('Settings'), false);
   assert.equal(lockedControls.includes('Later'), false);
   await assert.rejects(ui.webContents.executeJavaScript("window.api.tracker.start()"), /Update Chronexa/);
+  await ui.webContents.executeJavaScript("[...document.querySelectorAll('button')].find(button => button.textContent === 'Sign out').click()");
+  await until(() => ui.webContents.executeJavaScript("!!document.querySelector('form.signin-card')"), 'Login form must remain reachable during a required update');
+  await ui.webContents.executeJavaScript(`
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    for (const [selector, value] of [['input[type=email]', 'test@example.invalid'], ['input[type=password]', 'test']]) {
+      const input = document.querySelector(selector); setter.call(input, value); input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  `);
+  await wait(100);
+  await ui.webContents.capturePage(); await wait(100);
+  fs.writeFileSync(path.join(output, 'login-before-update.png'), (await ui.webContents.capturePage()).toPNG());
+  await ui.webContents.executeJavaScript("document.querySelector('form.signin-card').requestSubmit()");
+  await until(() => signedIn && ui.webContents.executeJavaScript("document.body.innerText.includes('Update required')"), 'Login must succeed, then work must remain update-locked');
   updater.check = async () => ({ error: 'Network unavailable' }); await updatePolicy.refresh();
   assert.equal(updatePolicy.snapshot().blocked, true, 'Offline must not bypass required update');
   await ui.webContents.capturePage(); await wait(300);
   fs.writeFileSync(path.join(output, 'required-update.png'), (await ui.webContents.capturePage()).toPNG());
   tracker.stop('test'); db.flush();
   BrowserWindow.getAllWindows().forEach((win) => win.destroy());
-  fs.writeFileSync(path.join(output, 'result.txt'), 'PASS: native overlay On/Off, auto update On/Off persistence, required update blocks dashboard/settings/tracking IPC, stops active work, no Later, offline cannot bypass');
+  fs.writeFileSync(path.join(output, 'result.txt'), 'PASS: login before required update through real UI/IPC, signed-in work remains locked, native overlay and auto update settings, no offline bypass');
   app.quit();
 }).catch((error) => {
   fs.writeFileSync(path.join(output, 'result.txt'), error.stack);

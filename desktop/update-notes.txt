@@ -1,1 +1,1 @@
-Required updates now lock app use until installation. Added Auto update On/Off and automatic release discovery.
+Login now works before required updates. Tracking stays locked until installation. Chronexa 1.2.0.

@@ -50,6 +50,8 @@ async function main() {
   assert.equal(policy.allowsChannel('tracker:start'), false);
   assert.equal(policy.allowsChannel('tasks:set-status'), false);
   assert.equal(policy.allowsChannel('configuration:update'), false);
+  assert.equal(policy.allowsChannel('account:login'), true, 'Login remains available before an update');
+  assert.equal(policy.allowsChannel('account:logout'), true);
   assert.equal(policy.allowsChannel('app:install-update'), true);
   settings.general.autoUpdate = true; policy.preferencesChanged(); await tick();
   assert.equal(attempts, 1); assert.equal(policy.snapshot().blocked, true);
@@ -66,6 +68,11 @@ async function main() {
   assert.equal(attempts, 2, 'Optional update installs automatically when On');
   policy.requireVersion('1.1.12'); assert.equal(policy.snapshot().blocked, true, 'An API-required update locks even if the manifest endpoint is offline');
   response = { error: 'Offline' }; await policy.refresh(); assert.equal(policy.snapshot().blocked, true);
+  let authenticated = false;
+  response = { currentVersion, latestVersion: '1.1.12', required: true, available: true };
+  policy.init({ onInstall: async () => { attempts++; }, canInstallAutomatically: () => authenticated });
+  await policy.refresh(); await tick(); assert.equal(attempts, 2, 'Auto install must not interrupt initial login');
+  authenticated = true; policy.preferencesChanged(); await tick(); assert.equal(attempts, 3);
 
   // Execute the actual server middleware with a small NextResponse adapter.
   const versionCode = fs.readFileSync(path.join(__dirname, 'server/src/lib/update-version.js'), 'utf8').replace(/export /g, '');
@@ -74,13 +81,15 @@ async function main() {
   const server = { exports: {} }; const env = { DESKTOP_UPDATE_REQUIRED: 'true', DESKTOP_LATEST_VERSION: '1.1.10' };
   vm.runInNewContext(versionCode + '\n' + releaseCode + '\n' + middlewareCode + '\nmodule.exports = { middleware };', { module: server, desktopPackage: { version: '1.1.10' }, process: { env }, Date, AbortSignal, fetch: async () => ({ ok: true, json: async () => ({ latestVersion: env.DESKTOP_LATEST_VERSION, downloadUrl: `https://github.com/the-shr/chronexa/releases/download/v${env.DESKTOP_LATEST_VERSION}/Chronexa.Setup.${env.DESKTOP_LATEST_VERSION}.exe`, downloadSha256: 'a'.repeat(64) }) }), NextResponse: { next: () => ({ status: 200 }), json: (body, options) => ({ body, ...options }) } });
   const request = (version, pathname = '/api/agent/sessions') => ({ nextUrl: { pathname }, headers: { get: () => version } });
-  assert.equal((await server.exports.middleware(request(null))).status, 401, 'Legacy client without version cannot use required-update APIs');
+  assert.equal((await server.exports.middleware(request(null))).status, 426, 'Outdated clients are update-blocked without expiring their login');
   assert.equal((await server.exports.middleware(request('1.1.9'))).status, 426);
   assert.equal((await server.exports.middleware(request('1.1.10'))).status, 200);
   assert.equal((await server.exports.middleware(request('1.1.11'))).status, 200);
   assert.equal((await server.exports.middleware(request(null, '/api/agent/version'))).status, 200);
+  assert.equal((await server.exports.middleware(request(null, '/api/agent/login'))).status, 200);
+  assert.equal((await server.exports.middleware(request('1.1.9', '/api/agent/login'))).status, 200);
   assert.equal((await server.exports.middleware(request(null, '/api/agent/admin/tasks'))).status, 410);
-  env.DESKTOP_LATEST_VERSION = '1.1.9'; assert.equal((await server.exports.middleware(request(null))).status, 401, 'Stale environment cannot weaken the automatically discovered minimum');
+  env.DESKTOP_LATEST_VERSION = '1.1.9'; assert.equal((await server.exports.middleware(request(null))).status, 426, 'Stale environment cannot weaken the automatically discovered minimum');
   env.DESKTOP_LATEST_VERSION = '1.1.10';
   env.DESKTOP_UPDATE_REQUIRED = 'false'; assert.equal((await server.exports.middleware(request(null))).status, 200);
   env.DESKTOP_UPDATE_REQUIRED = 'true'; env.DESKTOP_LATEST_VERSION = ''; assert.equal((await server.exports.middleware(request('1.1.10'))).status, 200);
