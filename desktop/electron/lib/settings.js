@@ -67,6 +67,7 @@ const DEFAULTS = {
   general: {
     theme: 'dark', // 'dark' | 'light'
     timerOverlayVisible: true,
+    autoUpdate: true,
     launchOnLogin: false,
     startTrackingOnLaunch: false,
     minimizeToTray: true,

@@ -13,6 +13,7 @@ const recorder = require('./lib/recorder');
 const policy = require('./lib/policy');
 const sync = require('./lib/sync');
 const updater = require('./lib/updater');
+const updatePolicy = require('./lib/update-policy');
 const windows = require('./lib/windows');
 const tray = require('./lib/tray');
 const paths = require('./lib/paths');
@@ -30,6 +31,7 @@ let quitting = false;
 
 app.whenReady().then(() => {
   settings.init();
+  updatePolicy.init({ onInstall: () => updater.install({ beforeInstall: saveBeforeUpdate }) });
   auth.init();
   db.init();
   tasks.init();
@@ -40,14 +42,14 @@ app.whenReady().then(() => {
 
   windows.createMainWindow({ onCloseRequest: handleMainClose });
   tray.create({
-    onStart: () => tracker.start(),
+    onStart: () => { if (!updatePolicy.snapshot().blocked) tracker.start(); },
     onPause: () => tracker.pause(),
-    onResume: () => tracker.resume(),
+    onResume: () => { if (!updatePolicy.snapshot().blocked) tracker.resume(); },
     onStop: () => tracker.stop('tray'),
     onShow: () => windows.createMainWindow({ onCloseRequest: handleMainClose }),
     onQuit: () => quitApp(),
   });
-  tray.update(tracker.snapshot());
+  tray.update(tracker.snapshot(), { blocked: updatePolicy.snapshot().blocked });
 
   wireTracker();
   wireSystemEvents();
@@ -57,10 +59,16 @@ app.whenReady().then(() => {
     windows.updateOverlay(tracker.snapshot());
     applyLaunchOnLogin();
     sync.start();
+    updatePolicy.preferencesChanged();
   });
 
   sync.on('status', (status) => windows.broadcast('sync:status', status));
   updater.on('status', (status) => windows.broadcast('app:update-status', status));
+  updatePolicy.on('changed', (policy) => {
+    if (policy.blocked && tracker.state !== 'stopped') { tracker.stop('update-required'); db.flush(); }
+    windows.broadcast('app:release-policy', policy);
+    tray.update(tracker.snapshot(), { blocked: policy.blocked });
+  });
   sync.start();
   policy.start();
 
@@ -84,7 +92,9 @@ app.whenReady().then(() => {
 
   // Admins are not tracked -- they run this build to watch the team, and
   // auto-starting a session for them would put phantom hours in the reports.
-  if (auth.isSignedIn() && settings.get().general.startTrackingOnLaunch) tracker.start();
+  updatePolicy.start().then(() => {
+    if (!updatePolicy.snapshot().blocked && auth.isSignedIn() && settings.get().general.startTrackingOnLaunch) tracker.start();
+  }).catch((error) => log.warn('update policy:', error.message));
 
   log.info('app: ready, data dir =', paths.root());
 });
@@ -101,12 +111,20 @@ app.on('before-quit', () => {
   quitting = true;
   if (tracker.state !== 'stopped') tracker.stop('app-quit');
   recorder.stop();
+  updatePolicy.stop();
   db.flush();
 });
 
 function quitApp() {
   quitting = true;
   app.quit();
+}
+
+async function saveBeforeUpdate() {
+  if (tracker.state !== 'stopped') tracker.stop('app-update');
+  db.flush();
+  await Promise.race([sync.run().catch(() => {}), new Promise((resolve) => setTimeout(resolve, 5000))]);
+  db.flush();
 }
 
 function handleMainClose() {
@@ -143,7 +161,7 @@ function wireTracker() {
   tracker.on('state', (snapshot) => {
     windows.updateOverlay(snapshot);
     windows.broadcast('tracker:state', snapshot);
-    tray.update(snapshot);
+    tray.update(snapshot, { blocked: updatePolicy.snapshot().blocked });
   });
 
   tracker.on('idle-warning', (payload) => {
@@ -196,7 +214,10 @@ function applyLaunchOnLogin() {
 
 /* --------------------------------- IPC ---------------------------------- */
 
-const handle = (channel, fn) => ipcMain.handle(channel, (_event, payload) => fn(payload));
+const handle = (channel, fn) => ipcMain.handle(channel, (_event, payload) => {
+  if (!updatePolicy.allowsChannel(channel)) updatePolicy.assertAllowed();
+  return fn(payload);
+});
 
 handle('tracker:start', (opts = {}) => {
   if (opts.taskId) {
@@ -286,14 +307,11 @@ handle('window:minimize', () => windows.getMainWindow()?.minimize());
 handle('window:close', () => windows.getMainWindow()?.close());
 handle('window:close-idle-warning', () => windows.closeIdleWindow());
 handle('app:version', () => app.getVersion());
-handle('app:update-check', () => updater.check());
+handle('app:update-check', async () => (await updatePolicy.refresh()).manifest);
+handle('app:release-policy', () => updatePolicy.snapshot());
+handle('app:quit', () => quitApp());
 handle('app:update-status', () => updater.status());
-handle('app:install-update', () => updater.install({ beforeInstall: async () => {
-  if (tracker.state !== 'stopped') tracker.stop('app-update');
-  db.flush();
-  await Promise.race([sync.run().catch(() => {}), new Promise((resolve) => setTimeout(resolve, 5000))]);
-  db.flush();
-} }));
+handle('app:install-update', () => updater.install({ beforeInstall: saveBeforeUpdate }));
 handle('app:open-update', (url) => updater.openDownload(url));
 
 process.on('uncaughtException', (err) => {

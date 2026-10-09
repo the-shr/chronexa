@@ -1,7 +1,5 @@
 name: Build desktop installer
 
-# Windows is the supported Chronexa desktop platform. Tagged builds publish the
-# installer straight to the GitHub Release, avoiding duplicate Actions storage.
 on:
   push:
     tags:
@@ -12,26 +10,63 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write
+    concurrency:
+      group: chronexa-release-${{ github.ref }}
+      cancel-in-progress: false
     defaults:
       run:
         working-directory: desktop
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check published release
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = 'application/vnd.github+json' }
+          try {
+            $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$env:GITHUB_REPOSITORY/releases/tags/$env:GITHUB_REF_NAME" -Headers $headers
+            $skip = -not $release.draft
+          } catch {
+            if ([int]$_.Exception.Response.StatusCode -ne 404) { throw }
+            $skip = $false
+          }
+          "skip=$($skip.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
       - uses: actions/setup-node@v4
+        if: steps.existing.outputs.skip != 'true'
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: desktop/package-lock.json
 
       - run: npm ci
+        if: steps.existing.outputs.skip != 'true'
 
       - name: Build Windows installer
+        if: steps.existing.outputs.skip != 'true'
         run: npm run dist
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Publish Windows installer
+      - name: Prepare automatic update metadata
+        if: steps.existing.outputs.skip != 'true'
+        run: node scripts/release-manifest.cjs
+
+      - name: Upload complete release
+        if: steps.existing.outputs.skip != 'true'
         uses: softprops/action-gh-release@v2
         with:
-          files: desktop/release/*.exe
+          draft: true
+          body_path: desktop/update-notes.txt
+          files: |
+            desktop/release/Chronexa.Setup.*.exe
+            desktop/release/update.json
+            desktop/release/SHA256SUMS.txt
+
+      - name: Publish verified release
+        if: steps.existing.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release edit "$env:GITHUB_REF_NAME" --repo "$env:GITHUB_REPOSITORY" --draft=false --latest

@@ -21,7 +21,7 @@ db.init();
 let idleSeconds = 0;
 const cfg = { idle: { enabled: true, thresholdMinutes: 5, warningEnabled: true, warningCountdownSeconds: 60, onTimeout: 'pause', countIdleAsWork: false }, screenshots: { enabled: false, intervalMinutes: 10 }, sync: { enabled: true } };
 const log = { info() {}, warn() {}, error() {} };
-const tracker = load('desktop/electron/lib/tracker.js', { electron: { powerMonitor: { getSystemIdleTime: () => idleSeconds } }, './settings': { get: () => cfg }, './db': db, './screenshots': {}, './log': log, './workday': require('./desktop/electron/lib/workday') });
+const tracker = load('desktop/electron/lib/tracker.js', { electron: { powerMonitor: { getSystemIdleTime: () => idleSeconds } }, './settings': { get: () => cfg }, './update-policy': { assertAllowed() {} }, './db': db, './screenshots': {}, './log': log, './workday': require('./desktop/electron/lib/workday') });
 tracker.start();
 const sessionId = tracker.session.id;
 tracker.session.activeSeconds = 300;
@@ -53,7 +53,7 @@ assert.equal(db.getSession(beforeRollover).stopReason, 'day-boundary');
 const { dayBounds, dayKey } = require('./desktop/electron/lib/workday');
 assert.equal(dayKey('2026-10-09T18:01:00Z'), '2026-10-10');
 assert.equal(new Date(dayBounds('2026-10-09T18:01:00Z')[0]).toISOString(), '2026-10-09T18:00:00.000Z');
-const sync = load('desktop/electron/lib/sync.js', { './db': db, './settings': { get: () => cfg }, './auth': { isSignedIn: () => true, authHeaders: () => ({}) }, './recorder': {}, './log': log });
+const sync = load('desktop/electron/lib/sync.js', { './db': db, './update-policy': { snapshot: () => ({ blocked: false }) }, './settings': { get: () => cfg }, './auth': { isSignedIn: () => true, authHeaders: () => ({}) }, './recorder': {}, './log': log });
 sync.pushSession = async () => { throw new Error('offline'); };
 async function main() {
   for (let attempt = 0; attempt < 10; attempt++) await sync.run();

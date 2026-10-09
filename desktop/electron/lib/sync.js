@@ -46,6 +46,7 @@ class Sync extends EventEmitter {
   async run() {
     const cfg = settings.get().sync;
     if (this.running || !cfg.enabled) return this.status();
+    if (require('./update-policy').snapshot().blocked) return this.status();
     if (!auth.isSignedIn()) {
       this.lastResult = { at: new Date().toISOString(), ok: false, error: 'Not signed in' };
       this.emit('status', this.status());
@@ -109,6 +110,11 @@ class Sync extends EventEmitter {
    * so it uploads once they sign back in.
    */
   guard(res, what) {
+    if (res.status === 426) {
+      const policy = require('./update-policy');
+      res.clone().json().then((body) => policy.requireVersion(body.latestVersion)).catch(() => {}).finally(() => policy.refresh().catch(() => {}));
+      throw new Error('Update Chronexa before syncing.');
+    }
     if (res.status === 401) {
       auth.markExpired(`${what} refused`);
       throw new Error('Your session has expired.');

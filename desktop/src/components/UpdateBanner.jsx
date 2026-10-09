@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { useUpdateCheck } from '../lib/hooks.js';
-
-export default function UpdateBanner() {
-  const { update } = useUpdateCheck();
-  const [dismissed, setDismissed] = useState(false);
+export function useUpdateStatus() {
   const [status, setStatus] = useState({ phase: 'idle', percent: 0 });
   useEffect(() => {
     window.api.app.updateStatus?.().then(setStatus).catch(() => {});
@@ -14,12 +10,17 @@ export default function UpdateBanner() {
   const install = async () => {
     setStatus({ phase: 'checking', percent: 0 });
     try { await window.api.app.installUpdate(); }
-    catch (error) { setStatus({ phase: 'error', error: error.message }); }
+    catch (error) { setStatus({ phase: 'error', error: error.message.replace(/^Error invoking remote method '[^']+': Error: /, '') }); }
   };
 
-  if (!update?.available || dismissed) return null;
-
   const label = status.phase === 'downloading' ? `Downloading ${status.percent == null ? '…' : `${status.percent}%`}` : status.phase === 'verifying' ? 'Verifying…' : status.phase === 'installing' ? 'Installing…' : status.phase === 'checking' ? 'Checking…' : status.phase === 'error' ? 'Retry update' : 'Update now';
+  return { status, busy, label, install };
+}
+
+export default function UpdateBanner({ update }) {
+  const { status, busy, label, install } = useUpdateStatus();
+  const [dismissedVersion, setDismissedVersion] = useState(null);
+  if (!update?.available || dismissedVersion === update.latestVersion) return null;
   return (
     <div className={update.required ? 'update-banner required' : 'update-banner'}>
       <div>
@@ -37,7 +38,7 @@ export default function UpdateBanner() {
           </button>
         )}
         {!update.required && (
-          <button className="btn ghost sm" disabled={busy} onClick={() => setDismissed(true)}>
+          <button className="btn ghost sm" disabled={busy} onClick={() => setDismissedVersion(update.latestVersion)}>
             Later
           </button>
         )}

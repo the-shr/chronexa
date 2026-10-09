@@ -83,6 +83,9 @@ contextBridge.exposeInMainWorld('api', {
   app: {
     version: () => invoke('app:version'),
     checkUpdate: () => invoke('app:update-check'),
+    releasePolicy: () => invoke('app:release-policy'),
+    onReleasePolicy: (fn) => subscribe('app:release-policy', fn),
+    quit: () => invoke('app:quit'),
     openUpdate: (url) => invoke('app:open-update', url),
     installUpdate: () => invoke('app:install-update'),
     updateStatus: () => invoke('app:update-status'),

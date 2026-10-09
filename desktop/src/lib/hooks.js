@@ -136,6 +136,18 @@ export function useAccount() {
   return [account, refresh];
 }
 
+export function useReleasePolicy() {
+  const [policy, setPolicy] = useState({ blocked: true, checking: true, checked: false, manifest: null, error: null });
+  useEffect(() => {
+    let alive = true;
+    const get = window.api.app.releasePolicy ? window.api.app.releasePolicy() : Promise.resolve({ blocked: false, checking: false, checked: true, manifest: null });
+    get.then((next) => alive && setPolicy(next)).catch((error) => alive && setPolicy({ blocked: true, checking: false, checked: false, manifest: null, error: error.message }));
+    const off = window.api.app.onReleasePolicy?.((next) => alive && setPolicy(next));
+    return () => { alive = false; off?.(); };
+  }, []);
+  return policy;
+}
+
 export function useUpdateCheck() {
   const [state, setState] = useState(null);
 

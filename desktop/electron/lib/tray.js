@@ -26,7 +26,7 @@ function create(callbacks) {
   return tray;
 }
 
-function update(snapshot) {
+function update(snapshot, { blocked = false } = {}) {
   if (!tray) return;
 
   const running = snapshot.state === 'running';
@@ -42,8 +42,8 @@ function update(snapshot) {
       { label: `Today: ${worked}`, enabled: false },
       { label: `Status: ${label}`, enabled: false },
       { type: 'separator' },
-      { label: 'Start tracking', enabled: !running, click: () => handlers.onStart?.() },
-      { label: paused ? 'Resume' : 'Pause', enabled: running || paused, click: () => (paused ? handlers.onResume?.() : handlers.onPause?.()) },
+      { label: 'Start tracking', enabled: !blocked && !running, click: () => handlers.onStart?.() },
+      { label: paused ? 'Resume' : 'Pause', enabled: !blocked && (running || paused), click: () => (paused ? handlers.onResume?.() : handlers.onPause?.()) },
       { label: 'Stop tracking', enabled: running || paused, click: () => handlers.onStop?.() },
       { type: 'separator' },
       { label: 'Open Chronexa', click: () => handlers.onShow?.() },

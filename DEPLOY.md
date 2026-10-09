@@ -141,22 +141,23 @@ The Windows installer lands in `desktop/release/` as `Chronexa Setup <version>.e
 ---
 
 
-## Desktop release configuration (1.1.8 and later)
+## Automatic desktop releases (1.1.10 and later)
 
-Set these in the Chronexa server's Vercel project, Production environment, then redeploy:
+The server reads the latest published stable release from:
 
-| Variable | Value |
-|---|---|
-| `DESKTOP_LATEST_VERSION` | Release version without `v`, for example `1.1.8` |
-| `DESKTOP_DOWNLOAD_URL` | Direct HTTPS EXE asset URL from the GitHub Release, under `the-shr/chronexa` |
-| `DESKTOP_DOWNLOAD_SHA256` | 64-character lowercase SHA-256 of that published EXE |
-| `DESKTOP_RELEASE_NOTES_URL` | GitHub release page URL |
-| `DESKTOP_UPDATE_REQUIRED` | `false` for an optional update, `true` to remove Later |
-| `DESKTOP_UPDATE_NOTES` | Short employee-facing release summary |
+`https://github.com/the-shr/chronexa/releases/latest/download/update.json`
 
-The version endpoint is `/api/agent/version`. A 1.1.8 client downloads and verifies an update before invoking the NSIS installer. Earlier clients need the initial manual installer upgrade. Do not reuse a local installer checksum for a CI-built release: verify the actual published asset digest.
+The tag-triggered desktop workflow builds the Windows installer, calculates its SHA-256, and uploads the EXE, `update.json` and `SHA256SUMS.txt` to a draft release. It publishes the release as latest only after all files are uploaded. Re-running an already published tag leaves its assets intact.
 
-The tag-triggered desktop workflow publishes the Windows EXE to GitHub. Wait for the workflow to complete before recording the asset URL and checksum. No database migration is needed for the 1.1.8 reporting and session fixes.
+Version, download URL, checksum, release notes URL and short notes are discovered automatically. Do not edit those Vercel values for each release. Existing `DESKTOP_LATEST_VERSION`, `DESKTOP_DOWNLOAD_URL`, `DESKTOP_DOWNLOAD_SHA256`, `DESKTOP_RELEASE_NOTES_URL` and `DESKTOP_UPDATE_NOTES` values may remain; a valid published GitHub manifest takes priority. Legacy environment fallback is accepted only if it describes a valid release at least as new as the minimum supported desktop version (1.1.10).
+
+Keep `DESKTOP_UPDATE_REQUIRED=true` to enforce the latest release, or `false` for optional updates. This is the only remaining organisation update-policy switch; it does not need changing for each release.
+
+The public manifest endpoint is `/api/agent/version`. Protected agent endpoints use the same discovered minimum version. The desktop persists a required update lock across restarts/network failures and blocks work and tracking until installation. Settings contains Auto update On/Off (default On); Off keeps optional installations manual and cannot bypass mandatory updates. Desktop update checks run at startup and every five minutes; release metadata is cached briefly on the server.
+
+To publish another stable version, update `desktop/package.json` and its lockfile version, optionally edit `desktop/update-notes.txt`, then push the matching `v<version>` tag. The workflow handles the installer and metadata; no Vercel environment edit is needed.
+
+For the initial 1.1.10 rollout, publish and verify the release before deploying the server's stricter client-version rules. Existing executables need an installer update to acquire the new UI lock and Auto update setting; their API access is denied when they are below the required minimum. No database migration is needed.
 
 ## After deploying, check
 

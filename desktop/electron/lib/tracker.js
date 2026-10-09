@@ -5,6 +5,7 @@ const { randomUUID } = require('node:crypto');
 const { powerMonitor } = require('electron');
 
 const settings = require('./settings');
+const updatePolicy = require('./update-policy');
 const { dayKey } = require('./workday');
 const screenshots = require('./screenshots');
 const db = require('./db');
@@ -55,6 +56,7 @@ class Tracker extends EventEmitter {
   /* ------------------------------ lifecycle ----------------------------- */
 
   beginSession({ taskId = null, taskNote = '' } = {}) {
+    updatePolicy.assertAllowed();
     this.session = {
       id: randomUUID(), startedAt: new Date().toISOString(), endedAt: null,
       activeSeconds: 0, idleSeconds: 0, taskId, taskNote, stopReason: null,
@@ -79,6 +81,7 @@ class Tracker extends EventEmitter {
   }
 
   start({ taskId = null, taskNote = '' } = {}) {
+    updatePolicy.assertAllowed();
     if (this.state === 'running') return this.snapshot();
     if (this.state === 'paused') return this.resume();
 
@@ -97,6 +100,7 @@ class Tracker extends EventEmitter {
   }
 
   resume() {
+    updatePolicy.assertAllowed();
     if (this.state !== 'paused') return this.snapshot();
     log.info('tracker: resumed');
     return this.beginSession(this.pausedContext || {});

@@ -7,7 +7,8 @@ import Preferences from './pages/Preferences.jsx';
 import SignIn from './pages/SignIn.jsx';
 import Policy from './pages/admin/Policy.jsx';
 import Employees from './pages/admin/Employees.jsx';
-import { useTrackerState, useTasks, useTheme, useAccount, useProfile } from './lib/hooks.js';
+import { useTrackerState, useTasks, useTheme, useAccount, useProfile, useReleasePolicy } from './lib/hooks.js';
+import RequiredUpdate from './components/RequiredUpdate.jsx';
 import SessionBanner from './components/SessionBanner.jsx';
 import UpdateBanner from './components/UpdateBanner.jsx';
 import { IconSun, IconMoon } from './components/Icons.jsx';
@@ -19,6 +20,12 @@ const TABS = [
 ];
 
 export default function App() {
+  const policy = useReleasePolicy();
+  if (policy.blocked) return <RequiredUpdate policy={policy} />;
+  return <Application update={policy.manifest} />;
+}
+
+function Application({ update }) {
   const [tab, setTab] = useState('tracker');
   const { snapshot, error } = useTrackerState();
   const tasks = useTasks();
@@ -96,7 +103,7 @@ export default function App() {
         </button>
       </header>
 
-      <UpdateBanner />
+      <UpdateBanner update={update} />
       <SessionBanner account={account} onSignedIn={refreshAccount} />
 
       <main className="content">

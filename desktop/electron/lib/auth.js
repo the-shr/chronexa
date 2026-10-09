@@ -1,6 +1,7 @@
 'use strict';
 
 const os = require('node:os');
+const { app } = require('electron');
 const { EventEmitter } = require('node:events');
 
 const paths = require('./paths');
@@ -61,7 +62,7 @@ function base() {
 async function login({ email, password }) {
   const res = await fetch(`${base()}/api/agent/login`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', 'x-chronexa-version': app.getVersion() },
     body: JSON.stringify({ email, password, deviceName: os.hostname(), platform: process.platform }),
   });
   if (!res.ok) {
@@ -91,7 +92,7 @@ function logout() {
 
 function authHeaders() {
   const { token } = get();
-  return token ? { authorization: `Bearer ${token}` } : {};
+  return { 'x-chronexa-version': app.getVersion(), ...(token ? { authorization: `Bearer ${token}` } : {}) };
 }
 
 module.exports = {

@@ -1,0 +1,1 @@
+Required updates now lock app use until installation. Added Auto update On/Off and automatic release discovery.

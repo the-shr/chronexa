@@ -13,6 +13,8 @@ const settings = require(path.join(desktop, 'electron/lib/settings'));
 const db = require(path.join(desktop, 'electron/lib/db'));
 const tracker = require(path.join(desktop, 'electron/lib/tracker'));
 const windows = require(path.join(desktop, 'electron/lib/windows'));
+const updatePolicy = require(path.join(desktop, 'electron/lib/update-policy'));
+const updater = require(path.join(desktop, 'electron/lib/updater'));
 let ui;
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until(check, message) {
@@ -23,9 +25,12 @@ async function until(check, message) {
 const user = { id: 'overlay-test', name: 'Overlay Test', email: 'test@example.invalid', canManageTrackingPolicy: false };
 const tasks = { open: [], done: [], fetchedAt: new Date().toISOString() };
 const profile = { user, signedIn: true, deviceName: 'Test', avatar: null };
-function handle(channel, fn) { ipcMain.handle(channel, (_event, payload) => fn(payload)); }
+function handle(channel, fn) { ipcMain.handle(channel, (_event, payload) => { if (!updatePolicy.allowsChannel(channel)) updatePolicy.assertAllowed(); return fn(payload); }); }
 app.whenReady().then(async () => {
   settings.init(); db.init();
+  settings.setFromRenderer({ general: { autoUpdate: false } });
+  updater.check = async () => ({ currentVersion: app.getVersion(), latestVersion: app.getVersion(), available: false, required: false });
+  updatePolicy.init(); await updatePolicy.refresh();
   settings.setFromRenderer({ general: { timerOverlayVisible: false } });
   handle('tracker:snapshot', () => tracker.snapshot());
   handle('settings:get', () => settings.publicView());
@@ -37,13 +42,20 @@ app.whenReady().then(async () => {
   handle('history:daily', () => []); handle('history:sessions', () => []);
   handle('sync:status', () => ({ pending: 0, ok: true, signedIn: true }));
   handle('app:version', () => app.getVersion());
-  handle('app:update-check', () => ({ available: false }));
+  handle('app:update-check', async () => (await updatePolicy.refresh()).manifest);
+  handle('app:release-policy', () => updatePolicy.snapshot());
   handle('app:update-status', () => ({ phase: 'idle', percent: 0 }));
   settings.onChange(() => {
+    updatePolicy.preferencesChanged();
     windows.updateOverlay(tracker.snapshot());
     windows.broadcast('settings:changed', settings.publicView());
     if (ui && !ui.isDestroyed()) ui.webContents.send('settings:changed', settings.publicView());
   });
+  updatePolicy.on('changed', (policy) => {
+    if (policy.blocked && tracker.state !== 'stopped') tracker.stop('update-required');
+    if (ui && !ui.isDestroyed()) ui.webContents.send('app:release-policy', policy);
+  });
+  handle('tracker:start', () => tracker.start());
   tracker.on('state', (snapshot) => { windows.updateOverlay(snapshot); windows.broadcast('tracker:state', snapshot); });
   // Keep the test overlay offscreen so it does not cover the user's current work.
   app.on('browser-window-created', (_event, win) => {
@@ -73,9 +85,25 @@ app.whenReady().then(async () => {
   assert.equal(persisted.general.timerOverlayVisible, false, 'Off must persist on disk');
   await ui.webContents.capturePage(); await wait(300);
   fs.writeFileSync(path.join(output, 'settings.png'), (await ui.webContents.capturePage()).toPNG());
+  await ui.webContents.executeJavaScript("[...document.querySelectorAll('#auto-update-label + div button')].find(button => button.textContent === 'On').click()");
+  await until(() => settings.get().general.autoUpdate === true, 'Auto update On was not saved');
+  await ui.webContents.executeJavaScript("[...document.querySelectorAll('#auto-update-label + div button')].find(button => button.textContent === 'Off').click()");
+  await until(() => settings.get().general.autoUpdate === false, 'Auto update Off was not saved');
+  updater.check = async () => ({ currentVersion: app.getVersion(), latestVersion: '99.0.0', available: true, required: true });
+  tracker.start(); await updatePolicy.refresh();
+  await until(() => ui.webContents.executeJavaScript("document.body.innerText.includes('Update required')"), 'Required update gate did not replace the app');
+  assert.equal(tracker.state, 'stopped', 'Required update must stop tracking');
+  const lockedControls = await ui.webContents.executeJavaScript("[...document.querySelectorAll('button')].map(button => button.textContent)");
+  assert.equal(lockedControls.includes('Settings'), false);
+  assert.equal(lockedControls.includes('Later'), false);
+  await assert.rejects(ui.webContents.executeJavaScript("window.api.tracker.start()"), /Update Chronexa/);
+  updater.check = async () => ({ error: 'Network unavailable' }); await updatePolicy.refresh();
+  assert.equal(updatePolicy.snapshot().blocked, true, 'Offline must not bypass required update');
+  await ui.webContents.capturePage(); await wait(300);
+  fs.writeFileSync(path.join(output, 'required-update.png'), (await ui.webContents.capturePage()).toPNG());
   tracker.stop('test'); db.flush();
   BrowserWindow.getAllWindows().forEach((win) => win.destroy());
-  fs.writeFileSync(path.join(output, 'result.txt'), 'PASS: visible On/Off controls through real IPC; native show, hide, restore; no tick reopening; hide button updates Settings; Off persists');
+  fs.writeFileSync(path.join(output, 'result.txt'), 'PASS: native overlay On/Off, auto update On/Off persistence, required update blocks dashboard/settings/tracking IPC, stops active work, no Later, offline cannot bypass');
   app.quit();
 }).catch((error) => {
   fs.writeFileSync(path.join(output, 'result.txt'), error.stack);

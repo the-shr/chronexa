@@ -61,6 +61,7 @@ async function check() {
     if (!res.ok) throw new Error(`version ${res.status}`);
     const data = await res.json();
     const latestVersion = data.latestVersion ? String(data.latestVersion) : null;
+    if ((latestVersion && !/^\d+\.\d+\.\d+$/.test(latestVersion)) || (data.required && !latestVersion)) throw new Error('The server update version is not configured correctly.');
     return {
       currentVersion,
       latestVersion,
@@ -135,7 +136,7 @@ async function downloadInstaller(update) {
 
 function install({ beforeInstall = async () => {} } = {}) {
   if (installing) return installing;
-  installing = (async () => {
+  installing = Promise.resolve().then(async () => {
     try {
       if (!app.isPackaged || process.platform !== 'win32') throw new Error('In-app installation is available in the installed Windows app.');
       report({ phase: 'checking', error: null, percent: 0 });
@@ -157,7 +158,7 @@ function install({ beforeInstall = async () => {} } = {}) {
       log.warn('updater: install failed', error.message);
       throw error;
     } finally { installing = null; }
-  })();
+  });
   return installing;
 }
 
