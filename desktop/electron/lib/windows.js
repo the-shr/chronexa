@@ -139,19 +139,26 @@ function updateOverlay(snapshot) {
   }
   if (!overlayWindow || overlayWindow.isDestroyed()) {
     const { workArea } = screen.getPrimaryDisplay();
+    const general = settings.get().general;
+    const width = general.timerOverlayWidth || 260;
+    const height = general.timerOverlayHeight || 88;
     const saved = overlayPosition || { x: workArea.x + workArea.width - 280, y: workArea.y + 30 };
     const display = screen.getDisplayNearestPoint(saved).workArea;
     overlayWindow = new BrowserWindow({
-      width: 260, height: 88,
-      x: Math.max(display.x, Math.min(saved.x, display.x + display.width - 260)),
-      y: Math.max(display.y, Math.min(saved.y, display.y + display.height - 88)),
-      frame: false, transparent: true, resizable: false, movable: true,
+      width, height, minWidth: 220, minHeight: 80, maxWidth: 900, maxHeight: 500,
+      x: Math.max(display.x, Math.min(saved.x, display.x + display.width - width)),
+      y: Math.max(display.y, Math.min(saved.y, display.y + display.height - height)),
+      frame: false, transparent: true, resizable: true, movable: true,
       skipTaskbar: true, alwaysOnTop: true, show: false, focusable: false,
       webPreferences: { preload: PRELOAD, contextIsolation: true, nodeIntegration: false, sandbox: true },
     });
     overlayWindow.setOpacity(0.78);
     overlayWindow.setAlwaysOnTop(true, 'floating');
     overlayWindow.on('moved', () => { const [x, y] = overlayWindow.getPosition(); overlayPosition = { x, y }; });
+    overlayWindow.on('resized', () => {
+      const [width, height] = overlayWindow.getSize();
+      settings.set({ general: { timerOverlayWidth: width, timerOverlayHeight: height } });
+    });
     overlayWindow.on('closed', () => { overlayWindow = null; });
     overlayWindow.once('ready-to-show', () => updateOverlay(require('./tracker').snapshot()));
     load(overlayWindow, 'overlay');

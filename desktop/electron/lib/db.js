@@ -19,6 +19,14 @@ function init() {
   screenshots = new JsonStore(paths.screenshotsFile(), { rows: [] });
   recordings = new JsonStore(paths.recordingsFile(), { rows: [] });
   outbox = new JsonStore(paths.outboxFile(), { rows: [] });
+  // A crash cannot leave unacknowledged warning time permanently credited.
+  for (const row of [...sessions.read().rows]) {
+    if (!(row.pendingIdleSeconds > 0)) continue;
+    const moved = Math.min(row.pendingIdleSeconds, row.activeSeconds || 0);
+    const recovered = { ...row, activeSeconds: (row.activeSeconds || 0) - moved, idleSeconds: (row.idleSeconds || 0) + moved, pendingIdleSeconds: 0, synced: false };
+    upsertSession(recovered);
+    enqueue({ id: `session:${row.id}`, type: 'session', payload: recovered });
+  }
 }
 
 function flush() {

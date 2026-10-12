@@ -193,11 +193,10 @@ function IdleCard({ policy, busy, onApply }) {
         <div className="seg-row">
           {[
             ['pause', 'Pause, resume on activity'],
-            ['stop', 'Stop the session'],
           ].map(([value, text]) => (
             <button
               key={value}
-              className={policy.idleOnTimeout === value ? 'seg active' : 'seg'}
+              className="seg active"
               disabled={busy}
               onClick={() => onApply({ idleOnTimeout: value })}
             >

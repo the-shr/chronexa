@@ -4,9 +4,8 @@ import { useTheme } from '../lib/hooks.js';
 
 /**
  * Frameless always-on-top popup shown when no mouse/keyboard input has been
- * seen for the configured threshold. Any real input dismisses it automatically
- * (the main process detects that and fires idle-warning-close); if the
- * countdown runs out the tracker stops itself.
+ * seen for the configured threshold. Presence confirmation retains the time;
+ * timeout pauses automatically until mouse or keyboard activity returns.
  */
 export default function IdleWarning() {
   const [info, setInfo] = useState(null);
@@ -51,7 +50,7 @@ export default function IdleWarning() {
   const total = info?.countdownSeconds || 1;
   const progress = useMemo(() => Math.max(0, Math.min(1, (remaining ?? 0) / total)), [remaining, total]);
 
-  const willStop = info?.onTimeout === 'stop';
+
 
   return (
     <div className="idle-shell">
@@ -63,9 +62,7 @@ export default function IdleWarning() {
       <p>
         No mouse or keyboard activity for {info?.thresholdMinutes ?? '—'} minutes. Click I'm still here to continue.
         <br />
-        {willStop
-          ? `The timer stops in ${remaining ?? '—'}s.`
-          : `The timer pauses in ${remaining ?? '—'}s and starts again when you come back.`}
+        {`The timer pauses in ${remaining ?? '—'}s and starts again when you come back.`}
       </p>
 
       <div className="idle-actions">

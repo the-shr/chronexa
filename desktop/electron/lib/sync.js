@@ -62,7 +62,8 @@ class Sync extends EventEmitter {
     const done = [];
     const failed = [];
     try {
-      const pending = db.peekOutbox(999999).sort((a, b) => (a.type === 'session' ? 0 : 1) - (b.type === 'session' ? 0 : 1) || a.attempts - b.attempts).slice(0, BATCH);
+      // A midnight segment is not final until the current presence check resolves.
+      const pending = db.peekOutbox(999999).filter((item) => !(item.type === 'session' && item.payload.endedAt && item.payload.pendingIdleSeconds > 0)).sort((a, b) => (a.type === 'session' ? 0 : 1) - (b.type === 'session' ? 0 : 1) || a.attempts - b.attempts).slice(0, BATCH);
       for (const item of pending) {
         if (item.attempts >= MAX_ATTEMPTS && item.type !== 'session') {
           log.warn('sync: giving up on', item.id);

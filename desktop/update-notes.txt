@@ -1,1 +1,1 @@
-Login now works before required updates. Tracking stays locked until installation. Chronexa 1.2.0.
+Idle tracking automatically resumes on activity. Presence confirmation preserves tracked time. Resize the floating timer. Refreshed Employees view with admin-only weekly active-time ranking.

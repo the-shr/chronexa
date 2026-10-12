@@ -48,6 +48,8 @@ class Tracker extends EventEmitter {
     this.timer = null;
     this.ticks = 0;
     this.warningDeadline = 0;
+    this.idleReview = null;
+    this.presenceConfirmedAt = null;
     this.nextShotAt = 0;
     this.activitySamples = [];
     this.capturing = false;
@@ -60,7 +62,7 @@ class Tracker extends EventEmitter {
     this.session = {
       id: randomUUID(), startedAt: new Date().toISOString(), endedAt: null,
       activeSeconds: 0, idleSeconds: 0, taskId, taskNote, stopReason: null,
-      screenshotCount: 0, synced: false,
+      screenshotCount: 0, synced: false, pendingIdleSeconds: 0,
     };
     db.upsertSession(this.session);
     this.state = 'running'; this.idlePhase = 'active'; this.activitySamples = []; this.ticks = 0;
@@ -72,6 +74,7 @@ class Tracker extends EventEmitter {
 
   finishSession(reason) {
     if (!this.session) return null;
+    if (reason !== 'day-boundary') this.resolveIdleReview(false);
     clearInterval(this.timer); this.timer = null; this.closeWarning();
     this.session.endedAt = new Date().toISOString(); this.session.stopReason = reason;
     this.persist(); db.enqueue({ id: `session:${this.session.id}`, type: 'session', payload: this.session });
@@ -136,8 +139,10 @@ class Tracker extends EventEmitter {
         this.emit('idle-warning', { deadline, countdownSeconds: cfg.idle.warningCountdownSeconds, thresholdMinutes: cfg.idle.thresholdMinutes, onTimeout: cfg.idle.onTimeout, playSound: false });
       }
     }
-    const systemIdle = powerMonitor.getSystemIdleTime();
     const now = Date.now();
+    const reportedIdle = powerMonitor.getSystemIdleTime();
+    const sinceConfirmation = this.presenceConfirmedAt === null ? reportedIdle : Math.max(0, Math.floor((now - this.presenceConfirmedAt) / 1000));
+    const systemIdle = Math.min(reportedIdle, sinceConfirmation);
 
     this.activitySamples.push(systemIdle < ACTIVITY_SAMPLE_SECONDS ? 1 : 0);
 
@@ -157,14 +162,16 @@ class Tracker extends EventEmitter {
         this.session.activeSeconds += 1;
       } else {
         if (this.idlePhase === 'active') this.enterIdle(cfg, now);
-        this.session.idleSeconds += 1;
+        if (this.idlePhase === 'warning') {
+          this.session.activeSeconds += 1;
+          const pending = this.idleReview.get(this.session.id) || 0;
+          this.idleReview.set(this.session.id, pending + 1);
+          this.session.pendingIdleSeconds = pending + 1;
+        } else this.session.idleSeconds += 1;
 
         if (this.idlePhase === 'warning' && now >= this.warningDeadline) {
+          this.resolveIdleReview(false);
           this.closeWarning();
-          if (cfg.idle.onTimeout === 'stop') {
-            this.stop('idle-timeout');
-            return;
-          }
           // Paused, not stopped: the session stays open and the branch above
           // resumes it the moment any input arrives.
           this.idlePhase = 'idle';
@@ -186,16 +193,11 @@ class Tracker extends EventEmitter {
     this.idlePhase = 'warning';
     this.warningDeadline = now + (cfg.idle.warningEnabled ? cfg.idle.warningCountdownSeconds * 1000 : 0);
 
-    // The threshold window was counted as active while we waited to be sure the
-    // employee had really gone. Move it to the idle column, unless idle counts
-    // as work anyway, in which case the split does not change the total.
-    if (!cfg.idle.countIdleAsWork) {
-      const threshold = cfg.idle.thresholdMinutes * 60;
-      const reclaimed = Math.min(threshold, this.session.activeSeconds);
-      this.session.activeSeconds -= reclaimed;
-      this.session.idleSeconds += reclaimed;
-      log.info('tracker: moved', reclaimed, 'seconds from active to idle');
-    }
+    // Keep time provisional until the employee confirms presence or times out.
+    this.idleReview = new Map();
+    const threshold = cfg.idle.thresholdMinutes * 60;
+    this.idleReview.set(this.session.id, Math.min(threshold, this.session.activeSeconds));
+    this.persist();
 
     if (cfg.idle.warningEnabled) {
       this.emit('idle-warning', {
@@ -205,6 +207,25 @@ class Tracker extends EventEmitter {
         onTimeout: cfg.idle.onTimeout,
         playSound: cfg.idle.playSound,
       });
+    }
+  }
+
+  resolveIdleReview(confirmed) {
+    if (!this.idleReview) return;
+    const segments = this.idleReview;
+    this.idleReview = null;
+    for (const [id, pending] of segments) {
+      const row = id === this.session?.id ? this.session : db.getSession(id);
+      if (!row) continue;
+      if (!confirmed) {
+        const moved = Math.min(pending, row.activeSeconds);
+        row.activeSeconds -= moved;
+        row.idleSeconds += moved;
+      }
+      row.pendingIdleSeconds = 0;
+      row.synced = false;
+      db.upsertSession({ ...row });
+      db.enqueue({ id: `session:${id}`, type: 'session', payload: { ...row } });
     }
   }
 
@@ -218,8 +239,11 @@ class Tracker extends EventEmitter {
   /** Employee clicked "I'm still here" -- keep tracking, drop the warning. */
   acknowledgeIdle() {
     if (this.idlePhase === 'warning') {
+      this.resolveIdleReview(true);
+      this.presenceConfirmedAt = Date.now();
       this.idlePhase = 'active';
       this.closeWarning();
+      this.persist();
       this.emitState();
     }
     return this.snapshot();
@@ -270,6 +294,7 @@ class Tracker extends EventEmitter {
 
   persist() {
     if (this.session) {
+      this.session.pendingIdleSeconds = this.idleReview?.get(this.session.id) || 0;
       db.upsertSession(this.session);
       db.enqueue({ id: `session:${this.session.id}`, type: 'session', payload: { ...this.session } });
     }

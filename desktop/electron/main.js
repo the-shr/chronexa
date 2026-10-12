@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, ipcMain, shell, dialog, powerMonitor } = require('electron');
+const { app, ipcMain, shell, dialog, powerMonitor, Notification } = require('electron');
 
 const settings = require('./lib/settings');
 const auth = require('./lib/auth');
@@ -163,6 +163,10 @@ function wireTracker() {
     windows.updateOverlay(snapshot);
     windows.broadcast('tracker:state', snapshot);
     tray.update(snapshot, { blocked: updatePolicy.snapshot().blocked });
+  });
+
+  tracker.on('idle-resolved', () => {
+    if (Notification.isSupported()) new Notification({ title: 'Chronexa', body: 'Tracking resumed', silent: true }).show();
   });
 
   tracker.on('idle-warning', (payload) => {

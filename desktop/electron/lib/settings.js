@@ -46,8 +46,7 @@ const DEFAULTS = {
     thresholdMinutes: 5, // no mouse/keyboard for this long => idle
     warningEnabled: true, // show the "are you still there?" window
     warningCountdownSeconds: 60, // how long that window waits for a response
-    // 'pause' keeps the session open and resumes by itself as soon as the
-    // employee touches the mouse again; 'stop' ends the session outright.
+    // Idle always pauses and resumes on activity, including legacy stop configs.
     onTimeout: 'pause',
     // Active and idle seconds are always recorded separately. This only decides
     // whether idle counts towards the work total the employee is credited with.
@@ -67,6 +66,8 @@ const DEFAULTS = {
   general: {
     theme: 'dark', // 'dark' | 'light'
     timerOverlayVisible: true,
+    timerOverlayWidth: 260,
+    timerOverlayHeight: 88,
     autoUpdate: true,
     launchOnLogin: false,
     startTrackingOnLaunch: false,
@@ -81,6 +82,8 @@ const DEFAULTS = {
 };
 
 const RANGES = {
+  'general.timerOverlayWidth': [220, 900],
+  'general.timerOverlayHeight': [80, 500],
   'work.dailyTargetHours': [0, 24],
   'work.weeklyTargetHours': [0, 168],
   'screenshots.intervalMinutes': [1, 120],
@@ -125,7 +128,8 @@ function validate(settings) {
     const [group, key] = dotted.split('.');
     s[group][key] = clamp(Math.round(s[group][key]), range);
   }
-  if (!['pause', 'stop'].includes(s.idle.onTimeout)) s.idle.onTimeout = 'pause';
+  // Migrate legacy stop policies to automatic idle pause/resume.
+  s.idle.onTimeout = 'pause';
   if (!['interval', 'session'].includes(s.recording.mode)) s.recording.mode = 'interval';
   if (!['dark', 'light'].includes(s.general.theme)) s.general.theme = 'dark';
   s.sync.serverUrl = String(s.sync.serverUrl || '').replace(/\/+$/, '');
