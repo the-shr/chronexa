@@ -282,6 +282,8 @@ function mockPerson(person, index) {
   };
 }
 
+let mockSavedPolicy = {};
+const mockOverrides = new Map();
 function mockAdmin() {
   const people = MOCK_PEOPLE.map(mockPerson);
   const sum = (key) => people.reduce((total, p) => total + p[key], 0);
@@ -309,8 +311,11 @@ function mockAdmin() {
       people,
     }),
 
+    avatar: async () => null,
     employees: async () => ({
-      users: people.map((p) => ({ ...p, role: 'employee', active: true, joinedAt: iso(-90) })),
+      organization: { available: true, source: 'mock' },
+      ranking: { weekStart: new Date(Date.now() + 21600000 - ((new Date(Date.now() + 21600000).getUTCDay() + 6) % 7) * DAY).toISOString().slice(0,10) },
+      users: people.map((p) => ({ ...p, role: 'employee', active: true, online: p.live, department: ['Product & Design','Development','Operations'][Number(p.id.slice(1))%3], designation: ['Product designer','Developer','Coordinator'][Number(p.id.slice(1))%3], rankingEnabled: mockOverrides.get(p.id)?.rankingEnabled !== false, weeklyTargetHours: mockOverrides.get(p.id)?.weeklyTargetHours ?? mockSavedPolicy.weeklyTargetHours ?? 40, currentTask: p.currentTask || null, weekCompletedActive: p.weekActive, weekRank: p.weekActive > 0 && mockOverrides.get(p.id)?.rankingEnabled !== false ? people.filter((q) => q.weekActive > p.weekActive && mockOverrides.get(q.id)?.rankingEnabled !== false).length + 1 : null, joinedAt: iso(-90) })),
     }),
 
     employee: async (id) => {
@@ -392,11 +397,21 @@ function mockAdmin() {
         recordingEnabled: false, recordingMode: 'interval', recordingIntervalMinutes: 3,
         recordingDurationSeconds: 5, recordingSegmentMinutes: 5, recordingMaxWidth: 1280, recordingFrameRate: 12,
         updatedAt: new Date().toISOString(),
+        ...mockSavedPolicy,
       },
-      employees: people.map((p) => ({ id: p.id, name: p.name, email: p.email, overrides: null })),
+      employees: people.map((p) => ({ id: p.id, name: p.name, email: p.email, overrides: mockOverrides.get(p.id) || null })),
       estimatedDailyBytes: 0,
     }),
-    updatePolicy: async () => ({ ok: true }),
+    updatePolicy: async (patch) => {
+      if (patch.userId) {
+        const next = { ...(mockOverrides.get(patch.userId) || {}) };
+        for (const [key, value] of Object.entries(patch)) { if (key === 'userId') continue; value === null ? delete next[key] : next[key] = value; }
+        mockOverrides.set(patch.userId, next);
+        return { user: { id: patch.userId, overrides: next } };
+      }
+      mockSavedPolicy = { ...mockSavedPolicy, ...patch };
+      return { policy: mockSavedPolicy };
+    },
 
     deleteScreenshot: async () => ({ ok: true }),
 

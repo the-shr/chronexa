@@ -1,1 +1,1 @@
-Idle tracking automatically resumes on activity. Presence confirmation preserves tracked time. Resize the floating timer. Refreshed Employees view with admin-only weekly active-time ranking.
+Redesigned employee cards and individual settings, refined gold/silver/bronze rankings, employee ranking exclusions, real OS departments, private profile photos, and purple liquid glass styling.

@@ -114,6 +114,7 @@ export async function updatePolicy(patch, { updatedById = null } = {}) {
  * no recording while the rest are captured normally.
  */
 const OVERRIDE_KINDS = {
+  rankingEnabled: 'ranking',
   dailyTargetHours: 'number',
   weeklyTargetHours: 'number',
   officeStart: 'time',
@@ -132,6 +133,7 @@ const OVERRIDE_KINDS = {
 
 function validateOverrideValue(key, value) {
   switch (OVERRIDE_KINDS[key]) {
+    case 'ranking': return typeof value === 'boolean' ? { value } : { error: 'rankingEnabled must be On or Off' };
     case 'number': {
       const n = clampNumber(key, value);
       return n === null ? { error: `${key} must be a number` } : { value: n };

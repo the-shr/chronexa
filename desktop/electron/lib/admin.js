@@ -11,6 +11,8 @@ let policyRequest = null;
 let cachedAt = 0;
 const imageCache = new Map();
 const clipCache = new Map();
+const avatarCache = new Map();
+const avatarRequests = new Map();
 
 async function request(method, body, path = '/api/agent/admin/policy') {
   if (!auth.isSignedIn()) throw new Error('Sign in to load configuration.');
@@ -57,6 +59,28 @@ module.exports = {
   },
   employees() { return request('GET', null, '/api/agent/admin/employees'); },
   employee(id) { return request('GET', null, `/api/agent/admin/employees/${encodeURIComponent(id)}`); },
+  async avatar(id) {
+    if (!auth.isSignedIn() || !canManage()) throw new Error('Admin access required.');
+    const key = `${auth.get().user?.id || auth.get().user?.email}:${String(id || '')}`;
+    if (!id) return null;
+    const cached = avatarCache.get(key);
+    if (cached && cached.until > Date.now()) return cached.url;
+    if (avatarRequests.has(key)) return avatarRequests.get(key);
+    const pending = (async () => {
+      const res = await fetch(`${base()}/api/agent/admin/employees/${encodeURIComponent(id)}/avatar`, { headers: auth.authHeaders(), signal: AbortSignal.timeout(15000) });
+      const type = res.headers.get('content-type')?.split(';')[0];
+      if (!res.ok || !['image/jpeg', 'image/png', 'image/webp'].includes(type)) return null;
+      const bytes = Buffer.from(await res.arrayBuffer());
+      if (bytes.length > 3 * 1024 * 1024) return null;
+      return `data:${type};base64,${bytes.toString('base64')}`;
+    })().then((url) => {
+      if (avatarCache.size >= 150) avatarCache.delete(avatarCache.keys().next().value);
+      avatarCache.set(key, { url, until: Date.now() + (url ? 300000 : 15000) });
+      return url;
+    }).finally(() => avatarRequests.delete(key));
+    avatarRequests.set(key, pending);
+    return pending;
+  },
   screenshots({ userId = '', page = 1, pageSize = 24 } = {}) {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (userId) params.set('userId', userId);

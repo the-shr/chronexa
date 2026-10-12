@@ -1,0 +1,39 @@
+/* Static glass surfaces: readable contrast, restrained translucency, no motion required. */
+:root { --glass-panel:rgba(27,30,44,.72); --glass-edge:rgba(216,221,255,.13); --glass-highlight:rgba(255,255,255,.07); --glass-shadow:0 12px 35px rgba(0,0,0,.13),inset 0 1px 0 var(--glass-highlight); --glass-input:rgba(22,25,37,.65); }
+:root[data-theme='light'] { --glass-panel:rgba(255,255,255,.76); --glass-edge:rgba(98,111,155,.17); --glass-highlight:rgba(255,255,255,.85); --glass-shadow:0 12px 35px rgba(45,54,95,.07),inset 0 1px 0 var(--glass-highlight); --glass-input:rgba(245,247,254,.75); }
+.app { background:radial-gradient(ellipse at 5% 0%,rgba(131,99,220,.16),transparent 45%),radial-gradient(ellipse at 96% 95%,rgba(51,129,145,.10),transparent 42%),var(--bg); }
+.topbar { background:color-mix(in srgb,var(--glass-panel) 85%,transparent); backdrop-filter:blur(26px) saturate(140%); -webkit-backdrop-filter:blur(26px) saturate(140%); border-color:var(--glass-edge); }
+.card,.tc-card,.cfg-panel,.profile-card,.settings-card,.insights-card,.tracker-card,.progress-card,.schedule-card,.task-card,.side-card { background:var(--glass-panel); border-color:var(--glass-edge); box-shadow:var(--glass-shadow); backdrop-filter:blur(18px) saturate(125%); -webkit-backdrop-filter:blur(18px) saturate(125%); }
+.tc-card { border-radius:18px; }.tc-card:hover { background:var(--glass-panel); border-color:color-mix(in srgb,var(--accent-text) 48%,var(--glass-edge)); }
+.tc-task { background:color-mix(in srgb,var(--accent) 9%,var(--glass-input)); border:1px solid color-mix(in srgb,var(--accent) 12%,transparent); }
+.tc-table-wrap,.cfg-info,.prefs-card,.profile-form { background:var(--glass-panel); border-color:var(--glass-edge); box-shadow:var(--glass-shadow); }
+.btn,.tc-button,.cfg-days button { background:var(--glass-input); border-color:var(--glass-edge); box-shadow:inset 0 1px 0 var(--glass-highlight); }
+.btn.primary,.cfg-days button.on { background:linear-gradient(150deg,var(--accent),var(--accent-2)); color:#fff; }
+.tc-filters input,.tc-filters select,.cfg-field input,.cfg-field select,.cfg-people aside > input { background:var(--glass-input); border-color:var(--glass-edge); box-shadow:inset 0 1px 0 rgba(255,255,255,.025); }
+.tc-drawer { background:color-mix(in srgb,var(--surface) 93%,transparent); backdrop-filter:blur(30px) saturate(130%); border-color:var(--glass-edge); }
+.tc-drawer::backdrop { background:rgba(5,7,15,.52); backdrop-filter:blur(4px); }
+.cfg-nav > button.active,.cfg-person-list button.active { background:color-mix(in srgb,var(--accent-soft) 60%,var(--glass-panel)); border-color:var(--glass-edge); box-shadow:var(--glass-shadow); }
+.tc-podium { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; align-items:stretch; margin-bottom:24px; }
+.tc-winner { --medal:#e4bd73; position:relative; text-align:left; align-items:stretch; padding:19px; overflow:hidden; border-radius:18px; background:linear-gradient(145deg,color-mix(in srgb,var(--medal) 10%,var(--glass-panel)),var(--glass-panel)); border:1px solid color-mix(in srgb,var(--medal) 33%,var(--glass-edge)); box-shadow:var(--glass-shadow); backdrop-filter:blur(18px); }
+.tc-winner::before { content:''; position:absolute; width:160px; height:160px; right:-55px; top:-80px; border-radius:50%; background:var(--medal); opacity:.10; filter:blur(32px); pointer-events:none; }
+.tc-winner.silver { --medal:#bdcadd; }.tc-winner.bronze { --medal:#d49b79; }
+.tc-winner-top { display:flex; justify-content:space-between; align-items:center; margin-bottom:17px; font-size:10px; color:var(--medal); letter-spacing:.05em; text-transform:uppercase; }
+.tc-medallion { display:grid; place-items:center; width:25px; height:25px; border-radius:50%; background:color-mix(in srgb,var(--medal) 14%,transparent); border:1px solid color-mix(in srgb,var(--medal) 35%,transparent); }
+.tc-winner-person { display:flex; align-items:center; gap:11px; }.tc-winner-person .tc-avatar { width:42px; height:42px; margin:0; }.tc-winner-person > div { min-width:0; }.tc-winner-person strong { display:block; font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }.tc-winner-person small { display:block; color:var(--tc-muted); font-size:10px; margin-top:3px; }
+.tc-winner-metric { border-top:1px solid color-mix(in srgb,var(--medal) 15%,transparent); padding-top:15px; margin-top:18px; display:flex; align-items:baseline; justify-content:space-between; gap:8px; }.tc-winner-metric b { font-size:25px; margin:0; font-weight:550; letter-spacing:-.5px; color:var(--medal); }.tc-winner-metric span { font-size:10px; color:var(--tc-muted); }
+.tc-ranking-intro { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 16px; }.tc-ranking-intro h2 { font-size:16px; margin:0; font-weight:550; }.tc-ranking-intro p { color:var(--tc-muted); font-size:10px; margin:4px 0 0; }.tc-ranking-intro > span { color:var(--tc-muted); font-size:10px; }
+.tc-place { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:7px; background:var(--glass-input); font-size:11px; color:var(--tc-muted); }.tc-place.gold { color:#e4bd73; }.tc-place.silver { color:#bdcadd; }.tc-place.bronze { color:#d49b79; }
+.tc-ranking-row-selected { background:var(--accent-soft); }.tc-rank-progress { display:flex; align-items:center; gap:10px; }.tc-rank-progress i { width:80px; height:4px; border-radius:3px; overflow:hidden; background:var(--surface-3); }.tc-rank-progress em { display:block; height:100%; background:var(--accent-text); }.tc-rank-progress span { font-size:10px; color:var(--tc-muted); }
+.tc-source-note { color:var(--tc-muted); font-size:11px; background:var(--accent-soft); padding:12px 14px; border-radius:10px; margin:0 0 15px; }
+@media(max-width:1050px) { .tc-winner { padding:15px; }.tc-winner-person { gap:8px; }.tc-winner-person .tc-avatar { width:35px; height:35px; }.tc-winner-person strong { font-size:12px; }.tc-winner-metric b { font-size:22px; }.tc-rank-progress i { width:50px; } }
+@media(prefers-reduced-transparency:reduce) { .card,.tc-card,.cfg-panel,.topbar,.tc-winner,.tc-drawer { backdrop-filter:none; -webkit-backdrop-filter:none; background:var(--surface); } }
+@media(prefers-reduced-motion:reduce) { .cfg-switch i,.tc-card { transition:none; } }
+
+:root[data-theme='light'] .tc-winner.gold { --medal:#9d711f; }
+:root[data-theme='light'] .tc-winner.silver { --medal:#526780; }
+:root[data-theme='light'] .tc-winner.bronze { --medal:#a36443; }
+:root[data-theme='light'] .tc-place.gold { color:#91651a; }
+:root[data-theme='light'] .tc-place.silver { color:#526780; }
+:root[data-theme='light'] .tc-place.bronze { color:#9c5c3c; }
+:root[data-theme='light'] .personal-insights-main h2,:root[data-theme='light'] .personal-insights-main .progress-head strong { color:var(--text); }
+:root[data-theme='light'] .personal-insights-main .progress-head span { color:var(--text-dim); }

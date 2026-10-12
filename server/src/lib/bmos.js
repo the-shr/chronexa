@@ -36,6 +36,22 @@ export async function fetchProfilePhoto(email) {
   }
 }
 
+const teamCache = new Map();
+export async function fetchTeamProfiles(actorEmail) {
+  if (!configured()) return null;
+  const key = String(actorEmail || '').toLowerCase();
+  const cached = teamCache.get(key);
+  if (cached && cached.until > Date.now()) return cached.people;
+  try {
+    const query = new URLSearchParams({ actorEmail: key });
+    const { ok, data } = await call('/api/ecosystem/team?' + query.toString());
+    if (!ok || !Array.isArray(data.people)) return null;
+    if (teamCache.size > 32) teamCache.clear();
+    teamCache.set(key, { people: data.people, until: Date.now() + 60000 });
+    return data.people;
+  } catch { return null; }
+}
+
 async function call(path, { method = 'GET', body } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);

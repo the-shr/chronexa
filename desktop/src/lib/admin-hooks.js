@@ -49,7 +49,6 @@ function useAdminRead(loader, deps = [], enabled = true) {
     if (!enabled) return;
     const id = ++request.current;
     setLoading(true);
-    setData(null);
     try {
       const next = await loader();
       if (id === request.current) { setData(next); setError(null); }
@@ -61,14 +60,17 @@ function useAdminRead(loader, deps = [], enabled = true) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, enabled]);
   useEffect(() => {
+    setData(null); setError(null);
     if (enabled) reload();
     else setLoading(false);
+    return () => { request.current += 1; };
   }, [enabled, reload]);
   return { data, error, loading, reload };
 }
 
 export function useRoster() {
   const result = useAdminRead(() => window.api.admin.employees());
+  useEffect(() => { const timer = setInterval(result.reload, 60000); return () => clearInterval(timer); }, [result.reload]);
   return { ...result, users: result.data?.users || [] };
 }
 

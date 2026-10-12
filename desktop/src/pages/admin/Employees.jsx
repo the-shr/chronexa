@@ -1,69 +1,99 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useEmployee, useImage, useClip, useRecordings, useRoster, useScreenshots } from '../../lib/admin-hooks.js';
 import { humanDuration, clockTime, dayLabel } from '../../lib/format.js';
+import './employees.css';
+
+const dhakaDay = (offset = 0) => new Date(Date.now() + 21600000 + offset * 86400000).toISOString().slice(0, 10);
+const statusOf = (person) => !person.active ? 'Inactive' : person.online ? 'Online now' : 'Offline';
+const rankedUsers = (users) => users.filter((person) => person.weekRank).sort((a, b) => a.weekRank - b.weekRank || a.name.localeCompare(b.name));
 
 export default function Employees() {
   const roster = useRoster();
+  const [section, setSection] = useState('team');
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('active');
+  const [role, setRole] = useState('all');
+  const [department, setDepartment] = useState('all');
+  const [progress, setProgress] = useState('all');
   const [userId, setUserId] = useState('');
   const [view, setView] = useState('time');
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('active');
-  const [section, setSection] = useState('people');
-  const [selectedDay, setSelectedDay] = useState('');
+  const [selectedDay, setSelectedDay] = useState(() => dhakaDay());
   const [screenshotPage, setScreenshotPage] = useState(1);
-  useEffect(() => { if (!userId && roster.users[0]) setUserId(roster.users[0].id); }, [roster.users, userId]);
   const detail = useEmployee(userId);
-  const shots = useScreenshots(userId, screenshotPage, view === 'screens');
-  const clips = useRecordings(userId, view === 'recordings');
-  const user = roster.users.find((row) => row.id === userId);
-  const tracked = detail.data?.totals?.workSeconds ?? (detail.data?.sessions || []).reduce((sum, row) => sum + (row.activeSeconds || 0), 0);
+  const shots = useScreenshots(userId, screenshotPage, Boolean(userId) && view === 'screens');
+  const clips = useRecordings(userId, Boolean(userId) && view === 'recordings');
+  const user = roster.users.find((person) => person.id === userId);
   const sessionDays = detail.data?.daily || groupSessionDays(detail.data?.sessions || []);
-  const visibleDays = selectedDay ? sessionDays.filter((day) => day.date === selectedDay) : sessionDays;
-  const selectedTotal = visibleDays.reduce((sum, day) => sum + day.workSeconds, 0);
-  const visiblePeople = roster.users.filter((person) => (filter === 'all' || (filter === 'active' ? person.active : person.online)) && (person.name + ' ' + person.email).toLowerCase().includes(search.toLowerCase()));
-  const ranked = roster.users.filter((person) => person.weekRank).sort((a, b) => a.weekRank - b.weekRank || a.name.localeCompare(b.name));
-  const screenshotDays = groupScreenshotsByDay(shots.rows);
-  const screenshotPageCount = Math.max(1, Math.ceil(shots.total / shots.pageSize));
+  const day = sessionDays.find((row) => row.date === selectedDay);
+  const sessions = (detail.data?.sessions || []).filter((row) => day?.sessionIds.includes(row.id));
+  const pages = Math.max(1, Math.ceil(shots.total / shots.pageSize));
+  const dialog = useRef(null);
+  const lastFocus = useRef(null);
+  const ranked = rankedUsers(roster.users);
+  const visible = roster.users.filter((person) => {
+    const ratio = person.weeklyTargetHours > 0 ? person.weekCompletedActive / (person.weeklyTargetHours * 3600) : null;
+    return (person.name + ' ' + person.email + ' ' + person.role + ' ' + (person.department || '') + ' ' + (person.designation || '')).toLowerCase().includes(search.toLowerCase())
+      && (status === 'all' || (status === 'active' ? person.active : person.active && person.online === (status === 'online')))
+      && (role === 'all' || person.role === role)
+      && (department === 'all' || (person.department || 'Unassigned') === department)
+      && (progress === 'all' || (ratio !== null && (progress === 'high' ? ratio >= .75 : ratio < .75)));
+  });
+  const visibleRanked = rankedUsers(visible);
+  const departments = [...new Set(roster.users.map((person) => person.department || 'Unassigned'))].sort((a,b) => a === 'Unassigned' ? 1 : b === 'Unassigned' ? -1 : a.localeCompare(b));
+  const groups = departments.map((label) => ({ label, people: visible.filter((person) => (person.department || 'Unassigned') === label) })).filter((group) => group.people.length);
 
-  useEffect(() => { setScreenshotPage(1); }, [userId]);
   useEffect(() => {
-    if (!shots.loading && screenshotPage > screenshotPageCount) setScreenshotPage(screenshotPageCount);
-  }, [shots.loading, screenshotPage, screenshotPageCount]);
+    if (!userId || !dialog.current) return;
+    const element = dialog.current;
+    element.showModal();
+    return () => { element.close(); lastFocus.current?.focus(); };
+  }, [userId]);
+  useEffect(() => { if (!shots.loading && screenshotPage > pages) setScreenshotPage(pages); }, [shots.loading, screenshotPage, pages]);
+  function openEmployee(id) { lastFocus.current = document.activeElement; setUserId(id); setView('time'); setSelectedDay(dhakaDay()); setScreenshotPage(1); }
+  function changeDay(offset) { const next = new Date(selectedDay + 'T12:00:00Z'); next.setUTCDate(next.getUTCDate() + offset); const value = next.toISOString().slice(0, 10); if (value >= dhakaDay(-29) && value <= dhakaDay()) setSelectedDay(value); }
 
-  return <>
-    <header className="page-head employee-head"><div className="head-main"><h1>Employees</h1><p>Your team, at a glance.</p></div><div className="employee-switch" role="group" aria-label="Employee view"><button className={section === 'people' ? 'active' : ''} onClick={() => setSection('people')}>People</button><button className={section === 'ranking' ? 'active' : ''} onClick={() => setSection('ranking')}>Weekly ranking</button></div><button className="btn" disabled={roster.loading} onClick={roster.reload}>Refresh</button></header>
-    {!roster.loading && !roster.error && <div className="employee-overview"><div><small>TEAM MEMBERS</small><strong>{roster.users.filter((person) => person.active && person.role === 'employee').length}</strong></div><div><small>ONLINE NOW</small><strong>{roster.users.filter((person) => person.active && person.role === 'employee' && person.online).length}</strong></div><div><small>ACTIVE TIME TODAY</small><strong>{humanDuration(roster.users.filter((person) => person.role === 'employee').reduce((sum, person) => sum + (person.todayActive || 0), 0))}</strong></div><div><small>VISIBILITY</small><strong className="employee-private">Admin only</strong></div></div>}
-    {section === 'ranking' && !roster.loading && !roster.error && <section className="employee-ranking"><header><div><h2>Weekly active time</h2><p>{roster.data?.ranking?.weekStart ? 'Week of ' + dayLabel(roster.data.ranking.weekStart + 'T12:00:00+06:00') : 'This week'} · Asia/Dhaka</p></div><span className="employee-badge">Admin only</span></header><p className="muted">Synced, completed sessions only. Idle time excluded.</p>{ranked.length ? <div className="employee-rank-list">{ranked.map((person) => <button key={person.id} className="employee-rank" onClick={() => { setUserId(person.id); setSection('people'); }}><span className={'employee-place place-' + person.weekRank}>#{person.weekRank}</span><span className="monitor-avatar">{initials(person.name)}</span><span className="employee-rank-name"><strong>{person.name}</strong><small>{person.email}</small></span><span className="employee-rank-meter"><i style={{ width: (person.weekCompletedActive / ranked[0].weekCompletedActive * 100) + '%' }} /></span><strong>{humanDuration(person.weekCompletedActive)}</strong><span aria-hidden="true">↗</span></button>)}</div> : <Empty text="No completed tracked sessions this week yet." />}</section>}
-    {roster.loading && <div className="load-state"><span className="spinner" /> Loading employees...</div>}
-    {roster.error && <div className="load-error"><p>{roster.error.message || 'Employees could not be loaded.'}</p><button className="btn" onClick={roster.reload}>Retry</button></div>}
-    {section === 'people' && !roster.loading && !roster.error && <div className="monitor-shell">
-      <aside className="monitor-roster">
-        <div className="employee-roster-tools"><input aria-label="Search employees" placeholder="Search name or email" value={search} onChange={(event) => setSearch(event.target.value)} /><select aria-label="Filter employees" value={filter} onChange={(event) => setFilter(event.target.value)}><option value="active">Active members</option><option value="online">Online now</option><option value="all">All members</option></select><small>{visiblePeople.length} members</small></div>
-        {visiblePeople.map((person) => <button key={person.id} className={person.id === userId ? 'monitor-person active' : 'monitor-person'} onClick={() => setUserId(person.id)}><span className="monitor-avatar">{initials(person.name)}</span><span><strong>{person.name}</strong><small>{person.active ? person.online ? '● Online' : 'Offline' : 'Inactive'} · {humanDuration(person.todayActive || 0)} today</small></span></button>)}{!visiblePeople.length && <Empty text="No matching employees." />}
-      </aside>
-      <section className="monitor-content">
-        <div className="employee-profile"><span className="monitor-avatar">{initials(user?.name)}</span><div><h2>{user?.name || 'Select an employee'}</h2><p>{user?.email}</p></div><span className={'employee-badge ' + (user?.online ? 'online' : '')}>{user?.active ? user?.online ? 'Online' : 'Offline' : 'Inactive'}</span></div>
-        <div className="monitor-summary"><div><small>ACTIVE TODAY</small><strong>{humanDuration(user?.todayActive || 0)}</strong></div><div><small>TIME · LAST 30 DAYS</small><strong>{detail.loading ? '—' : humanDuration(tracked)}</strong></div><div><small>SESSIONS · LAST 30 DAYS</small><strong>{detail.loading ? '—' : detail.data?.sessions?.length || 0}</strong></div></div>
-        <div className="monitor-tabs"><button className={view === 'time' ? 'active' : ''} onClick={() => setView('time')}>Tracked time</button><button className={view === 'screens' ? 'active' : ''} onClick={() => setView('screens')}>Screenshots</button><button className={view === 'recordings' ? 'active' : ''} onClick={() => setView('recordings')}>Recordings</button></div>
-        {view === 'time' && <><div className="employee-date-toolbar"><label>Day <input type="date" aria-label="Session day" value={selectedDay} onChange={(event) => setSelectedDay(event.target.value)} /></label><button className="btn" onClick={() => setSelectedDay('')}>Last 30 days</button><strong>{detail.loading ? '—' : humanDuration(selectedTotal)} work</strong></div><div className="employee-week" aria-label="Recent daily work">{sessionDays.slice(0, 7).reverse().map((day) => <button key={day.date} className={selectedDay === day.date ? 'active' : ''} onClick={() => setSelectedDay(day.date)}><small>{dayLabel(day.date + 'T12:00:00+06:00')}</small><strong>{humanDuration(day.workSeconds)}</strong><i style={{ height: Math.max(3, day.workSeconds / Math.max(1, ...sessionDays.map((row) => row.workSeconds)) * 28) }} /></button>)}</div><div className="monitor-list">{detail.loading && <Empty text="Loading tracked time..." />}{detail.error && <LoadError error={detail.error} retry={detail.reload} />}{visibleDays.map((day) => <section className="monitor-day" key={day.date}><header><div><strong>{dayLabel(day.date + 'T12:00:00+06:00')}</strong><small>{day.sessionIds.length} sessions · Asia/Dhaka</small></div><div><strong>{humanDuration(day.workSeconds)} work</strong><small>{humanDuration(day.activeSeconds)} active · {humanDuration(day.idleSeconds)} idle</small></div></header>{(detail.data?.sessions || []).filter((row) => day.sessionIds.includes(row.id)).map((row) => <div className="monitor-session" key={row.id}><span><strong>{dhakaTime(row.startedAt)} – {row.endedAt ? dhakaTime(row.endedAt) : 'Running'}</strong></span><span>{row.note || row.taskTitle || 'Tracked work'}<small style={{ display: 'block' }}>{humanDuration(row.idleSeconds)} idle</small></span><strong>{humanDuration(row.activeSeconds + (detail.data?.countIdleAsWork ? row.idleSeconds : 0))}</strong></div>)}</section>)}{!detail.loading && !detail.error && !visibleDays.length && <Empty text={selectedDay ? "No tracked sessions on this day." : "No tracked sessions in the last 30 days."} />}</div></>}
-        {view === 'screens' && <div className="monitor-screenshots">
-          {shots.loading && <Empty text="Loading screenshots..." />}
-          {shots.error && <LoadError error={shots.error} retry={shots.reload} />}
-          {!shots.loading && !shots.error && screenshotDays.map((day) => <section className="monitor-day" key={day.key}>
-            <header><div><strong>{day.label}</strong><small>{day.rows.length} screenshot{day.rows.length === 1 ? '' : 's'}</small></div></header>
-            <div className="monitor-grid">{day.rows.map((row) => <Screenshot key={row.id} row={row} />)}</div>
-          </section>)}
-          {!shots.loading && !shots.error && !shots.rows.length && <Empty text="No screenshots yet." />}
-          {!shots.loading && !shots.error && screenshotPageCount > 1 && <nav className="monitor-pagination" aria-label="Screenshot pages">
-            <button className="btn" disabled={screenshotPage === 1} onClick={() => setScreenshotPage((page) => page - 1)}>Previous</button>
-            <span>Page {screenshotPage} of {screenshotPageCount}</span>
-            <button className="btn" disabled={screenshotPage >= screenshotPageCount} onClick={() => setScreenshotPage((page) => page + 1)}>Next</button>
-          </nav>}
-        </div>}
-        {view === 'recordings' && <div className="monitor-list">{clips.loading && <Empty text="Loading recordings..." />}{clips.error && <LoadError error={clips.error} retry={clips.reload} />}{clips.rows.map((row) => <Recording key={row.id} row={row} />)}{!clips.loading && !clips.error && !clips.rows.length && <Empty text="No recordings yet." />}</div>}
-      </section>
-    </div>}
-  </>;
+  return <section className="tc">
+    <header className="tc-head"><div><h1>Employees</h1><p>{roster.loading && !roster.data ? 'Loading your team…' : `${roster.users.filter((person) => person.active).length} team members · ${roster.users.filter((person) => person.active && person.online).length} online`}</p></div><button className="tc-button" onClick={roster.reload} disabled={roster.loading}>Refresh</button></header>
+    <nav className="tc-tabs" aria-label="Employee view"><button className={section === 'team' ? 'active' : ''} onClick={() => setSection('team')}>Team</button><button className={section === 'ranking' ? 'active' : ''} onClick={() => setSection('ranking')}>Weekly ranking</button><small>Admin view</small></nav>
+    <div className="tc-filters"><input aria-label="Search employees" placeholder="Search name or email…" value={search} onChange={(event) => setSearch(event.target.value)} /><select aria-label="Employee department" value={department} onChange={(event) => setDepartment(event.target.value)}><option value="all">All departments</option>{departments.map((label) => <option key={label}>{label}</option>)}</select><select aria-label="Employee role" value={role} onChange={(event) => setRole(event.target.value)}><option value="all">All roles</option><option value="employee">Employees</option><option value="admin">Admins</option></select><select aria-label="Employee status" value={status} onChange={(event) => setStatus(event.target.value)}><option value="active">Active members</option><option value="all">All members</option><option value="online">Online</option><option value="offline">Offline</option></select><select aria-label="Weekly progress" value={progress} onChange={(event) => setProgress(event.target.value)}><option value="all">Any progress</option><option value="high">75% or more</option><option value="low">Below 75%</option></select><span>Week of {roster.data?.ranking?.weekStart || '—'}</span></div>
+    <div className="tc-board">
+      {roster.data?.organization?.available === false && <p className="tc-source-note">OS profile details are currently unavailable. Department and designation will appear after the OS connection is restored.</p>}
+      {roster.error && <LoadError error={roster.error} retry={roster.reload} />}
+      {roster.loading && !roster.data && <Empty text="Loading employees…" />}
+      {!roster.error && roster.data && section === 'team' && groups.map((group) => <section className="tc-group" key={group.label}><h2>{group.label}<span>{group.people.length}</span></h2><div className="tc-grid">{group.people.map((person) => <EmployeeCard key={person.id} person={person} open={openEmployee} />)}</div></section>)}
+      {!roster.error && roster.data && section === 'ranking' && <>
+        <div className="tc-ranking-intro"><div><h2>This week’s leaders</h2><p>Ranked by completed active time</p></div><span>{ranked.length} ranked employees</span></div>
+        <div className="tc-podium" aria-label="Top three employees">{ranked.slice(0, 3).map((person) => { const medal = person.weekRank === 1 ? 'gold' : person.weekRank === 2 ? 'silver' : 'bronze'; return <button key={person.id} className={`tc-winner ${medal}`} onClick={() => openEmployee(person.id)} aria-label={`View rank ${person.weekRank}, ${person.name}`}><div className="tc-winner-top"><span>{medal} · #{person.weekRank}</span><span className="tc-medallion"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M7 3h10v7a5 5 0 0 1-10 0V3Z"/><path d="M7 5H4v3a4 4 0 0 0 4 4m9-7h3v3a4 4 0 0 1-4 4M12 15v5m-4 1h8"/></svg></span></div><div className="tc-winner-person"><Avatar person={person}/><div><strong>{person.name}</strong><small>{person.designation || person.department || 'Employee'}</small></div></div><div className="tc-winner-metric"><b>{humanDuration(person.weekCompletedActive)}</b><span>Active this week</span></div></button>; })}</div>
+        <div className="tc-rank-heading"><h2>Team ranking</h2><span>Synced sessions · Idle excluded</span></div>
+        <div className="tc-table-wrap"><table className="tc-table"><thead><tr><th>Rank</th><th>Employee</th><th className="number">Active this week</th><th>Target progress</th></tr></thead><tbody>{visibleRanked.map((person) => <tr key={person.id}><td><span className={`tc-place ${person.weekRank===1?'gold':person.weekRank===2?'silver':person.weekRank===3?'bronze':''}`}>#{person.weekRank}</span></td><td><button className="tc-rank-person" onClick={() => openEmployee(person.id)}><Avatar person={person} /><span>{person.name}<small>{person.department || person.email}</small></span></button></td><td className="number">{humanDuration(person.weekCompletedActive)}</td><td><div className="tc-rank-progress"><i><em style={{width: `${person.weeklyTargetHours>0?Math.min(100,person.weekCompletedActive/(person.weeklyTargetHours*3600)*100):0}%`}}/></i><span>{person.weeklyTargetHours>0?`${Math.round(person.weekCompletedActive/(person.weeklyTargetHours*3600)*100)}% of ${person.weeklyTargetHours}h`:'No target'}</span></div></td></tr>)}</tbody></table>{!visibleRanked.length && <Empty text={ranked.length ? 'No rankings match these filters.' : 'No completed tracked sessions this week yet.'} />}</div>
+      </>}
+      {!roster.error && roster.data && section === 'team' && !visible.length && <Empty text="No matching employees." />}
+    </div>
+    <footer className="tc-foot"><span>{section === 'ranking' ? 'Top 3 reflect the whole team; filters apply to the list.' : 'Weekly progress uses completed, synced active time.'}</span><span>Asia/Dhaka</span></footer>
+    {userId && <dialog className="tc-drawer" ref={dialog} onCancel={(event) => { event.preventDefault(); if (!document.querySelector('.monitor-lightbox')) setUserId(''); }} onClick={(event) => { const bounds = event.currentTarget.getBoundingClientRect(); if (event.target === event.currentTarget && (event.clientX < bounds.left || event.clientX > bounds.right)) setUserId(''); }}>
+      <header className="tc-drawer-head"><Avatar person={user || { id: userId, name: detail.data?.user?.name || '?' }} /><div><h2>{user?.name || detail.data?.user?.name || 'Employee'}</h2><p>{user?.email || detail.data?.user?.email}</p></div><button className="tc-close" aria-label="Close employee" onClick={() => setUserId('')}>×</button></header>
+      <nav className="tc-tabs tc-drawer-tabs" aria-label="Employee activity"><button className={view === 'time' ? 'active' : ''} onClick={() => setView('time')}>Sessions</button><button className={view === 'screens' ? 'active' : ''} onClick={() => setView('screens')}>Screenshots</button><button className={view === 'recordings' ? 'active' : ''} onClick={() => setView('recordings')}>Recordings</button><button className="tc-detail-refresh" onClick={() => { detail.reload(); if (view === 'screens') shots.reload(); if (view === 'recordings') clips.reload(); }} disabled={detail.loading}>Refresh</button></nav>
+      <div className="tc-drawer-body">
+        {view === 'time' && <><div className="tc-date"><label htmlFor="employee-day">Daily activity</label><button className="tc-button" aria-label="Previous day" disabled={selectedDay <= dhakaDay(-29)} onClick={() => changeDay(-1)}>‹</button><input id="employee-day" type="date" aria-label="Session day" value={selectedDay} min={dhakaDay(-29)} max={dhakaDay()} onChange={(event) => { if (event.target.value) setSelectedDay(event.target.value); }} /><button className="tc-button" aria-label="Next day" disabled={selectedDay >= dhakaDay()} onClick={() => changeDay(1)}>›</button></div>{detail.loading && !detail.data ? <Empty text="Loading sessions…" /> : detail.error ? <LoadError error={detail.error} retry={detail.reload} /> : <><div className="tc-stats"><div><small>Work time</small><strong>{humanDuration(day?.workSeconds || 0)}</strong></div><div><small>Idle time</small><strong>{humanDuration(day?.idleSeconds || 0)}</strong></div><div><small>Sessions</small><strong>{sessions.length}</strong></div></div><div className="tc-rank-heading"><h2>{dayLabel(selectedDay + 'T12:00:00+06:00')}</h2><span>Asia/Dhaka</span></div><div className="tc-table-wrap"><table className="tc-table"><thead><tr><th>Time</th><th>Task</th><th className="number">Work</th><th className="number">Idle</th></tr></thead><tbody>{sessions.map((row) => <tr key={row.id}><td className="tc-session-time">{dhakaTime(row.startedAt)}<small>{row.endedAt ? dhakaTime(row.endedAt) : 'Open session'}</small></td><td>{row.taskTitle || row.note || 'General work'}{row.taskTitle && row.note && <small>{row.note}</small>}</td><td className="number">{humanDuration(row.activeSeconds + (detail.data?.countIdleAsWork ? row.idleSeconds : 0))}</td><td className="number">{humanDuration(row.idleSeconds)}</td></tr>)}</tbody></table>{!sessions.length && <Empty text="No sessions on this day." />}</div></>}</>}
+        {view === 'screens' && <>{shots.loading && !shots.data && <Empty text="Loading screenshots…" />}{shots.error && <LoadError error={shots.error} retry={shots.reload} />}{!shots.error && groupScreenshotsByDay(shots.rows).map((group) => <section className="monitor-day" key={group.key}><header><strong>{group.label}</strong><small>{group.rows.length} screenshots</small></header><div className="monitor-grid">{group.rows.map((row) => <Screenshot key={row.id} row={row} />)}</div></section>)}{!shots.loading && !shots.error && !shots.rows.length && <Empty text="No screenshots yet." />}{pages > 1 && <nav className="monitor-pagination" aria-label="Screenshot pages"><button className="tc-button" disabled={screenshotPage === 1} onClick={() => setScreenshotPage((page) => page - 1)}>Previous</button><span>{screenshotPage} / {pages}</span><button className="tc-button" disabled={screenshotPage >= pages} onClick={() => setScreenshotPage((page) => page + 1)}>Next</button></nav>}</>}
+        {view === 'recordings' && <>{clips.loading && !clips.data && <Empty text="Loading recordings…" />}{clips.error && <LoadError error={clips.error} retry={clips.reload} />}{!clips.error && clips.rows.map((row) => <Recording key={row.id} row={row} />)}{!clips.loading && !clips.error && !clips.rows.length && <Empty text="No recordings yet." />}</>}
+      </div>
+    </dialog>}
+  </section>;
+}
+
+function Avatar({ person }) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => { let live = true; setUrl(null); if (person.hasAvatar && window.api.admin.avatar) window.api.admin.avatar(person.id).then((next) => { if (live) setUrl(next); }).catch(() => {}); return () => { live = false; }; }, [person.id, person.hasAvatar, person.avatarVersion]);
+  const palette = ['purple', 'blue', 'rose', 'green', 'amber'];
+  const color = palette[Array.from(person.id || '').reduce((sum, char) => sum + char.charCodeAt(0), 0) % palette.length];
+  return <span className={`tc-avatar ${color} ${person.active && person.online ? 'online' : ''}`}>{url ? <img src={url} alt="" /> : initials(person.name)}</span>;
+}
+
+function EmployeeCard({ person, open }) {
+  const target = person.weeklyTargetHours || 0;
+  const percent = target > 0 ? Math.round(person.weekCompletedActive / (target * 3600) * 100) : null;
+  return <button className="tc-card" aria-label={`View ${person.name}`} onClick={() => open(person.id)}><div className="tc-profile"><Avatar person={person} /><div><h3>{person.name}</h3><p>{person.designation || (person.role === 'admin' ? 'Admin' : 'Employee')}</p></div>{person.weekRank && <span className="tc-card-rank">#{person.weekRank}</span>}</div><div className="tc-progress" aria-hidden="true"><i style={{ width: `${percent === null ? 0 : Math.min(100, percent)}%` }} /></div><div className="tc-hours"><span>{humanDuration(person.weekCompletedActive || 0)}<small>{target > 0 ? ` / ${target}h this week` : ' this week'}</small></span><small>{percent === null ? 'No target' : `${percent}%`}</small></div><div className="tc-task" title={person.currentTask || 'No recent open session'}><i /><span>{person.currentTask || 'No recent open session'}</span></div><div className="tc-card-foot"><span>{statusOf(person) === 'Online now' ? '● Online' : statusOf(person)}</span><span>Today <strong>{humanDuration(person.todayActive || 0)}</strong></span></div></button>;
 }
 
 function Screenshot({ row }) {
@@ -90,8 +120,8 @@ function Screenshot({ row }) {
   </>;
 }
 function Recording({ row }) { const [open, setOpen] = useState(false); const url = useClip(open ? row.id : null); return <article className="monitor-recording"><span><strong>{dayLabel(row.startedAt)} · {clockTime(row.startedAt)}</strong><small>{humanDuration(Math.round(row.durationMs / 1000))}</small></span><button className="btn" onClick={() => setOpen((value) => !value)}>{open ? 'Close' : 'Play'}</button>{open && url && <video src={url} controls autoPlay />}</article>; }
-function Empty({ text }) { return <p className="monitor-empty">{text}</p>; }
-function LoadError({ error, retry }) { return <div className="monitor-empty"><p>{error?.message || 'This data could not be loaded.'}</p><button className="btn" onClick={retry}>Retry</button></div>; }
+function Empty({ text }) { return <p className="tc-empty">{text}</p>; }
+function LoadError({ error, retry }) { return <div className="tc-empty"><p>{error?.message || 'This data could not be loaded.'}</p><button className="btn" onClick={retry}>Retry</button></div>; }
 function initials(name) { return String(name || '?').split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join(''); }
 function groupScreenshotsByDay(rows) {
   const days = new Map();

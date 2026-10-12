@@ -65,6 +65,7 @@ contextBridge.exposeInMainWorld('api', {
   admin: {
     employees: () => invoke('admin:employees'),
     employee: (id) => invoke('admin:employee', id),
+    avatar: (id) => invoke('admin:avatar', id),
     screenshots: (query) => invoke('admin:screenshots', query),
     recordings: (query) => invoke('admin:recordings', query),
     image: (id) => invoke('admin:image', id),

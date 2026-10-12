@@ -1,0 +1,83 @@
+/* Ultron's layered gloss and rim treatment, adapted to Chronexa's violet palette.
+   Static glow coordinates; only press, focus and selection change the controls. */
+:root {
+  --glass-panel:rgba(22,20,35,.67);
+  --glass-bloom-core:rgba(139,92,246,.42);
+  --glass-bloom-soft:rgba(99,102,241,.14);
+  --glass-edge:rgba(183,175,244,.29);
+  --glass-input:rgba(29,25,48,.55);
+  --glass-shadow:inset 0 1px 0 rgba(255,255,255,.22),inset 0 -1px 0 rgba(137,120,219,.18),inset 1px 0 0 rgba(230,224,255,.055),0 12px 28px rgba(0,0,0,.30);
+  --glass-gloss:linear-gradient(128deg,rgba(255,255,255,.095),rgba(255,255,255,.022) 32%,transparent 59%);
+  --glass-bloom:radial-gradient(ellipse at var(--bloom-x,115%) var(--bloom-y,-12%),rgba(139,92,246,.42),rgba(99,102,241,.14) 38%,transparent 72%);
+  --glass-recess:linear-gradient(145deg,rgba(15,14,25,.75),rgba(23,20,39,.50));
+}
+:root[data-theme='light'] {
+  --glass-panel:rgba(249,249,255,.63);
+  --glass-bloom-core:rgba(139,92,246,.18);
+  --glass-bloom-soft:rgba(99,102,241,.065);
+  --glass-edge:rgba(138,125,194,.29);
+  --glass-input:rgba(248,246,255,.59);
+  --glass-shadow:inset 0 1px 0 rgba(255,255,255,.98),inset 0 -1px 0 rgba(142,129,199,.13),0 12px 26px rgba(69,49,119,.10);
+  --glass-gloss:linear-gradient(128deg,rgba(255,255,255,.8),rgba(255,255,255,.19) 37%,transparent 63%);
+  --glass-bloom:radial-gradient(ellipse at var(--bloom-x,115%) var(--bloom-y,-12%),rgba(139,92,246,.18),rgba(99,102,241,.065) 40%,transparent 72%);
+  --glass-recess:linear-gradient(145deg,rgba(255,255,255,.7),rgba(230,225,249,.35));
+}
+.app {
+  background:radial-gradient(ellipse at 80% 5%,rgba(113,73,205,.20),transparent 48%),radial-gradient(ellipse at 16% 93%,rgba(91,100,209,.12),transparent 44%),linear-gradient(120deg,transparent 30%,rgba(144,117,223,.035) 52%,transparent 75%),var(--bg);
+}
+.card,.tc-card,.tc-card:hover,.cfg-panel,.profile-card,.tracker-card,.progress-card,.schedule-card,.side-card,.tc-table-wrap {
+  --glass-bloom:radial-gradient(ellipse at var(--bloom-x,115%) var(--bloom-y,-12%),var(--glass-bloom-core),var(--glass-bloom-soft) 38%,transparent 72%);
+  position:relative;
+  background:var(--glass-gloss),var(--glass-bloom),var(--glass-panel);
+  border:1px solid var(--glass-edge);
+  box-shadow:var(--glass-shadow);
+  backdrop-filter:blur(24px) saturate(150%);
+  -webkit-backdrop-filter:blur(24px) saturate(150%);
+}
+.tc-card:nth-child(3n+2),.cfg-panel:nth-child(2n) { --bloom-x:-18%; --bloom-y:75%; }
+.tc-card:nth-child(3n),.schedule-card { --bloom-x:100%; --bloom-y:115%; }
+.card,.tc-card,.cfg-panel { border-radius:20px; }
+.card::before,.tc-card::before,.cfg-panel::before {
+  content:''; position:absolute; inset:0; border-radius:inherit; padding:1px;
+  background:linear-gradient(135deg,rgba(255,255,255,.38),rgba(207,191,255,.13) 27%,transparent 47%,rgba(137,118,221,.34) 80%,rgba(235,226,255,.24));
+  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor; mask-composite:exclude;
+  pointer-events:none;
+}
+.tc-card:hover { transform:none; }
+.topbar {
+  background:linear-gradient(120deg,rgba(255,255,255,.065),transparent 42%),var(--glass-panel);
+  border-bottom:1px solid var(--glass-edge);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 8px 24px rgba(0,0,0,.12);
+  backdrop-filter:blur(30px) saturate(160%);
+}
+.top-tab.active {
+  background:linear-gradient(145deg,rgba(255,255,255,.16),rgba(139,92,246,.22)),color-mix(in srgb,var(--accent) 47%,var(--glass-panel));
+  box-shadow:inset 0 1px 0 rgba(232,224,255,.42),inset 0 -1px 0 rgba(135,110,224,.31),0 4px 14px rgba(83,51,170,.15);
+  border:1px solid rgba(186,168,250,.25); color:var(--text);
+}
+.btn,.tc-button,.round-btn,.cfg-days button,.tc-filters input,.tc-filters select,.cfg-field input,.cfg-field select,.tc-date input,.cfg-people aside > input {
+  background:linear-gradient(130deg,rgba(255,255,255,.065),transparent 58%),var(--glass-input);
+  border:1px solid var(--glass-edge);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.11),inset 0 -1px 0 rgba(112,94,186,.10),0 3px 9px rgba(0,0,0,.06);
+}
+.btn.primary,.cfg-days button.on {
+  background:linear-gradient(145deg,rgba(224,207,255,.26),rgba(121,81,219,.08)),color-mix(in srgb,var(--accent) 64%,var(--glass-panel));
+  border-color:rgba(191,161,255,.55);color:#f6f1ff;
+  box-shadow:inset 0 1px 0 rgba(240,225,255,.50),inset 0 -1px 0 rgba(77,41,143,.26),0 4px 14px rgba(92,53,175,.12);
+}
+.btn:active:not(:disabled),.tc-button:active:not(:disabled),.top-tab:active:not(:disabled),.round-btn:active:not(:disabled),.cfg-days button:active:not(:disabled) {
+  transform:translateY(1px);
+  box-shadow:inset 0 2px 7px rgba(0,0,0,.17),inset 0 1px 0 rgba(255,255,255,.11);
+}
+.btn,.tc-button,.top-tab,.round-btn,.cfg-days button { transition:box-shadow .12s ease,transform .10s ease; }
+.tc-task,.cfg-info { background:linear-gradient(135deg,rgba(255,255,255,.035),transparent 55%),var(--glass-recess); border:1px solid color-mix(in srgb,var(--glass-edge) 65%,transparent); box-shadow:inset 0 1px 7px rgba(0,0,0,.06); }
+.cfg-nav > button.active,.cfg-person-list button.active { background:var(--glass-gloss),linear-gradient(130deg,rgba(139,92,246,.18),rgba(99,102,241,.08)),var(--glass-panel); border-color:var(--glass-edge);box-shadow:var(--glass-shadow); }
+.tc-drawer { background:var(--glass-gloss),radial-gradient(ellipse at 110% 4%,rgba(139,92,246,.17),transparent 50%),color-mix(in srgb,var(--surface) 90%,transparent); }
+.tc-winner { background:var(--glass-gloss),radial-gradient(ellipse at 115% -10%,color-mix(in srgb,var(--medal) 20%,transparent),transparent 70%),var(--glass-panel);box-shadow:var(--glass-shadow);border-color:color-mix(in srgb,var(--medal) 45%,var(--glass-edge)); }
+.tc-winner:hover { transform:none; }
+:root[data-theme='light'] .top-tab.active { color:var(--text); }
+:root[data-theme='light'] .btn.primary,:root[data-theme='light'] .cfg-days button.on { background:linear-gradient(145deg,rgba(255,255,255,.27),transparent),var(--accent);color:white; }
+:root[data-theme='light'] .card::before,:root[data-theme='light'] .tc-card::before,:root[data-theme='light'] .cfg-panel::before { background:linear-gradient(135deg,#fff,rgba(183,170,226,.25) 35%,transparent 52%,rgba(147,123,208,.24) 90%,#fff); }
+@media(prefers-reduced-transparency:reduce) { .card,.tc-card,.cfg-panel,.topbar,.tc-winner,.tc-drawer,.tc-table-wrap { background:var(--surface);backdrop-filter:none;-webkit-backdrop-filter:none; } }
+@media(prefers-reduced-motion:reduce) { .btn,.tc-button,.top-tab,.round-btn,.cfg-days button { transition:none; } }
