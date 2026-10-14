@@ -35,6 +35,7 @@ tracker.presenceConfirmedAt = Date.now() - 300000;
 idleSeconds = 300; tracker.tick(); tracker.warningDeadline = Date.now() - 1; tracker.tick();
 assert.equal(tracker.idlePhase, 'idle');
 idleSeconds = 0; tracker.tick();
+assert.equal(tracker.idlePhase, 'idle'); tracker.resume();
 assert.equal(tracker.idlePhase, 'active');
 assert.equal(tracker.session.id, sessionId, 'Idle resumes the same session');
 tracker.persist(); tracker.persist();
@@ -48,7 +49,8 @@ tracker.resume(); cfg.idle.onTimeout = 'stop'; idleSeconds = 300; tracker.tick()
 assert.equal(tracker.state, 'running', 'Legacy stop policy must now auto-pause');
   assert.equal(tracker.idlePhase, 'idle');
   idleSeconds = 0; tracker.tick();
-  assert.equal(tracker.idlePhase, 'active', 'Legacy stop policy resumes on input');
+  assert.equal(tracker.idlePhase, 'idle', 'Input waits for explicit Resume'); tracker.resume();
+  assert.equal(tracker.idlePhase, 'active');
   tracker.stop('manual'); tracker.tick();
   assert.equal(tracker.state, 'stopped', 'Manual stop must not auto-resume');
 cfg.idle.onTimeout = 'pause'; tracker.start();
@@ -83,6 +85,6 @@ async function main() {
   assert.equal(detail.daily[0].date, '2026-10-10');
   assert.equal(detail.daily[0].workSeconds, 301 * 90);
   assert.equal(detail.totals.workSeconds, 301 * 90);
-  console.log('PASS: warning acknowledgement, idle auto-resume, manual pause/stop, midnight rollover, queue coalescing/race, offline retry retention, Dhaka dates, explicit false overrides');
+  console.log('PASS: warning acknowledgement, idle explicit resume, manual pause/stop, midnight rollover, queue coalescing/race, offline retry retention, Dhaka dates, explicit false overrides');
 }
 main().catch((err) => { console.error(err); process.exitCode = 1; });

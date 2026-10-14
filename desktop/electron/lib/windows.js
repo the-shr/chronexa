@@ -74,14 +74,23 @@ function createMainWindow({ onCloseRequest }) {
  * The idle warning deliberately steals focus and sits above everything: if the
  * employee is at the machine they must see it, otherwise the tracker stops.
  */
-function openIdleWindow() {
+function raiseIdleWindow(win) {
+  if (!win || win.isDestroyed()) return;
+  win.setAlwaysOnTop(true, 'screen-saver');
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.moveTop();
+  win.focus();
+  win.flashFrame(true);
+}
+
+function openIdleWindow(view = 'idle') {
   if (idleWindow && !idleWindow.isDestroyed()) {
-    idleWindow.show();
-    idleWindow.focus();
+    raiseIdleWindow(idleWindow);
     return idleWindow;
   }
 
-  const { workArea } = screen.getPrimaryDisplay();
+  const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
   const width = 420;
   const height = 290;
 
@@ -109,12 +118,20 @@ function openIdleWindow() {
 
   idleWindow.setAlwaysOnTop(true, 'screen-saver');
   idleWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  load(idleWindow, 'idle');
+  load(idleWindow, view);
+  const warningWindow = idleWindow;
+  const retries = new Set();
   idleWindow.once('ready-to-show', () => {
-    idleWindow.show();
-    idleWindow.focus();
+    raiseIdleWindow(warningWindow);
+    // Windows can reject the first foreground request during app switching.
+    for (const delay of [350, 1200]) {
+      const timer = setTimeout(() => { retries.delete(timer); raiseIdleWindow(warningWindow); }, delay);
+      retries.add(timer);
+    }
   });
+  idleWindow.on('focus', () => warningWindow.flashFrame(false));
   idleWindow.on('closed', () => {
+    for (const timer of retries) clearTimeout(timer);
     idleWindow = null;
   });
 

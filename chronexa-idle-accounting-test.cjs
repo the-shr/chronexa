@@ -48,7 +48,11 @@ for (const [active, threshold] of [[600, 4], [480, 5]]) {
   h.tracker.warningDeadline = h.clock.now; h.tick();
   assert.equal(h.tracker.session.activeSeconds, 300); assert.equal(h.tracker.session.idleSeconds, 302);
   assert.equal(h.tracker.idlePhase, 'idle');
-  h.clock.idle = 0; h.tick(); assert.equal(h.tracker.session.activeSeconds, 301);
+  let prompts=0; h.tracker.on('idle-returned',()=>prompts++);
+  h.clock.idle=301; h.tick(); assert.equal(prompts,0,'Timeout alone never opens Resume');
+  h.clock.idle = 0; h.tick(); assert.equal(prompts,1); assert.equal(h.tracker.session.activeSeconds,300,'Input cannot resume tracking');
+  h.tick(); assert.equal(prompts,1,'No repeated prompt while visible');
+  h.tracker.resume(); assert.equal(h.tracker.idlePhase,'active'); h.tick(); assert.equal(h.tracker.session.activeSeconds,301);
 }
 {
   const h = harness(); h.tracker.session.activeSeconds = 600; h.clock.idle = 300; h.tick();

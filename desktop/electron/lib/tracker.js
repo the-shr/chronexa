@@ -24,7 +24,7 @@ const ACTIVITY_SAMPLE_SECONDS = 60;
  *                        └───────── input detected ─┴───────────────────┘
  *
  * Idle pauses rather than stops: the session stays open and resumes by itself
- * the moment the employee touches the mouse again. Active and idle seconds are
+ * after the employee returns and explicitly chooses Resume. Active and idle seconds are
  * always recorded separately; settings.idle.countIdleAsWork decides which of
  * them the employee is credited with.
  *
@@ -50,6 +50,8 @@ class Tracker extends EventEmitter {
     this.warningDeadline = 0;
     this.idleReview = null;
     this.presenceConfirmedAt = null;
+    this.resumePromptShown = false;
+    this.lastIdleSample = null;
     this.nextShotAt = 0;
     this.activitySamples = [];
     this.capturing = false;
@@ -65,6 +67,7 @@ class Tracker extends EventEmitter {
       screenshotCount: 0, synced: false, pendingIdleSeconds: 0,
     };
     db.upsertSession(this.session);
+    this.resumePromptShown = false; this.lastIdleSample = null; this.presenceConfirmedAt = null;
     this.state = 'running'; this.idlePhase = 'active'; this.activitySamples = []; this.ticks = 0;
     this.scheduleNextShot(); this.timer = setInterval(() => this.tick(), TICK_MS);
     log.info('tracker: started session', this.session.id, taskId ? `task=${taskId}` : 'general');
@@ -104,6 +107,14 @@ class Tracker extends EventEmitter {
 
   resume() {
     updatePolicy.assertAllowed();
+    if (this.state === 'running' && this.idlePhase === 'idle') {
+      this.idlePhase = 'active';
+      this.presenceConfirmedAt = Date.now();
+      this.resumePromptShown = false;
+      this.lastIdleSample = null;
+      this.persist(); this.emitState();
+      return this.snapshot();
+    }
     if (this.state !== 'paused') return this.snapshot();
     log.info('tracker: resumed');
     return this.beginSession(this.pausedContext || {});
@@ -131,9 +142,13 @@ class Tracker extends EventEmitter {
       const context = { taskId: this.session.taskId, taskNote: this.session.taskNote };
       const phase = this.idlePhase;
       const deadline = this.warningDeadline;
+      const returnSample = this.lastIdleSample;
+      const promptShown = this.resumePromptShown;
       this.finishSession('day-boundary');
       this.beginSession(context);
       this.idlePhase = phase;
+      this.lastIdleSample = returnSample;
+      this.resumePromptShown = promptShown;
       if (phase === 'warning') {
         this.warningDeadline = deadline;
         this.emit('idle-warning', { deadline, countdownSeconds: cfg.idle.warningCountdownSeconds, thresholdMinutes: cfg.idle.thresholdMinutes, onTimeout: cfg.idle.onTimeout, playSound: false });
@@ -146,7 +161,15 @@ class Tracker extends EventEmitter {
 
     this.activitySamples.push(systemIdle < ACTIVITY_SAMPLE_SECONDS ? 1 : 0);
 
-    if (!cfg.idle.enabled) {
+    if (this.idlePhase === 'idle') {
+      // Only a new input AFTER timeout opens the prompt. Input never resumes work.
+      if (!this.resumePromptShown && this.lastIdleSample !== null && reportedIdle < this.lastIdleSample) {
+        this.resumePromptShown = true;
+        this.emit('idle-returned');
+      }
+      this.lastIdleSample = reportedIdle;
+      this.session.idleSeconds += 1;
+    } else if (!cfg.idle.enabled) {
       this.session.activeSeconds += 1;
     } else {
       const threshold = cfg.idle.thresholdMinutes * 60;
@@ -172,10 +195,12 @@ class Tracker extends EventEmitter {
         if (this.idlePhase === 'warning' && now >= this.warningDeadline) {
           this.resolveIdleReview(false);
           this.closeWarning();
-          // Paused, not stopped: the session stays open and the branch above
-          // resumes it the moment any input arrives.
+          // Paused, not stopped: the session stays open until activity returns
+          // and the employee explicitly confirms Resume in the prompt.
           this.idlePhase = 'idle';
-          log.info('tracker: paused on idle, waiting for input');
+          this.lastIdleSample = reportedIdle;
+          this.resumePromptShown = false;
+          log.info('tracker: paused on idle, waiting for explicit resume');
         }
       }
     }

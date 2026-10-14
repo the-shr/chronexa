@@ -1,1 +1,1 @@
-Redesigned employee cards and individual settings, refined gold/silver/bronze rankings, employee ranking exclusions, real OS departments, private profile photos, and purple liquid glass styling.
+Idle warnings reliably move to the foreground on the active monitor. After an idle timeout, new mouse or keyboard activity opens a clear Resume tracking prompt and never resumes work without confirmation.

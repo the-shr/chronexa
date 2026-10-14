@@ -160,6 +160,7 @@ function wireTracker() {
   });
 
   tracker.on('state', (snapshot) => {
+    if (snapshot.idlePhase !== 'idle' && snapshot.idlePhase !== 'warning') windows.closeIdleWindow();
     windows.updateOverlay(snapshot);
     windows.broadcast('tracker:state', snapshot);
     tray.update(snapshot, { blocked: updatePolicy.snapshot().blocked });
@@ -168,6 +169,8 @@ function wireTracker() {
   tracker.on('idle-resolved', () => {
     if (Notification.isSupported()) new Notification({ title: 'Chronexa', body: 'Tracking resumed', silent: true }).show();
   });
+
+  tracker.on('idle-returned', () => { windows.openIdleWindow('resume'); });
 
   tracker.on('idle-warning', (payload) => {
     windows.openIdleWindow();

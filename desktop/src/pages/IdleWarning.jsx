@@ -62,7 +62,7 @@ export default function IdleWarning() {
       <p>
         No mouse or keyboard activity for {info?.thresholdMinutes ?? '—'} minutes. Click I'm still here to continue.
         <br />
-        {`The timer pauses in ${remaining ?? '—'}s and starts again when you come back.`}
+        {`The timer pauses in ${remaining ?? '—'}s and waits for you to resume.`}
       </p>
 
       <div className="idle-actions">
