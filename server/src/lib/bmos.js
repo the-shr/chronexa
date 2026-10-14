@@ -14,7 +14,12 @@ export function configured() {
 }
 
 function base() {
-  return String(process.env.BMOS_URL || '').replace(/\/+$/, '');
+  const configuredUrl = String(process.env.BMOS_URL || '').replace(/\/+$/, '');
+  // The OS now accepts its canonical domain only. Preserve custom/local hubs.
+  try {
+    if (new URL(configuredUrl).hostname === 'brand-macros-os.vercel.app') return 'https://os.macrobex.com';
+  } catch {}
+  return configuredUrl;
 }
 
 function appHeaders() {
