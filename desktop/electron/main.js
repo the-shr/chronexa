@@ -18,6 +18,7 @@ const windows = require('./lib/windows');
 const tray = require('./lib/tray');
 const paths = require('./lib/paths');
 const log = require('./lib/log');
+const diagnostics = require('./lib/diagnostics');
 
 // A second instance would double-count time and fight over the data files.
 if (!app.requestSingleInstanceLock()) {
@@ -26,6 +27,10 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 let quitting = false;
+process.on('uncaughtExceptionMonitor', error => { diagnostics.record('app',false,error); diagnostics.stop(); });
+app.on('web-contents-created', (_event, contents) => {
+  contents.on('render-process-gone', () => diagnostics.record('app',false,'Renderer crashed'));
+});
 
 /* ------------------------------- bootstrap ------------------------------ */
 
@@ -39,6 +44,7 @@ app.whenReady().then(() => {
   admin.init();
   recorder.init();
   policy.init();
+  diagnostics.start({app,auth,settings,tracker,db});
 
   windows.createMainWindow({ onCloseRequest: handleMainClose });
   tray.create({
@@ -62,7 +68,7 @@ app.whenReady().then(() => {
     updatePolicy.preferencesChanged();
   });
 
-  sync.on('status', (status) => windows.broadcast('sync:status', status));
+  sync.on('status', (status) => { if(status.ok)diagnostics.record('sync',true); windows.broadcast('sync:status', status); });
   updater.on('status', (status) => windows.broadcast('app:update-status', status));
   updatePolicy.on('changed', (policy) => {
     if (policy.blocked && tracker.state !== 'stopped') { tracker.stop('update-required'); db.flush(); }
@@ -113,6 +119,7 @@ app.on('before-quit', () => {
   if (tracker.state !== 'stopped') tracker.stop('app-quit');
   recorder.stop();
   updatePolicy.stop();
+  diagnostics.stop();
   db.flush();
 });
 

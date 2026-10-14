@@ -335,6 +335,8 @@ function mockAdmin() {
         })),
         tasks: mockAdminTasks.filter((t) => t.userId === person.id),
         screenshots: [],
+        policyFingerprint: 'a'.repeat(64),
+        diagnostics: [{id:'d1',name:'WORK-LAPTOP',platform:'win32',receivedAt:new Date().toISOString(),report:{schemaVersion:1,appVersion:'1.2.3',os:'win32',osRelease:'10.0.26100',tracking:'running',idlePhase:'active',syncEnabled:true,policyFingerprint:'a'.repeat(64),capture:{screenshots:true,screenshotMinutes:3,recording:true,recordingMode:'interval',recordingMinutes:10},pending:{sessions:0,screenshots:4,recordings:2,other:0},components:{policy:{lastSuccess:new Date().toISOString()},screenshots:{lastSuccess:new Date().toISOString()},screenshotUpload:{lastSuccess:null,lastFailure:new Date().toISOString(),failures:3,code:'NETWORK_FAILED'},recording:{lastSuccess:null,lastFailure:new Date().toISOString(),failures:1,code:'ENCODER_FAILED'},report:{lastSuccess:new Date().toISOString()}}}}],
         devices: [{ id: 'd1', name: 'WORK-LAPTOP', platform: 'win32', lastSeenAt: new Date().toISOString() }],
       };
     },

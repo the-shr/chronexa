@@ -77,6 +77,7 @@
 .tc-empty { color:var(--tc-muted); padding:40px 20px; text-align:center; }
 .tc-drawer .monitor-day { margin-bottom:24px; }.tc-drawer .monitor-lightbox { z-index:100; }
 .content:has(> .tc) { display:block; }
+.device-health-head {display:flex;align-items:center;justify-content:space-between;gap:12px}.device-health-head h3 {margin:0 0 5px;font-size:15px}.device-health-head small,.device-health-head>span {font-size:11px;color:var(--text-dim)}.device-diagnostics .tc-stats {margin:18px 0}.device-diagnostics .tc-table {margin-top:16px}.device-diagnostics .tc-table small {display:block;margin-top:4px;line-height:1.5}.device-diagnostics .cfg-note {line-height:1.7}
 @media(min-width:1380px) { .tc-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
 @media(max-width:1000px) { .tc-card { padding:15px; }.tc-avatar { width:39px; height:39px; font-size:13px; }.tc-profile { gap:9px; }.tc-profile h3 { font-size:12px; }.tc-card-rank { display:none; }.tc-filters { flex-wrap:wrap; }.tc-filters > span { margin-left:auto; } }
 @media(max-width:780px) { .tc-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.tc-podium { gap:8px; }.tc-winner { padding:14px 8px; }.tc-rank-heading > span { max-width:55%; text-align:right; }.tc-filters > span { margin-left:0; } }

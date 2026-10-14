@@ -14,6 +14,7 @@ function open() {
 }
 
 function write(level, args) {
+  try { require('./diagnostics').observeLog(level, args); } catch {}
   const line = `[${new Date().toISOString()}] ${level} ${args
     .map((a) => (typeof a === 'string' ? a : safeStringify(a)))
     .join(' ')}`;

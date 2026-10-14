@@ -153,6 +153,7 @@ class Sync extends EventEmitter {
     if (row.uploaded) return;
     if (!fs.existsSync(row.filePath)) {
       db.markScreenshotUploaded(id, null);
+      log.warn('sync: media file missing', 'screenshot');
       return;
     }
 
@@ -172,6 +173,7 @@ class Sync extends EventEmitter {
     this.guard(res, 'screenshots');
     const data = await res.json().catch(() => ({}));
     db.markScreenshotUploaded(id, data.url || null);
+    log.info('sync: screenshot uploaded');
   }
 
   async pushRecording(id) {
@@ -181,6 +183,7 @@ class Sync extends EventEmitter {
       // The file went before it went up. Mark it done so the queue drains
       // rather than retrying something that can never succeed.
       db.markRecordingUploaded(id);
+      log.warn('sync: media file missing', 'recording');
       return;
     }
 
@@ -206,6 +209,8 @@ class Sync extends EventEmitter {
 
     this.guard(res, 'recordings');
     db.markRecordingUploaded(id);
+
+    log.info('sync: recording uploaded');
 
     // Clips are large; keep only a few on disk once the server has them.
     for (const stale of db.drainUploadedRecordings()) recorder.remove(stale);

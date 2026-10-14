@@ -8,7 +8,7 @@ export async function middleware(request) {
     return NextResponse.json({ error: 'This Chronexa admin surface has been retired. Use Brand Macros OS.' }, { status: 410 });
   }
   // Authentication and updates stay reachable; work remains version-gated.
-  if (['/api/agent/version', '/api/agent/login'].includes(pathname) || !desktopUpdateRequired()) return NextResponse.next();
+  if (['/api/agent/version', '/api/agent/login', '/api/agent/diagnostics'].includes(pathname) || !desktopUpdateRequired()) return NextResponse.next();
   const release = await getDesktopRelease();
   const minimum = release?.latestVersion || MINIMUM_DESKTOP_VERSION;
   if (!validVersion(minimum)) return NextResponse.json({ error: 'The required update is not configured correctly.' }, { status: 503 });

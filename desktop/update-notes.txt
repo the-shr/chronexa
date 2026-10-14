@@ -1,1 +1,1 @@
-Idle warnings reliably move to the foreground on the active monitor. After an idle timeout, new mouse or keyboard activity opens a clear Resume tracking prompt and never resumes work without confirmation.
+Device diagnostics now report app version, policy confirmation, capture and upload health, pending sync counts and safe error codes. Admins can inspect employee PCs in the Devices tab without collecting raw logs or sensitive content.
