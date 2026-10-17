@@ -3,6 +3,7 @@ import { adminDeviceFromRequest } from '@/lib/auth.js';
 import { startOfDay } from '@/lib/overview.js';
 import { fetchTeamProfiles } from '@/lib/bmos.js';
 import { getPolicy } from '@/lib/policy.js';
+import { syncTeamProfiles } from '@/lib/team-sync.js';
 import { rankEmployees } from '@/lib/employee-ranking.js';
 
 export const dynamic = 'force-dynamic';
@@ -10,11 +11,13 @@ export const dynamic = 'force-dynamic';
 export async function GET(request) {
   const device = await adminDeviceFromRequest(request);
   if (!device) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  const organization = await fetchTeamProfiles(device.user?.email, { fresh: true });
+  await syncTeamProfiles(prisma, organization);
   const now = new Date();
   const today = startOfDay(0, now);
   const weekday = new Date(now.getTime() + 6 * 3600000).getUTCDay();
   const weekStart = startOfDay(-((weekday + 6) % 7), now);
-  const [users, weekly, daily, policy, openSessions, organization] = await Promise.all([
+  const [users, weekly, daily, policy, openSessions] = await Promise.all([
     prisma.user.findMany({
       orderBy: [{ active: 'desc' }, { name: 'asc' }],
       select: { id: true, name: true, email: true, role: true, active: true, avatarPath: true, createdAt: true, overrides: true, source: true, externalId: true,
@@ -24,7 +27,6 @@ export async function GET(request) {
     prisma.workSession.groupBy({ by: ['userId'], where: { startedAt: { gte: today, lte: now } }, _sum: { activeSeconds: true, idleSeconds: true } }),
     getPolicy(),
     prisma.workSession.findMany({ where: { endedAt: null, updatedAt: { gte: new Date(now.getTime() - 180000) } }, orderBy: { updatedAt: 'desc' }, select: { userId: true, taskNote: true, task: { select: { title: true } } } }),
-    fetchTeamProfiles(device.user?.email),
   ]);
   const profiles = new Map((organization || []).map((person) => [String(person.email).toLowerCase(), person]));
   const profilesById = new Map((organization || []).map((person) => [person.userId, person]));

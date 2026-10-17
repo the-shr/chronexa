@@ -42,11 +42,11 @@ export async function fetchProfilePhoto(email) {
 }
 
 const teamCache = new Map();
-export async function fetchTeamProfiles(actorEmail) {
+export async function fetchTeamProfiles(actorEmail, { fresh = false } = {}) {
   if (!configured()) return null;
   const key = String(actorEmail || '').toLowerCase();
   const cached = teamCache.get(key);
-  if (cached && cached.until > Date.now()) return cached.people;
+  if (!fresh && cached && cached.until > Date.now()) return cached.people;
   try {
     const query = new URLSearchParams({ actorEmail: key });
     const { ok, data } = await call('/api/ecosystem/team?' + query.toString());

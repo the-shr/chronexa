@@ -12,7 +12,7 @@
     "db:new-migration": "node scripts/new-migration.js",
     "db:seed": "node scripts/seed.js",
     "setup": "prisma migrate deploy && node scripts/seed.js",
-    "test": "npm run test:api && npm run test:admin && npm run test:hardening && npm run test:storage && npm run test:profile && npm run test:admin-tasks && npm run test:admin-api && npm run test:retention && npm run test:upstash && npm run test:drive && npm run test:policy",
+    "test": "npm run test:api && npm run test:admin && npm run test:hardening && npm run test:storage && npm run test:profile && npm run test:admin-tasks && npm run test:admin-api && npm run test:retention && npm run test:upstash && npm run test:drive && npm run test:policy && npm run test:team-sync",
     "test:api": "node --env-file=.env scripts/api-smoke.js",
     "test:admin": "node --env-file=.env scripts/admin-smoke.js",
     "test:hardening": "node scripts/hardening-smoke.js",
@@ -28,7 +28,8 @@
     "purge:screenshots": "node --env-file=.env scripts/purge-screenshots.js",
     "rl:clear": "node --env-file=.env scripts/clear-rate-limits.js",
     "test:policy": "node --env-file=.env scripts/policy-smoke.js",
-    "clear:everything": "node --env-file=.env scripts/clear-everything.js"
+    "clear:everything": "node --env-file=.env scripts/clear-everything.js",
+    "test:team-sync": "node scripts/team-sync-smoke.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1092.0",
