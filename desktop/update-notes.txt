@@ -1,4 +1,4 @@
-Chronexa 1.2.5
+Chronexa 1.2.6
 
 Ranking now opens on the current month, with a Weekly option. Employee activity includes seven-day bars, a monthly calendar shaded by daily goal progress, and day-by-day sessions. Earlier months load on demand in Asia/Dhaka time.
 

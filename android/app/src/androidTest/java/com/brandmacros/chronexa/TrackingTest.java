@@ -12,6 +12,8 @@ import java.io.File;
 
 @RunWith(AndroidJUnit4.class)
 public class TrackingTest {
+ @Before public void isolate()throws Exception{Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{if(TrackingService.instance!=null)TrackingService.instance.pause("manual");c.stopService(new Intent(c,TrackingService.class));});for(int i=0;i<50&&TrackingService.instance!=null;i++)Thread.sleep(100);c.getSharedPreferences("private",0).edit().clear().commit();UiDevice device=UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());device.wakeUp();device.pressMenu();}
+ @After public void cleanup()throws Exception{Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{if(TrackingService.instance!=null)TrackingService.instance.pause("manual");c.stopService(new Intent(c,TrackingService.class));});UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).wakeUp();}
  @Test public void encryptedStoreAndCrashRecovery()throws Exception{
   Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();Store.save(c,"account",new JSONObject());Store.save(c,"history",new JSONObject());
   JSONObject session=new JSONObject().put("id","offline-recovery-test").put("startedAt","2026-10-24T01:00:00Z").put("activeSeconds",17);
@@ -35,7 +37,7 @@ public class TrackingTest {
   instrumentation.runOnMainSync(()->{try{TrackingService.instance.capture.startClip();}catch(Exception e){throw new RuntimeException(e);}});Thread.sleep(3500);
   instrumentation.runOnMainSync(()->{try{TrackingService.instance.capture.stopClip();}catch(Exception e){throw new RuntimeException(e);}});
   File[] clips=new File(c.getFilesDir(),"outbox").listFiles((d,n)->n.endsWith(".mp4"));assertTrue("MP4 clip was captured",clips.length>0);byte[] bytes=TrackingService.read(clips[0]);assertEquals("ftyp",new String(bytes,4,4,"US-ASCII"));
-  device.sleep();Thread.sleep(1200);assertFalse("Lock must pause tracking",TrackingService.isRunning());assertTrue("Time survives pause",TrackingService.status(c).getJSONObject("session").getInt("activeSeconds")>=5);assertTrue("Offline work is queued",TrackingService.pending(c)>0);device.wakeUp();
+  device.sleep();for(int i=0;i<100&&TrackingService.isRunning();i++)Thread.sleep(100);assertFalse("Lock must pause tracking",TrackingService.isRunning());assertTrue("Time survives pause",TrackingService.status(c).getJSONObject("session").getInt("activeSeconds")>=5);assertTrue("Offline work is queued",TrackingService.pending(c)>0);device.wakeUp();
   instrumentation.runOnMainSync(activity::finish);
  }
 }
