@@ -46,7 +46,12 @@ public class TrackingTest {
   instrumentation.runOnMainSync(()->{try{TrackingService.instance.capture.startClip();}catch(Exception e){throw new RuntimeException(e);}});Thread.sleep(3500);
   instrumentation.runOnMainSync(()->{try{TrackingService.instance.capture.stopClip();}catch(Exception e){throw new RuntimeException(e);}});
   File[] clips=new File(c.getFilesDir(),"outbox").listFiles((d,n)->n.endsWith(".mp4"));assertTrue("MP4 clip was captured",clips.length>0);byte[] bytes=TrackingService.read(clips[0]);assertEquals("ftyp",new String(bytes,4,4,"US-ASCII"));
+  Capture stoppedCapture=TrackingService.instance.capture;
+  instrumentation.runOnMainSync(()->{try{stoppedCapture.startClip();}catch(Exception e){throw new RuntimeException(e);}});Thread.sleep(1200);
   device.sleep();for(int i=0;i<100&&TrackingService.isRunning();i++)Thread.sleep(100);assertFalse("Lock must pause tracking",TrackingService.isRunning());assertTrue("Time survives pause",TrackingService.status(c).getJSONObject("session").getInt("activeSeconds")>=5);assertTrue("Offline work is queued",TrackingService.pending(c)>0);device.wakeUp();
+  int filesAfterPause=new File(c.getFilesDir(),"outbox").list().length;
+  instrumentation.runOnMainSync(()->{try{stoppedCapture.tick();stoppedCapture.startClip();}catch(Exception e){throw new RuntimeException(e);}});Thread.sleep(1200);
+  assertNull("Pause must release the active recorder",stoppedCapture.recorder);assertEquals("Late capture callbacks must not create files while paused",filesAfterPause,new File(c.getFilesDir(),"outbox").list().length);
   instrumentation.runOnMainSync(activity::finish);
  }
 }
