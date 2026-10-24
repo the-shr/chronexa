@@ -29,7 +29,7 @@ final class Capture {
  }
  void tick()throws Exception{
   if(closed)return;JSONObject policy=Store.read(service,"policy"),screens=policy.getJSONObject("screenshots"),record=policy.getJSONObject("recording");long now=SystemClock.elapsedRealtime();
-  if(recorder!=null){long duration=record.optString("mode").equals("session")?60000:Math.max(2000,Math.min(60000,record.optLong("durationSeconds",5)*1000));if(!record.optBoolean("enabled")||now-videoAt>=duration)stopClip();else return;}
+  if(recorder!=null){long duration=record.optString("mode").equals("session")?60000:Math.max(2000,Math.min(60000,record.optLong("durationSeconds",5)*1000));if(!record.optBoolean("enabled")||now-videoAt>=duration){stopClip();return;}else return;}
   try(Image image=images.acquireLatestImage()){
    if(screens.optBoolean("enabled")&&now-lastShot>=Math.max(60000,screens.optLong("intervalMinutes",3)*60000)&&image!=null){
     Image.Plane plane=image.getPlanes()[0];int padded=plane.getRowStride()/plane.getPixelStride();ByteBuffer bytes=plane.getBuffer();Bitmap bitmap=Bitmap.createBitmap(padded,height,Bitmap.Config.ARGB_8888);bitmap.copyPixelsFromBuffer(bytes);Bitmap crop=Bitmap.createBitmap(bitmap,0,0,width,height);
