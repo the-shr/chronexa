@@ -64,7 +64,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   admin: {
     employees: (period) => invoke('admin:employees', period),
-    employee: (id) => invoke('admin:employee', id),
+    employee: (id, month) => invoke('admin:employee', id, month),
     avatar: (id) => invoke('admin:avatar', id),
     screenshots: (query) => invoke('admin:screenshots', query),
     recordings: (query) => invoke('admin:recordings', query),

@@ -79,7 +79,7 @@ async function main() {
   const overview = fs.readFileSync(path.join(__dirname, 'server/src/lib/overview.js'), 'utf8').replace(/^import .*;\r?\n/gm, '').replace(/export /g, '');
   let query;
   const testSessions = Array.from({ length: 301 }, (_, i) => ({ id: String(i), startedAt: new Date('2026-10-09T19:00:00Z'), endedAt: new Date('2026-10-09T20:00:00Z'), activeSeconds: 60, idleSeconds: 30 }));
-  vm.runInNewContext(overview + '\nmodule.exports = { employeeDetail, startOfDay };', { module: overviewModule, Date, effectivePolicy: async () => ({ idle: { countIdleAsWork: true } }), prisma: { user: { findUnique: async () => ({ id: 'test', createdAt: new Date() }) }, workSession: { findMany: async (options) => { query = options; return testSessions; } } } });
+  vm.runInNewContext(overview + '\nmodule.exports = { employeeDetail, startOfDay };', { module: overviewModule, Date, effectivePolicy: async () => ({ idle: { countIdleAsWork: true }, work: { dailyTargetHours: 8, workDays: '1,2,3,4,5' } }), prisma: { user: { findUnique: async () => ({ id: 'test', createdAt: new Date() }) }, workSession: { findMany: async (options) => { query = options; return testSessions; } } } });
   const detail = await overviewModule.exports.employeeDetail('test');
   assert.equal(query.take, undefined, 'Daily totals must not silently truncate at 200 sessions');
   assert.equal(detail.daily[0].date, '2026-10-10');

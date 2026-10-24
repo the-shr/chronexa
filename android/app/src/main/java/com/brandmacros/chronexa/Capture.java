@@ -35,7 +35,7 @@ final class Capture {
     Image.Plane plane=image.getPlanes()[0];int padded=plane.getRowStride()/plane.getPixelStride();ByteBuffer bytes=plane.getBuffer();Bitmap bitmap=Bitmap.createBitmap(padded,height,Bitmap.Config.ARGB_8888);bitmap.copyPixelsFromBuffer(bytes);Bitmap crop=Bitmap.createBitmap(bitmap,0,0,width,height);
     if(screens.optBoolean("blur")){Bitmap small=Bitmap.createScaledBitmap(crop,Math.max(1,width/24),Math.max(1,height/24),true);Bitmap blurred=Bitmap.createScaledBitmap(small,width,height,true);if(crop!=bitmap)crop.recycle();small.recycle();crop=blurred;}
     String id=UUID.randomUUID().toString();File file=file(id+".jpg");try(OutputStream out=new FileOutputStream(file)){crop.compress(Bitmap.CompressFormat.JPEG,Math.max(10,Math.min(90,screens.optInt("quality",65))),out);}if(crop!=bitmap)crop.recycle();bitmap.recycle();
-    JSONObject meta=meta(id).put("capturedAt",TrackingService.iso(System.currentTimeMillis())).put("monitorLabel","Android shared screen").put("blurred",screens.optBoolean("blur")).put("activityPercent",JSONObject.NULL);queue(file,meta,"/api/agent/screenshots","image/jpeg",".jpg");service.session.put("screenshotCount",service.session.optInt("screenshotCount")+1);lastShot=now;
+    JSONObject meta=meta(id).put("capturedAt",TrackingService.iso(System.currentTimeMillis())).put("monitorLabel","Android shared screen").put("blurred",screens.optBoolean("blur")).put("activityPercent",JSONObject.NULL);queue(file,meta,"/api/agent/screenshots","image/jpeg",".jpg");Telemetry.health(service,"screenshots",null);service.session.put("screenshotCount",service.session.optInt("screenshotCount")+1);lastShot=now;
    }
   }
   if(record.optBoolean("enabled")&&(record.optString("mode").equals("session")||now-lastClip>=Math.max(60000,record.optLong("intervalMinutes",10)*60000)))startClip();
@@ -50,7 +50,7 @@ final class Capture {
  }
  void stopClip()throws Exception{
   MediaRecorder current=recorder;recorder=null;if(current==null)return;long duration=SystemClock.elapsedRealtime()-videoAt;display.setSurface(images.getSurface());boolean valid=true;try{current.stop();}catch(RuntimeException e){valid=false;}finally{current.release();}lastClip=SystemClock.elapsedRealtime();
-  if(valid&&duration>=1000&&video.length()>0&&video.length()<4*1024*1024){String id=video.getName().replace(".mp4","");queue(video,meta(id).put("startedAt",TrackingService.iso(System.currentTimeMillis()-duration)).put("durationMs",duration),"/api/agent/recordings","video/mp4",".mp4");}else video.delete();
+  if(valid&&duration>=1000&&video.length()>0&&video.length()<4*1024*1024){String id=video.getName().replace(".mp4","");queue(video,meta(id).put("startedAt",TrackingService.iso(System.currentTimeMillis()-duration)).put("durationMs",duration),"/api/agent/recordings","video/mp4",".mp4");Telemetry.health(service,"recording",null);}else video.delete();
  }
  void close(){closed=true;try{stopClip();}catch(Exception ignored){}if(display!=null)display.release();if(images!=null)images.close();if(projection!=null)projection.stop();}
 }

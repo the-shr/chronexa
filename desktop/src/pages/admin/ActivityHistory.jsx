@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { humanDuration } from '../../lib/format.js';
 const today = () => new Date(Date.now() + 21600000).toISOString().slice(0, 10);
 export default function ActivityHistory({ daily = [], targetHours = 0, selectedDay, onSelect }) {
-  const [month, setMonth] = useState(() => today().slice(0, 7));
+  const month = selectedDay?.slice(0, 7) || today().slice(0, 7);
   const [focus, setFocus] = useState(null);
   const byDate = new Map(daily.map(row => [row.date, row]));
   const target = Math.max(0, Number(targetHours) || 0) * 3600;
@@ -15,7 +15,7 @@ export default function ActivityHistory({ daily = [], targetHours = 0, selectedD
   const dates = Array.from({ length: count }, (_, i) => `${month}-${String(i + 1).padStart(2, '0')}`);
   const max = Math.max(target, ...recent.map(value), 1);
   function choose(date) { setFocus(date); onSelect(date); }
-  function shift(offset) { const date = new Date(first); date.setUTCMonth(date.getUTCMonth() + offset); setMonth(date.toISOString().slice(0, 7)); setFocus(null); }
+  function shift(offset) { const date = new Date(first); date.setUTCMonth(date.getUTCMonth() + offset); onSelect([date.toISOString().slice(0, 10), earliest].sort().at(-1)); setFocus(null); }
   return <section className="activity-history" aria-label="Tracking history">
     <div className="tc-rank-heading"><h2>Last 7 days</h2><span>{target ? `${targetHours}h daily goal` : 'No daily goal'}</span></div>
     <div className="activity-bars">{recent.map(date => <button key={date} title={describe(date)} aria-label={describe(date)} aria-pressed={selectedDay === date} onMouseEnter={() => setFocus(date)} onFocus={() => setFocus(date)} onClick={() => choose(date)}><span className="activity-bar-track"><i style={{ height: `${Math.max(value(date) ? 4 : 0, value(date) / max * 100)}%` }} /></span><small>{new Date(date + 'T12:00:00Z').toLocaleDateString('en', { weekday: 'short' })}</small></button>)}</div>

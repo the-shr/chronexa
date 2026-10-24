@@ -146,17 +146,22 @@ export async function teamOverview({ days = 7, now = new Date() } = {}) {
 }
 
 /** One employee, in depth: recent sessions, their tasks and their screenshots. */
-export async function employeeDetail(userId, { days = 366 } = {}) {
+export async function employeeDetail(userId, { month = new Date(Date.now() + 21600000).toISOString().slice(0, 7) } = {}) {
   const user = await prisma.user.findUnique({
     where: { id: String(userId || '') },
     select: { id: true, name: true, email: true, role: true, active: true, avatarPath: true, createdAt: true },
   });
   if (!user) return { error: 'That employee no longer exists' };
 
-  const since = startOfDay(-(days - 1));
+  const currentMonth = new Date(Date.now() + 21600000).toISOString().slice(0, 7);
+  const earliestMonth = new Date(Date.now() + 21600000 - 365 * DAY).toISOString().slice(0, 7);
+  const selectedMonth = /^\d{4}-(0[1-9]|1[0-2])$/.test(month || '') && month >= earliestMonth && month <= currentMonth ? month : currentMonth;
+  const since = new Date(`${selectedMonth}-01T00:00:00+06:00`);
+  const next = new Date(since.getTime() + 21600000); next.setUTCMonth(next.getUTCMonth() + 1);
+  const until = new Date(next.getTime() - 21600000);
 
   const sessions = await prisma.workSession.findMany({
-      where: { userId: user.id, startedAt: { gte: since } },
+      where: { userId: user.id, OR: [{ startedAt: { gte: since, lt: until } }, { startedAt: { gte: startOfDay(-6), lte: new Date() } }] },
       orderBy: { startedAt: 'desc' },
       select: {
         id: true,
@@ -186,6 +191,7 @@ export async function employeeDetail(userId, { days = 366 } = {}) {
   }
   return {
     timeZone: 'Asia/Dhaka',
+    month: selectedMonth,
     countIdleAsWork: countIdle,
     dailyTargetHours: policy.work.dailyTargetHours,
     workDays: policy.work.workDays,

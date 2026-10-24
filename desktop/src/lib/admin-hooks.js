@@ -74,8 +74,8 @@ export function useRoster(period = 'month') {
   return { ...result, users: result.data?.users || [] };
 }
 
-export function useEmployee(id) {
-  const result = useAdminRead(() => window.api.admin.employee(id), [id], Boolean(id));
+export function useEmployee(id, month) {
+  const result = useAdminRead(() => window.api.admin.employee(id, month), [id, month], Boolean(id));
   useEffect(() => { if (!id) return; const timer = setInterval(result.reload, 60000); return () => clearInterval(timer); }, [id, result.reload]);
   return result;
 }

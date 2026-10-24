@@ -13,7 +13,7 @@ export async function GET(request, { params }) {
   if (!device) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const detail = await employeeDetail(id);
+  const detail = await employeeDetail(id, { month: new URL(request.url).searchParams.get('month') || undefined });
   if (detail.error) return Response.json({ error: detail.error }, { status: 404 });
   const devices=await prisma.device.findMany({where:{userId:id},orderBy:{lastSeenAt:'desc'},select:{id:true,name:true,platform:true,lastSeenAt:true,diagnostics:true,diagnosticsAt:true}});
   const expected=await effectivePolicy(id);

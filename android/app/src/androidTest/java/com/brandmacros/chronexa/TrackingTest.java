@@ -13,11 +13,12 @@ import java.io.File;
 @RunWith(AndroidJUnit4.class)
 public class TrackingTest {
  @Test public void encryptedStoreAndCrashRecovery()throws Exception{
-  Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();Store.save(c,"account",new JSONObject());
+  Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();Store.save(c,"account",new JSONObject());Store.save(c,"history",new JSONObject());
   JSONObject session=new JSONObject().put("id","offline-recovery-test").put("startedAt","2026-10-24T01:00:00Z").put("activeSeconds",17);
   Store.save(c,"timer",new JSONObject().put("running",true).put("session",session).put("checkpoint","2026-10-24T01:00:17Z"));
   String raw=c.getSharedPreferences("private",0).getString("timer","");assertFalse(raw.contains("offline-recovery-test"));
   TrackingService.recover(c);JSONObject recovered=TrackingService.status(c);assertFalse(recovered.getBoolean("running"));assertEquals(17,recovered.getJSONObject("session").getInt("activeSeconds"));assertEquals("2026-10-24T01:00:17Z",recovered.getJSONObject("session").getString("endedAt"));
+  TrackingService.enqueue(c,recovered.getJSONObject("session"));assertEquals("Retry must coalesce the local history entry",1,Store.read(c,"history").getJSONArray("sessions").length());
   Store.save(c,"queue",new JSONObject().put("sessions",new JSONArray()));Store.save(c,"timer",new JSONObject());
  }
  @Test public void projectionCapturesAndLockPauses()throws Exception{

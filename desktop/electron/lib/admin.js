@@ -58,7 +58,7 @@ module.exports = {
     return result;
   },
   employees(period = 'month') { return request('GET', null, `/api/agent/admin/employees?period=${period === 'week' ? 'week' : 'month'}`); },
-  employee(id) { return request('GET', null, `/api/agent/admin/employees/${encodeURIComponent(id)}`); },
+  employee(id, month) { return request('GET', null, `/api/agent/admin/employees/${encodeURIComponent(id)}${month ? `?month=${encodeURIComponent(month)}` : ''}`); },
   async avatar(id) {
     if (!auth.isSignedIn() || !canManage()) throw new Error('Admin access required.');
     const key = `${auth.get().user?.id || auth.get().user?.email}:${String(id || '')}`;

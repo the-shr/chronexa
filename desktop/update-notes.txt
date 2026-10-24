@@ -1,1 +1,7 @@
-Device diagnostics now report app version, policy confirmation, capture and upload health, pending sync counts and safe error codes. Admins can inspect employee PCs in the Devices tab without collecting raw logs or sensitive content.
+Chronexa 1.2.5
+
+Ranking now opens on the current month, with a Weekly option. Employee activity includes seven-day bars, a monthly calendar shaded by daily goal progress, and day-by-day sessions. Earlier months load on demand in Asia/Dhaka time.
+
+The first Android app supports employee timers, assigned tasks and comments, JPEG screenshots, MP4 screen recordings, offline queues, resume reminders, and a movable/resizable floating timer. Admins can inspect team profiles, ranking, sessions, captures, device health and configuration from their phone.
+
+Android requires an employee-approved screen-sharing session and its visible system indicator. Locking the phone or stopping sharing pauses tracking; unlocking prompts the employee to resume. Android cannot reproduce desktop global mouse/keyboard idle detection. Updates download inside the Android app, verify SHA-256, and open Android's installation confirmation.

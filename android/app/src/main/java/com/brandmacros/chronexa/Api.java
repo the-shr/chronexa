@@ -27,6 +27,6 @@ final class Api {
    out.write(("--"+boundary+"\r\nContent-Disposition: form-data; name=\"meta\"\r\n\r\n"+meta+"\r\n--"+boundary+"\r\nContent-Disposition: form-data; name=\"file\"; filename=\"capture"+(mime.equals("image/jpeg")?".jpg":".mp4")+"\"\r\nContent-Type: "+mime+"\r\n\r\n").getBytes("UTF-8"));
    try(InputStream in=new FileInputStream(file)){TrackingService.copy(in,out);}out.write(("\r\n--"+boundary+"--\r\n").getBytes("UTF-8"));
   }
-  try{int status=con.getResponseCode();if(status>=400)throw new Exception("Capture upload failed ("+status+")");}finally{con.disconnect();}
+  try{int status=con.getResponseCode();if(status>=400)throw new Failure(status,"Capture upload failed ("+status+")");}finally{con.disconnect();}
  }
 }

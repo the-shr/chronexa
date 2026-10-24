@@ -23,7 +23,7 @@ export default function Employees() {
   const [view, setView] = useState('time');
   const [selectedDay, setSelectedDay] = useState(() => dhakaDay());
   const [screenshotPage, setScreenshotPage] = useState(1);
-  const detail = useEmployee(userId);
+  const detail = useEmployee(userId, selectedDay.slice(0, 7));
   const shots = useScreenshots(userId, screenshotPage, Boolean(userId) && view === 'screens');
   const clips = useRecordings(userId, Boolean(userId) && view === 'recordings');
   const user = roster.users.find((person) => person.id === userId);
