@@ -30,3 +30,11 @@ server/uploads/
 *.log
 .DS_Store
 Thumbs.db
+
+# Android generated output and signing material
+android/.gradle/
+android/**/build/
+android/local.properties
+android/app/src/main/assets/*
+*.jks
+*.keystore

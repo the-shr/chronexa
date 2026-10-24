@@ -63,9 +63,13 @@ export async function POST(request) {
 
   const bytes = Buffer.from(await file.arrayBuffer());
   // Trust the bytes, not the declared type: WebM starts with an EBML header.
-  if (!(bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3)) {
-    return Response.json({ error: 'Only WebM clips are accepted' }, { status: 415 });
+  const webm = bytes[0] === 0x1a && bytes[1] === 0x45 && bytes[2] === 0xdf && bytes[3] === 0xa3;
+  const mp4 = bytes.length >= 16 && bytes.toString('ascii', 4, 8) === 'ftyp' && device.platform === 'android';
+  if (!webm && !mp4) {
+    return Response.json({ error: 'Unsupported recording format' }, { status: 415 });
   }
+  const mimeType = mp4 ? 'video/mp4' : 'video/webm';
+  const extension = mp4 ? 'mp4' : 'webm';
 
   // One subfolder per employee per day, so an admin browsing Drive directly
   // finds something navigable instead of one enormous flat list.
@@ -77,8 +81,8 @@ export async function POST(request) {
   try {
     const personFolder = await ensureFolder(safeName);
     const dayFolder = await ensureFolder(day, personFolder);
-    const uploaded = await uploadFile(`${day}T${startedAt.toISOString().slice(11, 19).replace(/:/g, '-')}.webm`, bytes, {
-      mimeType: 'video/webm',
+    const uploaded = await uploadFile(`${day}T${startedAt.toISOString().slice(11, 19).replace(/:/g, '-')}.${extension}`, bytes, {
+      mimeType,
       parent: dayFolder,
     });
     driveFileId = uploaded.id;
@@ -97,7 +101,7 @@ export async function POST(request) {
     width: clamp(meta.width, 0, 10_000),
     height: clamp(meta.height, 0, 10_000),
     bytes: bytes.length,
-    mimeType: 'video/webm',
+    mimeType,
     driveFileId,
   };
 

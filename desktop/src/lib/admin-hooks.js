@@ -68,8 +68,8 @@ function useAdminRead(loader, deps = [], enabled = true) {
   return { data, error, loading, reload };
 }
 
-export function useRoster() {
-  const result = useAdminRead(() => window.api.admin.employees());
+export function useRoster(period = 'month') {
+  const result = useAdminRead(() => window.api.admin.employees(period), [period]);
   useEffect(() => { const timer = setInterval(result.reload, 60000); return () => clearInterval(timer); }, [result.reload]);
   return { ...result, users: result.data?.users || [] };
 }

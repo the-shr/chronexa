@@ -1,12 +1,46 @@
 name: Build desktop installer
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - 'v*'
 
 jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - run: npm ci --prefix desktop
+      - run: node desktop/node_modules/vite/bin/vite.js build --config android-web/vite.config.mjs
+      - name: Build and lint Android app
+        working-directory: android
+        run: gradle assembleRelease lintRelease --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chronexa-android-unsigned
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-lint-report
+          path: android/app/build/reports/lint-results-release.*
   release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: android
     runs-on: windows-latest
     permissions:
       contents: write
@@ -65,8 +99,5 @@ jobs:
             desktop/release/update.json
             desktop/release/SHA256SUMS.txt
 
-      - name: Publish verified release
-        if: steps.existing.outputs.skip != 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release edit "$env:GITHUB_REF_NAME" --repo "$env:GITHUB_REPOSITORY" --draft=false --latest
+      # Publishing happens after the Android APK is signed locally and both
+      # platform manifests and checksums have been verified in the draft.

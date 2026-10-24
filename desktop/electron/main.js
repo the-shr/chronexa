@@ -309,7 +309,7 @@ handle('profile:pick-avatar', async () => {
 
 handle('configuration:get', () => admin.policy());
 handle('configuration:update', (patch) => admin.updatePolicy(patch || {}));
-handle('admin:employees', () => admin.employees());
+handle('admin:employees', (period) => admin.employees(period));
 handle('admin:employee', (id) => admin.employee(id));
 handle('admin:avatar', (id) => admin.avatar(id));
 handle('admin:screenshots', (query) => admin.screenshots(query || {}));

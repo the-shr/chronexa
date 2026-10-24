@@ -146,7 +146,7 @@ export async function teamOverview({ days = 7, now = new Date() } = {}) {
 }
 
 /** One employee, in depth: recent sessions, their tasks and their screenshots. */
-export async function employeeDetail(userId, { days = 30 } = {}) {
+export async function employeeDetail(userId, { days = 366 } = {}) {
   const user = await prisma.user.findUnique({
     where: { id: String(userId || '') },
     select: { id: true, name: true, email: true, role: true, active: true, avatarPath: true, createdAt: true },
@@ -187,6 +187,8 @@ export async function employeeDetail(userId, { days = 30 } = {}) {
   return {
     timeZone: 'Asia/Dhaka',
     countIdleAsWork: countIdle,
+    dailyTargetHours: policy.work.dailyTargetHours,
+    workDays: policy.work.workDays,
     daily: [...groups.values()],
     totals: { activeSeconds: sessions.reduce((sum, row) => sum + row.activeSeconds, 0), idleSeconds: sessions.reduce((sum, row) => sum + row.idleSeconds, 0), workSeconds: sessions.reduce((sum, row) => sum + row.activeSeconds + (countIdle ? row.idleSeconds : 0), 0), sessions: sessions.length },
     user: {

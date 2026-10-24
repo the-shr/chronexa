@@ -57,7 +57,7 @@ module.exports = {
     cachedAt = 0;
     return result;
   },
-  employees() { return request('GET', null, '/api/agent/admin/employees'); },
+  employees(period = 'month') { return request('GET', null, `/api/agent/admin/employees?period=${period === 'week' ? 'week' : 'month'}`); },
   employee(id) { return request('GET', null, `/api/agent/admin/employees/${encodeURIComponent(id)}`); },
   async avatar(id) {
     if (!auth.isSignedIn() || !canManage()) throw new Error('Admin access required.');

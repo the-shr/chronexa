@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { validVersion, isOlderVersion } from './lib/update-version.js';
 import { getDesktopRelease, desktopUpdateRequired, MINIMUM_DESKTOP_VERSION } from './lib/desktop-release.js';
+import { getAndroidRelease, MINIMUM_ANDROID_VERSION } from './lib/android-release.js';
 
 export async function middleware(request) {
   const pathname = request.nextUrl.pathname;
@@ -8,9 +9,10 @@ export async function middleware(request) {
     return NextResponse.json({ error: 'This Chronexa admin surface has been retired. Use Brand Macros OS.' }, { status: 410 });
   }
   // Authentication and updates stay reachable; work remains version-gated.
-  if (['/api/agent/version', '/api/agent/login', '/api/agent/diagnostics'].includes(pathname) || !desktopUpdateRequired()) return NextResponse.next();
-  const release = await getDesktopRelease();
-  const minimum = release?.latestVersion || MINIMUM_DESKTOP_VERSION;
+  if (['/api/agent/version', '/api/agent/android-version', '/api/agent/login', '/api/agent/diagnostics'].includes(pathname) || !desktopUpdateRequired()) return NextResponse.next();
+  const android = request.headers.get('x-chronexa-platform') === 'android';
+  const release = android ? await getAndroidRelease() : await getDesktopRelease();
+  const minimum = release?.latestVersion || (android ? MINIMUM_ANDROID_VERSION : MINIMUM_DESKTOP_VERSION);
   if (!validVersion(minimum)) return NextResponse.json({ error: 'The required update is not configured correctly.' }, { status: 503 });
   const version = request.headers.get('x-chronexa-version');
   if (isOlderVersion(version, minimum)) {
