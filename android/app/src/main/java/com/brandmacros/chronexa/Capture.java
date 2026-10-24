@@ -19,6 +19,7 @@ final class Capture {
  MediaProjection projection;VirtualDisplay display;ImageReader images;MediaRecorder recorder;File video;long videoAt,lastShot,lastClip;int width,height;boolean closed;
  Capture(TrackingService service,int code,Intent permission){this.service=service;this.code=code;this.permission=permission;}
  void start()throws Exception{
+  if(closed||!service.running)throw new IllegalStateException("Tracking must be running before screen capture starts");
   DisplayMetrics metrics=new DisplayMetrics();((WindowManager)service.getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getRealMetrics(metrics);
   float ratio=Math.min(1f,720f/Math.max(metrics.widthPixels,metrics.heightPixels));width=Math.max(2,((int)(metrics.widthPixels*ratio)/2)*2);height=Math.max(2,((int)(metrics.heightPixels*ratio)/2)*2);
   images=ImageReader.newInstance(width,height,PixelFormat.RGBA_8888,2);
@@ -28,7 +29,7 @@ final class Capture {
   lastShot=SystemClock.elapsedRealtime()-120000;lastClip=SystemClock.elapsedRealtime();
  }
  void tick()throws Exception{
-  if(closed)return;JSONObject policy=Store.read(service,"policy"),screens=policy.getJSONObject("screenshots"),record=policy.getJSONObject("recording");long now=SystemClock.elapsedRealtime();
+  if(closed||!service.running)return;JSONObject policy=Store.read(service,"policy"),screens=policy.getJSONObject("screenshots"),record=policy.getJSONObject("recording");long now=SystemClock.elapsedRealtime();
   if(recorder!=null){long duration=record.optString("mode").equals("session")?60000:Math.max(2000,Math.min(60000,record.optLong("durationSeconds",5)*1000));if(!record.optBoolean("enabled")||now-videoAt>=duration){stopClip();return;}else return;}
   try(Image image=images.acquireLatestImage()){
    if(screens.optBoolean("enabled")&&now-lastShot>=Math.max(60000,screens.optLong("intervalMinutes",3)*60000)&&image!=null){
@@ -46,11 +47,12 @@ final class Capture {
   meta.put("path",path).put("mime",mime).put("extension",extension);File dest=new File(file.getParentFile(),meta.getString("id")+".json"),temp=new File(dest.getPath()+".tmp");try(FileOutputStream out=new FileOutputStream(temp)){out.write(meta.toString().getBytes("UTF-8"));out.getFD().sync();}if(!temp.renameTo(dest))throw new IOException("Could not queue capture");
  }
  void startClip()throws Exception{
+  if(closed||!service.running)return;
   video=file(UUID.randomUUID()+".mp4");recorder=new MediaRecorder();recorder.setVideoSource(MediaRecorder.VideoSource.SURFACE);recorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);recorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);recorder.setVideoSize(width,height);recorder.setVideoFrameRate(10);recorder.setVideoEncodingBitRate(350000);recorder.setOutputFile(video.getPath());recorder.prepare();display.setSurface(recorder.getSurface());recorder.start();videoAt=SystemClock.elapsedRealtime();
  }
  void stopClip()throws Exception{
-  MediaRecorder current=recorder;recorder=null;if(current==null)return;long duration=SystemClock.elapsedRealtime()-videoAt;display.setSurface(images.getSurface());boolean valid=true;try{current.stop();}catch(RuntimeException e){valid=false;}finally{current.release();}lastClip=SystemClock.elapsedRealtime();
+  MediaRecorder current=recorder;recorder=null;if(current==null)return;long duration=SystemClock.elapsedRealtime()-videoAt;display.setSurface(closed||!service.running?null:images.getSurface());boolean valid=true;try{current.stop();}catch(RuntimeException e){valid=false;}finally{current.release();}lastClip=SystemClock.elapsedRealtime();
   if(valid&&duration>=1000&&video.length()>0&&video.length()<4*1024*1024){String id=video.getName().replace(".mp4","");queue(video,meta(id).put("startedAt",TrackingService.iso(System.currentTimeMillis()-duration)).put("durationMs",duration),"/api/agent/recordings","video/mp4",".mp4");Telemetry.health(service,"recording",null);}else video.delete();
  }
- void close(){closed=true;try{stopClip();}catch(Exception ignored){}if(display!=null)display.release();if(images!=null)images.close();if(projection!=null)projection.stop();}
+ void close(){closed=true;if(display!=null)try{display.setSurface(null);}catch(Exception ignored){}try{stopClip();}catch(Exception ignored){}if(display!=null)display.release();if(images!=null)images.close();if(projection!=null)projection.stop();}
 }

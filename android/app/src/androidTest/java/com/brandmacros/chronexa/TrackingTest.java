@@ -12,6 +12,15 @@ import java.io.File;
 
 @RunWith(AndroidJUnit4.class)
 public class TrackingTest {
+ @Test public void inactiveTrackingCannotStartCapture()throws Exception{
+  var instrumentation=InstrumentationRegistry.getInstrumentation();
+  instrumentation.runOnMainSync(()->{try{
+   TrackingService service=new TrackingService();Capture capture=new Capture(service,-1,null);
+   capture.tick();capture.startClip();assertNull(capture.recorder);assertNull(capture.display);assertNull(capture.images);
+   try{capture.start();fail("Inactive tracking must reject screen capture startup");}catch(IllegalStateException expected){}
+   capture.close();capture.tick();capture.startClip();assertNull(capture.recorder);
+  }catch(Exception e){throw new RuntimeException(e);}});
+ }
  @Before public void isolate()throws Exception{Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{if(TrackingService.instance!=null)TrackingService.instance.pause("manual");c.stopService(new Intent(c,TrackingService.class));});for(int i=0;i<50&&TrackingService.instance!=null;i++)Thread.sleep(100);c.getSharedPreferences("private",0).edit().clear().commit();UiDevice device=UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());device.wakeUp();device.pressMenu();}
  @After public void cleanup()throws Exception{Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{if(TrackingService.instance!=null)TrackingService.instance.pause("manual");c.stopService(new Intent(c,TrackingService.class));});UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).wakeUp();}
  @Test public void encryptedStoreAndCrashRecovery()throws Exception{
