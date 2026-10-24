@@ -26,7 +26,9 @@ public class TrackingTest {
   if(Build.VERSION.SDK_INT>=33)instrumentation.getUiAutomation().grantRuntimePermission(c.getPackageName(),android.Manifest.permission.POST_NOTIFICATIONS);
   MainActivity activity=(MainActivity)instrumentation.startActivitySync(new Intent(c,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
   instrumentation.runOnMainSync(()->{try{activity.startRequest="test";activity.startPayload=new JSONObject().put("taskNote","Emulator lifecycle test");activity.startActivityForResult(activity.captureIntent(),31);}catch(Exception e){throw new RuntimeException(e);}});
-  UiDevice device=UiDevice.getInstance(instrumentation);UiObject2 button=device.wait(Until.findObject(By.text(java.util.regex.Pattern.compile("(?i)start now|start recording|start sharing"))),10000);assertNotNull("Android screen-sharing consent must be visible",button);button.click();
+  UiDevice device=UiDevice.getInstance(instrumentation);UiObject2 button=device.wait(Until.findObject(By.text(java.util.regex.Pattern.compile("(?i)start now|start recording|start sharing|share screen|share|start"))),15000);
+  if(button==null)button=device.findObject(By.res("android:id/button1"));
+  if(button==null){java.io.ByteArrayOutputStream hierarchy=new java.io.ByteArrayOutputStream();device.dumpWindowHierarchy(hierarchy);fail("Android screen-sharing consent missing: "+hierarchy.toString("UTF-8"));}button.click();
   for(int i=0;i<50&&!TrackingService.isRunning();i++)Thread.sleep(200);assertTrue("Foreground timer starts after consent",TrackingService.isRunning());Thread.sleep(2500);
   assertTrue("JPEG was captured",new File(c.getFilesDir(),"outbox").listFiles((d,n)->n.endsWith(".jpg")).length>0);
   instrumentation.runOnMainSync(()->{try{TrackingService.instance.capture.startClip();}catch(Exception e){throw new RuntimeException(e);}});Thread.sleep(3500);

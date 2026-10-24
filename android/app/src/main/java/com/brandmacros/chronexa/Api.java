@@ -6,6 +6,7 @@ import java.io.*;
 import org.json.JSONObject;
 
 final class Api {
+ static final class Failure extends IOException { final int status;Failure(int status,String message){super(message);this.status=status;} }
  static final String BASE="https://chronexa-psi.vercel.app";
  static HttpURLConnection connection(Context c,String path,String method) throws Exception {
   if(!path.matches("/api/(agent/[A-Za-z0-9_/?=&.%:-]+|image/[A-Za-z0-9_-]+|recording/[A-Za-z0-9_-]+)"))throw new Exception("Invalid API path");
@@ -17,7 +18,7 @@ final class Api {
   HttpURLConnection con=connection(c,path,method);
   try{if(body!=null){con.setDoOutput(true);con.setRequestProperty("Content-Type","application/json");try(OutputStream out=con.getOutputStream()){out.write(body.toString().getBytes("UTF-8"));}}
    int status=con.getResponseCode();InputStream in=status<400?con.getInputStream():con.getErrorStream();ByteArrayOutputStream bytes=new ByteArrayOutputStream();if(in!=null){try(in){TrackingService.copy(in,bytes);}}String text=in==null?"{}":bytes.toString("UTF-8");JSONObject data=new JSONObject(text);
-   if(status>=400)throw new Exception(data.optString("error","Request failed ("+status+")"));return data;
+   if(status>=400)throw new Failure(status,data.optString("error","Request failed ("+status+")"));return data;
   }finally{con.disconnect();}
  }
  static void upload(Context c,String path,File file,JSONObject meta,String mime) throws Exception {
