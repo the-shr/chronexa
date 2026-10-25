@@ -6,6 +6,8 @@ import java.io.*;
 import org.json.JSONObject;
 
 final class Api {
+ interface TestTransport { JSONObject json(String path,String method,JSONObject body)throws Exception; }
+ static volatile TestTransport testTransport;
  static final class Failure extends IOException { final int status;Failure(int status,String message){super(message);this.status=status;} }
  static final String BASE="https://chronexa-psi.vercel.app";
  static HttpURLConnection connection(Context c,String path,String method) throws Exception {
@@ -15,6 +17,7 @@ final class Api {
   String token=Store.read(c,"account").optString("token");if(!token.isEmpty())con.setRequestProperty("Authorization","Bearer "+token); return con;
  }
  static JSONObject json(Context c,String path,String method,JSONObject body) throws Exception {
+  if(BuildConfig.DEBUG&&testTransport!=null)return testTransport.json(path,method,body);
   HttpURLConnection con=connection(c,path,method);
   try{if(body!=null){con.setDoOutput(true);con.setRequestProperty("Content-Type","application/json");try(OutputStream out=con.getOutputStream()){out.write(body.toString().getBytes("UTF-8"));}}
    int status=con.getResponseCode();InputStream in=status<400?con.getInputStream():con.getErrorStream();ByteArrayOutputStream bytes=new ByteArrayOutputStream();if(in!=null){try(in){TrackingService.copy(in,bytes);}}String text=in==null?"{}":bytes.toString("UTF-8");JSONObject data=new JSONObject(text);

@@ -1,5 +1,3 @@
-Chronexa 1.2.7
+Chronexa 1.2.8
 
-Android screen capture now explicitly rejects inactive tracking. Pausing detaches the screen capture surface before the tracker enters the paused state, stops an active recording, and prevents late callbacks from creating new captures. Recorder cleanup also handles a screen-sharing session stopped by Android.
-
-Android still requires consent for each new screen-sharing session; it does not ask before every screenshot or recording within that session. Existing captured files may finish syncing after tracking is paused.
+Android now syncs automatically without a manual Sync button. Pending sessions and captures use network-constrained background retries, including after tracking is paused or the app is reopened. Assigned tasks and activity refresh automatically. Syncing existing files never starts tracking or screen capture. Offline data remains queued until it can be uploaded.

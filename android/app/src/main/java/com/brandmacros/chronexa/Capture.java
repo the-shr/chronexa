@@ -44,7 +44,7 @@ final class Capture {
  File file(String name)throws Exception{File dir=new File(service.getFilesDir(),"outbox");if(!dir.exists()&&!dir.mkdirs())throw new IOException("Capture storage unavailable");long size=0;File[] files=dir.listFiles();if(files!=null)for(File f:files)size+=f.length();if(size>250L*1024*1024)throw new IOException("Capture storage full. Sync before continuing.");return new File(dir,name);}
  JSONObject meta(String id)throws Exception{return new JSONObject().put("id",id).put("sessionId",service.session.getString("id")).put("width",width).put("height",height);}
  void queue(File file,JSONObject meta,String path,String mime,String extension)throws Exception{
-  meta.put("path",path).put("mime",mime).put("extension",extension);File dest=new File(file.getParentFile(),meta.getString("id")+".json"),temp=new File(dest.getPath()+".tmp");try(FileOutputStream out=new FileOutputStream(temp)){out.write(meta.toString().getBytes("UTF-8"));out.getFD().sync();}if(!temp.renameTo(dest))throw new IOException("Could not queue capture");
+  meta.put("path",path).put("mime",mime).put("extension",extension);File dest=new File(file.getParentFile(),meta.getString("id")+".json"),temp=new File(dest.getPath()+".tmp");try(FileOutputStream out=new FileOutputStream(temp)){out.write(meta.toString().getBytes("UTF-8"));out.getFD().sync();}if(!temp.renameTo(dest))throw new IOException("Could not queue capture");SyncWorker.schedule(service);
  }
  void startClip()throws Exception{
   if(closed||!service.running)return;

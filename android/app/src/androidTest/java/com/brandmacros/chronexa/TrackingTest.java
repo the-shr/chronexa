@@ -12,6 +12,19 @@ import java.io.File;
 
 @RunWith(AndroidJUnit4.class)
 public class TrackingTest {
+ @Test public void pendingWorkRetriesWithoutStartingTracking()throws Exception{
+  Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();
+  JSONObject row=new JSONObject().put("id","automatic-sync-test").put("startedAt",TrackingService.iso(System.currentTimeMillis())).put("endedAt",TrackingService.iso(System.currentTimeMillis())).put("activeSeconds",17).put("idleSeconds",0);
+  TrackingService.enqueue(c,row);Store.save(c,"account",new JSONObject().put("token","test-only"));
+  java.util.concurrent.atomic.AtomicBoolean offline=new java.util.concurrent.atomic.AtomicBoolean(true);java.util.concurrent.atomic.AtomicInteger sent=new java.util.concurrent.atomic.AtomicInteger();
+  Api.testTransport=(path,method,body)->{if(path.equals("/api/agent/sessions")){if(offline.get())throw new java.io.IOException("Test connection unavailable");assertEquals("automatic-sync-test",body.getString("id"));sent.incrementAndGet();}return new JSONObject();};
+  try{
+   SyncWorker worker=androidx.work.testing.TestListenableWorkerBuilder.from(c,SyncWorker.class).build();
+   assertEquals(androidx.work.ListenableWorker.Result.retry(),worker.doWork());assertEquals(1,TrackingService.pending(c));assertFalse(TrackingService.isRunning());
+   offline.set(false);assertEquals(androidx.work.ListenableWorker.Result.success(),worker.doWork());assertEquals(0,TrackingService.pending(c));assertEquals(1,sent.get());assertFalse("Sync must not start tracking or capture",TrackingService.isRunning());assertNotNull(Store.read(c,"sync-state").optString("lastSuccess",null));
+   assertEquals(androidx.work.NetworkType.CONNECTED,SyncWorker.constraints().getRequiredNetworkType());
+  }finally{Api.testTransport=null;Store.save(c,"account",new JSONObject());}
+ }
  @Test public void inactiveTrackingCannotStartCapture()throws Exception{
   var instrumentation=InstrumentationRegistry.getInstrumentation();
   instrumentation.runOnMainSync(()->{try{
@@ -21,7 +34,7 @@ public class TrackingTest {
    capture.close();capture.tick();capture.startClip();assertNull(capture.recorder);
   }catch(Exception e){throw new RuntimeException(e);}});
  }
- @Before public void isolate()throws Exception{Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{if(TrackingService.instance!=null)TrackingService.instance.pause("manual");c.stopService(new Intent(c,TrackingService.class));});for(int i=0;i<50&&TrackingService.instance!=null;i++)Thread.sleep(100);c.getSharedPreferences("private",0).edit().clear().commit();UiDevice device=UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());device.wakeUp();device.pressMenu();}
+ @Before public void isolate()throws Exception{Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{if(TrackingService.instance!=null)TrackingService.instance.pause("manual");c.stopService(new Intent(c,TrackingService.class));});for(int i=0;i<50&&TrackingService.instance!=null;i++)Thread.sleep(100);c.getSharedPreferences("private",0).edit().clear().commit();File[] oldCaptures=new File(c.getFilesDir(),"outbox").listFiles();if(oldCaptures!=null)for(File capture:oldCaptures)capture.delete();UiDevice device=UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());device.wakeUp();device.pressMenu();}
  @After public void cleanup()throws Exception{Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{if(TrackingService.instance!=null)TrackingService.instance.pause("manual");c.stopService(new Intent(c,TrackingService.class));});UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).wakeUp();}
  @Test public void encryptedStoreAndCrashRecovery()throws Exception{
   Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();Store.save(c,"account",new JSONObject());Store.save(c,"history",new JSONObject());
