@@ -8,7 +8,7 @@ const auth = require('./auth');
 const db = require('./db');
 const log = require('./log');
 
-const REFRESH_MS = 30 * 1000;
+const REFRESH_MS = 60 * 1000;
 
 /**
  * Tasks assigned by an admin. The list is cached on disk so it still renders
@@ -65,18 +65,32 @@ class Tasks extends EventEmitter {
     return this.store.read().rows.find((t) => t.id === id) || null;
   }
 
-  async refresh() {
+  refresh() {
+    const accountToken = auth.get().token;
+    if (this.refreshToken !== accountToken) { this.refreshToken = accountToken; this.lastRefreshAttempt = 0; this.refreshRequest = null; }
+    if (this.refreshRequest) return this.refreshRequest;
+    if (Date.now() - (this.lastRefreshAttempt || 0) < 15000) return Promise.resolve(this.list());
+    this.lastRefreshAttempt = Date.now();
+    const pending = this.fetchTasks().finally(() => { if (this.refreshRequest === pending) this.refreshRequest = null; });
+    this.refreshRequest = pending;
+    return pending;
+  }
+
+  async fetchTasks() {
+    const accountToken = auth.get().token;
     const cfg = settings.get().sync;
     if (!auth.isSignedIn()) return this.list();
 
     try {
-      const res = await fetch(`${cfg.serverUrl}/api/agent/tasks`, { headers: auth.authHeaders() });
+      const res = await fetch(`${cfg.serverUrl}/api/agent/tasks`, { headers: auth.authHeaders(), signal: AbortSignal.timeout(15000) });
+      if (auth.get().token !== accountToken || !auth.isSignedIn()) return this.list();
       if (res.status === 401) {
         auth.markExpired('tasks request refused');
         throw new Error('Your session has expired.');
       }
       if (!res.ok) throw new Error(`tasks ${res.status}`);
       const { tasks } = await res.json();
+      if (auth.get().token !== accountToken || !auth.isSignedIn()) return this.list();
 
       const queued = db.peekOutbox(9999);
       // Anything changed offline is still in the outbox; keep the local version
@@ -125,6 +139,7 @@ class Tasks extends EventEmitter {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `Comment failed (${res.status})`);
+    this.lastRefreshAttempt = 0;
     return this.refresh();
   }
 

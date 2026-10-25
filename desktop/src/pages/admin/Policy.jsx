@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { usePolicy } from '../../lib/admin-hooks.js';
 import './configuration.css';
 
 const SECTIONS = [['work','Work schedule','Hours & targets'],['idle','Idle & tracking','Presence rules'],['capture','Capture','Screenshots & recording'],['people','Employees','Individual settings']];
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
-export default function Policy() {
+function Policy() {
   const { policy, employees, estimatedDailyBytes, error, loading, reload, save } = usePolicy();
   const [section,setSection] = useState('work');
   const [draft,setDraft] = useState(null);
@@ -56,3 +56,5 @@ function Input({label,unit,type,value,onChange,...props}){return <label classNam
 function Switch({label,checked,onChange,disabled}){return <div className="cfg-switch-row"><span>{label}</span><button type="button" className={'cfg-switch '+(checked?'on':'')} role="switch" aria-label={label} aria-checked={Boolean(checked)} disabled={disabled} onClick={()=>onChange(!checked)}><i/></button></div>;}
 function OverrideChoice({label,setting,overrides,policy,onChange,disabled}){const value=overrides[setting];return <div className="cfg-exception"><div className="cfg-exception-label"><strong>{label}</strong><small>{value===undefined?'Team default':'Custom setting'} · {(value??policy[setting])?'On':'Off'}</small></div><div className="cfg-options" role="group" aria-label={label}>{[['inherit','Default'],['true','On'],['false','Off']].map(([id,text])=><button type="button" disabled={disabled} aria-pressed={(value===undefined?'inherit':String(value))===id} key={id} onClick={()=>onChange({[setting]:id==='inherit'?null:id==='true'})}>{text}</button>)}</div></div>;}
 function OverrideNumber({label,setting,overrides,policy,onChange,unit,type='number',...props}){const custom=overrides[setting]!==undefined;return <div className="cfg-exception cfg-exception-number"><div className="cfg-exception-label"><strong>{label}</strong><small>Team default: {policy[setting]} {unit}</small></div><div className="cfg-number-controls"><div className="cfg-options" role="group" aria-label={label+' source'}><button type="button" disabled={props.disabled} aria-pressed={!custom} onClick={()=>onChange({[setting]:null})}>Default</button><button type="button" disabled={props.disabled} aria-pressed={custom} onClick={()=>onChange({[setting]:policy[setting]})}>Custom</button></div>{custom?<label className="cfg-inline-value"><input aria-label={label} type={type} required value={overrides[setting]} onChange={e=>onChange({[setting]:type==='number'?(e.target.value===''?'':Number(e.target.value)):e.target.value})} {...props}/>{unit&&<small>{unit}</small>}</label>:<span className="cfg-effective-value">{policy[setting]} {unit}</span>}</div></div>;}
+
+export default memo(Policy);

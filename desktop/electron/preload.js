@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('api', {
     onIdleWarning: (fn) => subscribe('tracker:idle-warning', fn),
     onIdleWarningClose: (fn) => subscribe('tracker:idle-warning-close', fn),
   },
+  overlay: { expand: (value) => invoke('overlay:expand', value), hide: () => invoke('overlay:hide'), drag: (phase) => invoke('overlay:drag', phase), onExpanded: (fn) => subscribe('overlay:expanded', fn) },
   settings: {
     get: () => invoke('settings:get'),
     set: (patch) => invoke('settings:set', patch),
@@ -64,7 +65,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   admin: {
     employees: (period) => invoke('admin:employees', period),
-    employee: (id, month) => invoke('admin:employee', id, month),
+    employee: (id, month) => invoke('admin:employee', { id, month }),
     avatar: (id) => invoke('admin:avatar', id),
     screenshots: (query) => invoke('admin:screenshots', query),
     recordings: (query) => invoke('admin:recordings', query),

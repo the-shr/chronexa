@@ -42,14 +42,22 @@ export async function fetchProfilePhoto(email) {
 }
 
 const teamCache = new Map();
-export async function fetchTeamProfiles(actorEmail, { fresh = false } = {}) {
+const teamRequests = new Map();
+export async function fetchTeamProfiles(actorEmail, options = {}) {
+  const key = String(actorEmail || '').toLowerCase();
+  if (teamRequests.has(key)) return teamRequests.get(key);
+  const pending = loadTeamProfiles(actorEmail, options).finally(() => teamRequests.delete(key));
+  teamRequests.set(key, pending);
+  return pending;
+}
+async function loadTeamProfiles(actorEmail, { fresh = false } = {}) {
   if (!configured()) return null;
   const key = String(actorEmail || '').toLowerCase();
   const cached = teamCache.get(key);
   if (!fresh && cached && cached.until > Date.now()) return cached.people;
   try {
     const query = new URLSearchParams({ actorEmail: key });
-    const { ok, data } = await call('/api/ecosystem/team?' + query.toString());
+    const { ok, data } = await call('/api/ecosystem/team?' + query.toString(), { revalidate: fresh ? 0 : 60 });
     if (!ok || !Array.isArray(data.people)) return null;
     if (teamCache.size > 32) teamCache.clear();
     teamCache.set(key, { people: data.people, until: Date.now() + 60000 });
@@ -57,13 +65,14 @@ export async function fetchTeamProfiles(actorEmail, { fresh = false } = {}) {
   } catch { return null; }
 }
 
-async function call(path, { method = 'GET', body } = {}) {
+async function call(path, { method = 'GET', body, revalidate } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
     const res = await fetch(`${base()}${path}`, {
       method,
       signal: controller.signal,
+      ...(revalidate === undefined ? {} : revalidate ? { next: { revalidate } } : { cache: 'no-store' }),
       headers: { ...appHeaders(), ...(body ? { 'content-type': 'application/json' } : {}) },
       body: body ? JSON.stringify(body) : undefined,
     });

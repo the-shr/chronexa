@@ -49,13 +49,11 @@ export function useTasks() {
     window.api.tasks.list().then((t) => alive && setTasks(t));
     const off = window.api.tasks.onChange(setTasks);
     const refreshNow = () => window.api.tasks.refresh().then((t) => alive && setTasks(t)).catch(() => {});
-    const id = setInterval(refreshNow, 30000);
+    // The main process owns periodic task refreshes, including while minimized.
     window.addEventListener('focus', refreshNow);
-    refreshNow();
     return () => {
       alive = false;
       off();
-      clearInterval(id);
       window.removeEventListener('focus', refreshNow);
     };
   }, []);

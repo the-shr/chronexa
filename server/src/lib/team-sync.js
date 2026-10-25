@@ -1,5 +1,15 @@
 /** Materialize directory profiles without copying passwords or granting admin access. */
+const snapshots = new WeakMap();
 export async function syncTeamProfiles(db, people) {
+  if (!Array.isArray(people)) return { processed: 0 };
+  let cache = snapshots.get(db);
+  if (!cache) { cache = new WeakMap(); snapshots.set(db, cache); }
+  if (cache.has(people)) return cache.get(people);
+  const pending = applyTeamProfiles(db, people).catch(error => { cache.delete(people); throw error; });
+  cache.set(people, pending);
+  return pending;
+}
+async function applyTeamProfiles(db, people) {
   if (!Array.isArray(people)) return { processed: 0 };
   const valid = people.filter(p => p && typeof p.userId === 'string' && p.userId && typeof p.email === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email.trim()) && typeof p.name === 'string' && p.name.trim());
   if (!valid.length) return { processed: 0 };

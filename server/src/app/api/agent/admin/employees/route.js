@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(request) {
   const device = await adminDeviceFromRequest(request);
   if (!device) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  const organization = await fetchTeamProfiles(device.user?.email, { fresh: true });
+  const organization = await fetchTeamProfiles(device.user?.email);
   await syncTeamProfiles(prisma, organization);
   const now = new Date();
   const today = startOfDay(0, now);

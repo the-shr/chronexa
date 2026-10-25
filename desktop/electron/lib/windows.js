@@ -12,6 +12,8 @@ let mainWindow = null;
 let idleWindow = null;
 let overlayWindow = null;
 let overlayPosition = null;
+let overlayExpanded = false, overlayHidden = false, overlayLastState = 'stopped', overlayLastSession = null, overlayDrag = null;
+let overlayCompactSize = { width: 158, height: 54 };
 const settings = require('./settings');
 
 function load(win, view) {
@@ -149,41 +151,51 @@ function broadcast(channel, payload) {
   }
 }
 
+function setOverlayExpanded(expanded) {
+  overlayExpanded = Boolean(expanded);
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  const bounds = overlayWindow.getBounds(), area = screen.getDisplayMatching(bounds).workArea;
+  const width = Math.min(area.width, overlayCompactSize.width + (overlayExpanded ? 138 : 0)), height = Math.max(overlayCompactSize.height, overlayExpanded ? 58 : 44);
+  overlayWindow.setBounds({ x: Math.max(area.x, Math.min(bounds.x, area.x + area.width - width)), y: Math.max(area.y, Math.min(bounds.y, area.y + area.height - height)), width, height });
+  overlayWindow.webContents.send('overlay:expanded', overlayExpanded);
+  if (overlayExpanded) overlayWindow.focus();
+}
+function hideOverlay() { overlayHidden = true; setOverlayExpanded(false); if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.hide(); }
+function dragOverlay(phase) {
+  if (!overlayWindow || overlayWindow.isDestroyed()) return;
+  if (phase === 'start') overlayDrag = { cursor: screen.getCursorScreenPoint(), bounds: overlayWindow.getBounds() };
+  if (phase === 'end') { overlayDrag = null; return; }
+  if (phase !== 'move' || !overlayDrag) return;
+  const cursor = screen.getCursorScreenPoint(), area = screen.getDisplayNearestPoint(cursor).workArea, bounds = overlayWindow.getBounds();
+  overlayWindow.setPosition(Math.round(Math.max(area.x, Math.min(overlayDrag.bounds.x + cursor.x - overlayDrag.cursor.x, area.x + area.width - bounds.width))), Math.round(Math.max(area.y, Math.min(overlayDrag.bounds.y + cursor.y - overlayDrag.cursor.y, area.y + area.height - bounds.height))));
+}
 function updateOverlay(snapshot) {
-  if (!settings.get().general.timerOverlayVisible || snapshot.state !== 'running') {
-    if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.hide();
-    return;
-  }
+  const sessionId = snapshot.session?.id || null;
+  const freshPlay = snapshot.state === 'running' && (overlayLastState !== 'running' || sessionId !== overlayLastSession);
+  overlayLastState = snapshot.state; overlayLastSession = sessionId;
+  if (freshPlay) { overlayHidden = false; setOverlayExpanded(false); if (!settings.get().general.timerOverlayVisible) settings.set({ general: { timerOverlayVisible: true } }); }
+  if (overlayHidden || !settings.get().general.timerOverlayVisible || !['running', 'paused'].includes(snapshot.state)) { if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.hide(); return; }
   if (!overlayWindow || overlayWindow.isDestroyed()) {
-    const { workArea } = screen.getPrimaryDisplay();
-    const general = settings.get().general;
-    const width = general.timerOverlayWidth || 260;
-    const height = general.timerOverlayHeight || 88;
-    const saved = overlayPosition || { x: workArea.x + workArea.width - 280, y: workArea.y + 30 };
-    const display = screen.getDisplayNearestPoint(saved).workArea;
-    overlayWindow = new BrowserWindow({
-      width, height, minWidth: 220, minHeight: 80, maxWidth: 900, maxHeight: 500,
-      x: Math.max(display.x, Math.min(saved.x, display.x + display.width - width)),
-      y: Math.max(display.y, Math.min(saved.y, display.y + display.height - height)),
-      frame: false, transparent: true, resizable: true, movable: true,
-      skipTaskbar: true, alwaysOnTop: true, show: false, focusable: false,
-      webPreferences: { preload: PRELOAD, contextIsolation: true, nodeIntegration: false, sandbox: true },
-    });
-    overlayWindow.setOpacity(0.78);
-    overlayWindow.setAlwaysOnTop(true, 'floating');
-    overlayWindow.on('moved', () => { const [x, y] = overlayWindow.getPosition(); overlayPosition = { x, y }; });
-    overlayWindow.on('resized', () => {
-      const [width, height] = overlayWindow.getSize();
-      settings.set({ general: { timerOverlayWidth: width, timerOverlayHeight: height } });
-    });
-    overlayWindow.on('closed', () => { overlayWindow = null; });
-    overlayWindow.once('ready-to-show', () => updateOverlay(require('./tracker').snapshot()));
-    load(overlayWindow, 'overlay');
+    const area = screen.getPrimaryDisplay().workArea, saved = overlayPosition || { x: area.x + area.width - 190, y: area.y + 30 }, display = screen.getDisplayNearestPoint(saved).workArea;
+    overlayWindow = new BrowserWindow({ width: overlayCompactSize.width, height: overlayCompactSize.height, minWidth: 130, minHeight: 44, maxWidth: 650, maxHeight: 100,
+      x: Math.max(display.x, Math.min(saved.x, display.x + display.width - overlayCompactSize.width)), y: Math.max(display.y, Math.min(saved.y, display.y + display.height - overlayCompactSize.height)),
+      frame: false, transparent: true, resizable: true, movable: true, skipTaskbar: true, alwaysOnTop: true, show: false, focusable: true,
+      webPreferences: { preload: PRELOAD, contextIsolation: true, nodeIntegration: false, sandbox: true } });
+    overlayWindow.setOpacity(0.9); overlayWindow.setAlwaysOnTop(true, 'floating');
+    overlayWindow.on('moved', () => { const [x,y] = overlayWindow.getPosition(); overlayPosition = {x,y}; });
+    overlayWindow.on('resized', () => { if (!overlayExpanded) { const [width,height] = overlayWindow.getSize(); overlayCompactSize = {width,height}; } });
+    overlayWindow.on('blur', () => setOverlayExpanded(false));
+    overlayWindow.on('closed', () => { overlayWindow = null; overlayExpanded = false; });
+    overlayWindow.once('ready-to-show', () => updateOverlay(require('./tracker').snapshot())); load(overlayWindow, 'overlay');
   } else overlayWindow.showInactive();
 }
 
 module.exports = {
   updateOverlay,
+  setOverlayExpanded,
+  hideOverlay,
+  dragOverlay,
+  getOverlayWindow: () => overlayWindow,
   createMainWindow,
   openIdleWindow,
   closeIdleWindow,

@@ -246,6 +246,9 @@ handle('tracker:pause', () => tracker.pause());
 handle('tracker:resume', () => tracker.resume());
 handle('tracker:stop', (reason) => tracker.stop(reason || 'manual'));
 handle('tracker:snapshot', () => tracker.snapshot());
+handle('overlay:expand', (expanded) => windows.setOverlayExpanded(expanded));
+handle('overlay:hide', () => windows.hideOverlay());
+handle('overlay:drag', (phase) => windows.dragOverlay(phase));
 handle('tracker:acknowledge-idle', () => {
   const snapshot = tracker.acknowledgeIdle();
   windows.closeIdleWindow();
@@ -310,7 +313,7 @@ handle('profile:pick-avatar', async () => {
 handle('configuration:get', () => admin.policy());
 handle('configuration:update', (patch) => admin.updatePolicy(patch || {}));
 handle('admin:employees', (period) => admin.employees(period));
-handle('admin:employee', (id, month) => admin.employee(id, month));
+handle('admin:employee', (query) => typeof query === 'string' ? admin.employee(query) : admin.employee(query.id, query.month));
 handle('admin:avatar', (id) => admin.avatar(id));
 handle('admin:screenshots', (query) => admin.screenshots(query || {}));
 handle('admin:recordings', (query) => admin.recordings(query || {}));

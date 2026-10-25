@@ -3,18 +3,25 @@
 // Narrow configuration client. Chronexa has no separate admin application.
 const settings = require('./settings');
 const auth = require('./auth');
+const { ReadCache } = require('./read-cache');
+const reads = new ReadCache();
+auth.on('changed', () => reads.clear());
 
 function base() { return settings.get().sync.serverUrl; }
 function canManage() { return Boolean(auth.get().user?.canManageTrackingPolicy); }
-let cachedPolicy = null;
-let policyRequest = null;
-let cachedAt = 0;
 const imageCache = new Map();
 const clipCache = new Map();
 const avatarCache = new Map();
 const avatarRequests = new Map();
 
-async function request(method, body, path = '/api/agent/admin/policy') {
+function request(method, body, path = '/api/agent/admin/policy') {
+  if (!auth.isSignedIn() || !canManage()) return fetchRequest(method, body, path);
+  if (method !== 'GET') { reads.clear(); return fetchRequest(method, body, path).finally(() => reads.clear()); }
+  const key = JSON.stringify([base(), auth.get().token, path]);
+  return reads.read(key, () => fetchRequest(method, body, path));
+}
+async function fetchRequest(method, body, path) {
+  const accountToken = auth.get().token;
   if (!auth.isSignedIn()) throw new Error('Sign in to load configuration.');
   if (!canManage()) throw new Error('This account cannot manage tracking configuration.');
   let res;
@@ -31,6 +38,7 @@ async function request(method, body, path = '/api/agent/admin/policy') {
   }
   if (res.status === 401) throw new Error('Your account cannot manage tracking configuration.');
   const data = await res.json().catch(() => ({}));
+  if (auth.get().token !== accountToken || !auth.isSignedIn()) throw new Error('Account changed. Please retry.');
   if (!res.ok) throw new Error(data.error || `Configuration request failed (${res.status}).`);
   return data;
 }
@@ -41,22 +49,8 @@ module.exports = {
       if (canManage()) module.exports.policy({ force: true }).catch(() => {});
     }, 500);
   },
-  async policy({ force = false } = {}) {
-    if (!force && cachedPolicy && Date.now() - cachedAt < 60000) return cachedPolicy;
-    if (!policyRequest) {
-      policyRequest = request('GET').then((data) => {
-        cachedPolicy = data;
-        cachedAt = Date.now();
-        return data;
-      }).finally(() => { policyRequest = null; });
-    }
-    return policyRequest;
-  },
-  async updatePolicy(patch) {
-    const result = await request('PATCH', patch);
-    cachedAt = 0;
-    return result;
-  },
+  policy() { return request('GET'); },
+  updatePolicy(patch) { return request('PATCH', patch); },
   employees(period = 'month') { return request('GET', null, `/api/agent/admin/employees?period=${period === 'week' ? 'week' : 'month'}`); },
   employee(id, month) { return request('GET', null, `/api/agent/admin/employees/${encodeURIComponent(id)}${month ? `?month=${encodeURIComponent(month)}` : ''}`); },
   async avatar(id) {
