@@ -1,3 +1,3 @@
-Chronexa 1.2.8
+Chronexa 1.2.9
 
-Android now syncs automatically without a manual Sync button. Pending sessions and captures use network-constrained background retries, including after tracking is paused or the app is reopened. Assigned tasks and activity refresh automatically. Syncing existing files never starts tracking or screen capture. Offline data remains queued until it can be uploaded.
+Compact draggable floating timers for Windows and Android. Tap or click to show pause, resume, stop and hide controls; the timer returns on the next play. Refined Android navigation and launcher icon. Square activity calendar with a persistent selected-day total. Reduced duplicate requests and unnecessary page renders, account-isolated caching, and independent Android status/network queues.
