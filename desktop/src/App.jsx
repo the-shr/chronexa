@@ -34,6 +34,7 @@ function Application({ update, account, refreshAccount }) {
   const tasks = useTasks();
   const [theme, toggleTheme] = useTheme();
   const { profile } = useProfile();
+  const canViewEmployees = Boolean(account?.user?.canViewEmployeeTracking || account?.user?.canManageTrackingPolicy);
   const canConfigure = Boolean(account?.user?.canManageTrackingPolicy);
 
   useEffect(() => {
@@ -72,7 +73,7 @@ function Application({ update, account, refreshAccount }) {
 
   const name = profile?.user?.name || account?.user?.name || account?.user?.email || 'Not signed in';
   const avatar = profile?.avatar || null;
-  const tabs = canConfigure ? [...TABS, { id: 'employees', label: 'Employees' }, { id: 'configuration', label: 'Configuration' }] : TABS;
+  const tabs = [...TABS, ...(canViewEmployees ? [{ id: 'employees', label: 'Employees' }] : []), ...(canConfigure ? [{ id: 'configuration', label: 'Configuration' }] : [])];
 
   return (
     <div className="app">
@@ -111,7 +112,7 @@ function Application({ update, account, refreshAccount }) {
       <main className="content">
         {tab === 'tracker' && <Home snapshot={snapshot} tasks={tasks} account={account} profile={profile} />}
         {tab === 'activity' && <Activity snapshot={snapshot} />}
-        {tab === 'employees' && canConfigure && <Employees />}
+        {tab === 'employees' && canViewEmployees && <Employees />}
         {tab === 'configuration' && canConfigure && <Policy />}
         {tab === 'profile' && <Profile />}
         {tab === 'settings' && <Preferences />}

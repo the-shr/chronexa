@@ -1,4 +1,4 @@
-import { adminDeviceFromRequest } from '@/lib/auth.js';
+import { trackingDeviceFromRequest, trackingUserScope, canReadTrackingUser } from '@/lib/auth.js';
 import { employeeDetail } from '@/lib/overview.js';
 import { prisma } from '@/lib/db.js';
 import { sanitizeDiagnostics } from '@/lib/diagnostics.js';
@@ -9,10 +9,11 @@ export const dynamic = 'force-dynamic';
 
 /** One employee in depth: sessions, tasks, captures and devices. */
 export async function GET(request, { params }) {
-  const device = await adminDeviceFromRequest(request);
+  const device = await trackingDeviceFromRequest(request);
   if (!device) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
+  if (!await canReadTrackingUser(device.user, id)) return Response.json({ error: 'Not found' }, { status: 404 });
   const detail = await employeeDetail(id, { month: new URL(request.url).searchParams.get('month') || undefined });
   if (detail.error) return Response.json({ error: detail.error }, { status: 404 });
   const devices=await prisma.device.findMany({where:{userId:id},orderBy:{lastSeenAt:'desc'},select:{id:true,name:true,platform:true,lastSeenAt:true,diagnostics:true,diagnosticsAt:true}});

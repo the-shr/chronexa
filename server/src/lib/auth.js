@@ -5,13 +5,17 @@ import { prisma } from './db.js';
 
 export { hashPassword, verifyPassword, newDeviceToken } from './password.js';
 
+import { isProjectManager, canViewEmployeeTracking, managerCanView } from './tracking-access.js';
+import { fetchTeamProfiles } from './bmos.js';
+
 const COOKIE = 'tt_admin';
 const SESSION_DAYS = 7;
 
 export function isChronexaAdmin(user) {
   if (!user?.active) return false;
-  if (user.role === 'admin') return true;
   if (user.bmosIsSuperAdmin) return true;
+  if (isProjectManager(user)) return false;
+  if (user.role === 'admin') return true;
   const roles = Array.isArray(user.bmosRoleKeys) ? user.bmosRoleKeys.map((key) => String(key).toLowerCase()) : [];
   if (roles.some((key) => ['admin', 'administrator'].includes(key))) return true;
   const permissions = Array.isArray(user.bmosPermissions) ? user.bmosPermissions : [];
@@ -99,4 +103,24 @@ export async function currentAdmin() {
   if (!payload) return null;
   const user = await prisma.user.findUnique({ where: { id: payload.sub } });
   return user && isChronexaAdmin(user) ? user : null;
+}
+
+export async function trackingDeviceFromRequest(request) {
+  const device = await deviceFromRequest(request);
+  return device && canViewEmployeeTracking(device.user) ? device : null;
+}
+export async function trackingUserScope(actor) {
+  if (isChronexaAdmin(actor)) return null;
+  if (!isProjectManager(actor) || !actor.active) return [];
+  const profiles = await fetchTeamProfiles(actor.email);
+  if (!Array.isArray(profiles)) return []; // fail closed if OS cannot verify the live role
+  const users = await prisma.user.findMany({ select: { id: true, email: true, role: true, active: true, externalId: true, bmosRoleKeys: true, bmosIsSuperAdmin: true } });
+  return users.filter(target => {
+    const profile = profiles.find(p => p.userId === target.externalId || p.email?.toLowerCase() === target.email.toLowerCase());
+    return managerCanView(actor, target, profile);
+  }).map(user => user.id);
+}
+export async function canReadTrackingUser(actor, id) {
+  const scope = await trackingUserScope(actor);
+  return scope === null || scope.includes(id);
 }

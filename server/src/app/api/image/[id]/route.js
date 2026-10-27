@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db.js';
-import { currentAdmin, adminDeviceFromRequest } from '@/lib/auth.js';
+import { currentAdmin, trackingDeviceFromRequest, canReadTrackingUser } from '@/lib/auth.js';
 import { getScreenshot } from '@/lib/storage.js';
 
 /**
@@ -14,13 +14,14 @@ import { getScreenshot } from '@/lib/storage.js';
  * renderer a data URL, so the token never has to travel in an <img> URL.
  */
 export async function GET(request, { params }) {
-  const admin = (await currentAdmin()) || (await adminDeviceFromRequest(request));
+  const admin = (await currentAdmin()) || (await trackingDeviceFromRequest(request));
   if (!admin) return new Response('Unauthorized', { status: 401 });
 
   const { id } = await params;
   const row = await prisma.screenshot.findUnique({ where: { id } });
   if (!row) return new Response('Not found', { status: 404 });
 
+  if (!await canReadTrackingUser(admin.user || admin, row.userId)) return new Response('Not found', { status: 404 });
   const bytes = await getScreenshot(row.storagePath);
   if (!bytes) return new Response('Image file missing', { status: 404 });
 
@@ -28,7 +29,7 @@ export async function GET(request, { params }) {
     headers: {
       'content-type': 'image/jpeg',
       'content-length': String(bytes.length),
-      'cache-control': 'private, max-age=3600',
+      'cache-control': 'private, no-store',
     },
   });
 }

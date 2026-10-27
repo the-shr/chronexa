@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db.js';
-import { adminDeviceFromRequest } from '@/lib/auth.js';
+import { trackingDeviceFromRequest, trackingUserScope, canReadTrackingUser } from '@/lib/auth.js';
 import { startOfDay } from '@/lib/overview.js';
 import { fetchTeamProfiles } from '@/lib/bmos.js';
 import { getPolicy } from '@/lib/policy.js';
@@ -9,7 +9,7 @@ import { rankEmployees } from '@/lib/employee-ranking.js';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
-  const device = await adminDeviceFromRequest(request);
+  const device = await trackingDeviceFromRequest(request);
   if (!device) return Response.json({ error: 'Unauthorized' }, { status: 401 });
   const organization = await fetchTeamProfiles(device.user?.email);
   await syncTeamProfiles(prisma, organization);
@@ -46,7 +46,8 @@ export async function GET(request) {
   let workingDays = 0;
   for (let day = 1; day <= monthDays; day++) if (workDays.has(new Date(Date.UTC(monthDate.getUTCFullYear(), monthDate.getUTCMonth(), day)).getUTCDay() || 7)) workingDays++;
   const day = new Map(daily.map((row) => [row.userId, row._sum]));
-  const rows = users.map((u) => ({
+  const scope = await trackingUserScope(device.user);
+  const rows = users.filter(u => scope === null || scope.includes(u.id)).map((u) => ({
     id: u.id, name: u.name, email: u.email, role: u.role, active: u.active,
     department: profileFor(u)?.department?.name || null,
     designation: profileFor(u)?.designation || null,

@@ -1,13 +1,15 @@
 import { prisma } from '@/lib/db.js';
-import { adminDeviceFromRequest } from '@/lib/auth.js';
+import { trackingDeviceFromRequest, trackingUserScope, canReadTrackingUser } from '@/lib/auth.js';
 import { getAvatar } from '@/lib/storage.js';
 import * as bmos from '@/lib/bmos.js';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request, { params }) {
-  if (!await adminDeviceFromRequest(request)) return new Response('Unauthorized', { status: 401 });
+  const device = await trackingDeviceFromRequest(request);
+  if (!device) return new Response('Unauthorized', { status: 401 });
   const { id } = await params;
+  if (!await canReadTrackingUser(device.user, id)) return new Response('Not found', { status: 404 });
   const user = await prisma.user.findUnique({ where: { id }, select: { email: true, source: true, externalId: true, avatarPath: true } });
   if (!user) return new Response('Not found', { status: 404 });
   let bytes, type;

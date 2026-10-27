@@ -1,5 +1,5 @@
 /**
- * Client for the Brand Macros OS ecosystem hub.
+ * Client for the MacroBex OS ecosystem hub.
  *
  * Chronexa is a satellite: the hub owns accounts and the canonical task list.
  * This talks to /api/ecosystem/* with Chronexa's registered app credentials.

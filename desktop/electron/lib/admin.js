@@ -5,17 +5,19 @@ const settings = require('./settings');
 const auth = require('./auth');
 const { ReadCache } = require('./read-cache');
 const reads = new ReadCache();
-auth.on('changed', () => reads.clear());
+auth.on('changed', () => { reads.clear(); imageCache.clear(); clipCache.clear(); avatarCache.clear(); avatarRequests.clear(); });
 
 function base() { return settings.get().sync.serverUrl; }
 function canManage() { return Boolean(auth.get().user?.canManageTrackingPolicy); }
+function canView() { return canManage() || Boolean(auth.get().user?.canViewEmployeeTracking); }
+function allowed(method, path) { return canManage() || (canView() && method === 'GET' && /^\/api\/agent\/admin\/(employees(?:\/|\?|$)|screenshots(?:\?|$)|recordings(?:\?|$))/.test(path)); }
 const imageCache = new Map();
 const clipCache = new Map();
 const avatarCache = new Map();
 const avatarRequests = new Map();
 
 function request(method, body, path = '/api/agent/admin/policy') {
-  if (!auth.isSignedIn() || !canManage()) return fetchRequest(method, body, path);
+  if (!auth.isSignedIn() || !allowed(method, path)) return fetchRequest(method, body, path);
   if (method !== 'GET') { reads.clear(); return fetchRequest(method, body, path).finally(() => reads.clear()); }
   const key = JSON.stringify([base(), auth.get().token, path]);
   return reads.read(key, () => fetchRequest(method, body, path));
@@ -23,7 +25,7 @@ function request(method, body, path = '/api/agent/admin/policy') {
 async function fetchRequest(method, body, path) {
   const accountToken = auth.get().token;
   if (!auth.isSignedIn()) throw new Error('Sign in to load configuration.');
-  if (!canManage()) throw new Error('This account cannot manage tracking configuration.');
+  if (!allowed(method, path)) throw new Error('This account cannot access this resource.');
   let res;
   try {
     res = await fetch(`${base()}${path}`, {
@@ -54,7 +56,7 @@ module.exports = {
   employees(period = 'month') { return request('GET', null, `/api/agent/admin/employees?period=${period === 'week' ? 'week' : 'month'}`); },
   employee(id, month) { return request('GET', null, `/api/agent/admin/employees/${encodeURIComponent(id)}${month ? `?month=${encodeURIComponent(month)}` : ''}`); },
   async avatar(id) {
-    if (!auth.isSignedIn() || !canManage()) throw new Error('Admin access required.');
+    if (!auth.isSignedIn() || !canView()) throw new Error('Employee access required.');
     const key = `${auth.get().user?.id || auth.get().user?.email}:${String(id || '')}`;
     if (!id) return null;
     const cached = avatarCache.get(key);

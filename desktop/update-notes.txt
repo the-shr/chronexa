@@ -1,3 +1,1 @@
-Chronexa 1.2.9
-
-Compact draggable floating timers for Windows and Android. Tap or click to show pause, resume, stop and hide controls; the timer returns on the next play. Refined Android navigation and launcher icon. Square activity calendar with a persistent selected-day total. Reduced duplicate requests and unnecessary page renders, account-isolated caching, and independent Android status/network queues.
+Project Managers can view their own and lower-role employee tracking without configuration access. Super Admin, CEO, HOO and peer Project Manager tracking stays protected. Updated MacroBex branding on desktop and Android.

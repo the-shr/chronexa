@@ -1,7 +1,7 @@
 import { deviceFromRequest } from '@/lib/auth.js';
 import * as bmos from '@/lib/bmos.js';
 
-// Brand Macros OS priority -> Chronexa's three levels.
+// MacroBex OS priority -> Chronexa's three levels.
 const HUB_PRIORITY = { URGENT: 'high', HIGH: 'high', MEDIUM: 'normal', LOW: 'low' };
 const COMPLETE = new Set(['PENDING_APPROVAL', 'APPROVED']);
 
@@ -45,25 +45,25 @@ export async function GET(request) {
   const device = await deviceFromRequest(request);
   if (!device) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  if (!device.user?.externalId) return Response.json({ error: 'This account is not linked to Brand Macros OS.' }, { status: 409 });
+  if (!device.user?.externalId) return Response.json({ error: 'This account is not linked to MacroBex OS.' }, { status: 409 });
   // Resolve the canonical BM OS identity from the account email on every sync.
   // A fresh BM OS database can legitimately issue a new user ID while an
   // installed Chronexa client still holds the previous mirrored ID.
   const hubTasks = await bmos.fetchTasks(device.user.email, { status: 'all' });
-  if (!hubTasks) return Response.json({ error: 'Brand Macros OS is temporarily unavailable.' }, { status: 503 });
+  if (!hubTasks) return Response.json({ error: 'MacroBex OS is temporarily unavailable.' }, { status: 503 });
   return Response.json({ tasks: hubTasks.map(serialiseHubTask) });
 }
 
-/** Task authoring belongs exclusively to Brand Macros OS. */
+/** Task authoring belongs exclusively to MacroBex OS. */
 export async function POST(request) {
   const device = await deviceFromRequest(request);
   if (!device) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  return Response.json({ error: 'Tasks can only be created in Brand Macros OS.' }, { status: 405 });
+  return Response.json({ error: 'Tasks can only be created in MacroBex OS.' }, { status: 405 });
 }
 
-/** Task ordering belongs exclusively to Brand Macros OS. */
+/** Task ordering belongs exclusively to MacroBex OS. */
 export async function PUT(request) {
   const device = await deviceFromRequest(request);
   if (!device) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  return Response.json({ error: 'Task ordering is managed in Brand Macros OS.' }, { status: 405 });
+  return Response.json({ error: 'Task ordering is managed in MacroBex OS.' }, { status: 405 });
 }

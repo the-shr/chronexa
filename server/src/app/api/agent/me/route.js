@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db.js';
-import { deviceFromRequest, verifyPassword } from '@/lib/auth.js';
+import { deviceFromRequest, verifyPassword, isChronexaAdmin } from '@/lib/auth.js';
+import { canViewEmployeeTracking } from '@/lib/tracking-access.js';
 import { normaliseEmail, validateEmail } from '@/lib/user-rules.js';
 
 /** What the employee is allowed to know about their own account. */
@@ -12,10 +13,8 @@ export function serialiseMe(user) {
     role: user.role,
     permissions: user.bmosPermissions || [],
     roleKeys: user.bmosRoleKeys || [],
-    canManageTrackingPolicy:
-      Boolean(user.bmosIsSuperAdmin) ||
-      (user.bmosRoleKeys || []).some((key) => ['admin', 'administrator'].includes(String(key).toLowerCase())) ||
-      (user.bmosPermissions || []).some((permission) => ['settings.manage', 'attendance.manage'].includes(permission)),
+    canViewEmployeeTracking: canViewEmployeeTracking(user),
+    canManageTrackingPolicy: isChronexaAdmin(user),
     hasAvatar: Boolean(user.avatarPath || hasHubIdentity),
     // Changes whenever the picture does, so the agent knows to re-fetch.
     avatarVersion: user.avatarPath ? user.avatarPath.slice(-12) : hasHubIdentity ? `bmos-${new Date().toISOString().slice(0, 10)}` : null,

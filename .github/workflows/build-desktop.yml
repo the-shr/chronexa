@@ -26,6 +26,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.13'
+      - name: Verify Project Manager tracking privacy
+        run: node chronexa-pm-access-test.mjs
       - run: npm ci --prefix desktop
       - run: node desktop/node_modules/vite/bin/vite.js build --config android-web/vite.config.mjs
       - name: Build and lint Android app

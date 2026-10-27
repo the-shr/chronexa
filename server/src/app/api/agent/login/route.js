@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db.js';
-import { verifyPassword, newDeviceToken } from '@/lib/auth.js';
+import { verifyPassword, newDeviceToken, isChronexaAdmin } from '@/lib/auth.js';
+import { canViewEmployeeTracking } from '@/lib/tracking-access.js';
 import { normaliseEmail } from '@/lib/user-rules.js';
 import { rateLimit, clearRateLimit, clientIp, LOGIN_LIMITS } from '@/lib/rate-limit.js';
 import { loginViaHub } from '@/lib/ecosystem-login.js';
@@ -82,10 +83,8 @@ export async function POST(request) {
       name: user.name,
       permissions: user.bmosPermissions || [],
       roleKeys: user.bmosRoleKeys || [],
-      canManageTrackingPolicy:
-        Boolean(user.bmosIsSuperAdmin) ||
-        (user.bmosRoleKeys || []).some((key) => ['admin', 'administrator'].includes(String(key).toLowerCase())) ||
-        (user.bmosPermissions || []).some((permission) => ['settings.manage', 'attendance.manage'].includes(permission)),
+      canViewEmployeeTracking: canViewEmployeeTracking(user),
+      canManageTrackingPolicy: isChronexaAdmin(user),
     },
     device: { id: device.id, name: device.name },
   });

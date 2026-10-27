@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db.js';
-import { currentAdmin, adminDeviceFromRequest } from '@/lib/auth.js';
+import { currentAdmin, trackingDeviceFromRequest, canReadTrackingUser } from '@/lib/auth.js';
 import { getFile } from '@/lib/drive.js';
 
 export const maxDuration = 60;
@@ -13,13 +13,14 @@ export const maxDuration = 60;
  * an admin's device token from the desktop app.
  */
 export async function GET(request, { params }) {
-  const admin = (await currentAdmin()) || (await adminDeviceFromRequest(request));
+  const admin = (await currentAdmin()) || (await trackingDeviceFromRequest(request));
   if (!admin) return new Response('Unauthorized', { status: 401 });
 
   const { id } = await params;
-  const row = await prisma.recording.findUnique({ where: { id }, select: { driveFileId: true, mimeType: true } });
+  const row = await prisma.recording.findUnique({ where: { id }, select: { userId: true, driveFileId: true, mimeType: true } });
   if (!row?.driveFileId) return new Response('Not found', { status: 404 });
 
+  if (!await canReadTrackingUser(admin.user || admin, row.userId)) return new Response('Not found', { status: 404 });
   let bytes;
   try {
     bytes = await getFile(row.driveFileId);
@@ -33,7 +34,7 @@ export async function GET(request, { params }) {
     headers: {
       'content-type': row.mimeType || 'video/webm',
       'content-length': String(bytes.length),
-      'cache-control': 'private, max-age=3600',
+      'cache-control': 'private, no-store',
     },
   });
 }

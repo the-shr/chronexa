@@ -6,7 +6,7 @@ import { getAndroidRelease, MINIMUM_ANDROID_VERSION } from './lib/android-releas
 export async function middleware(request) {
   const pathname = request.nextUrl.pathname;
   if (/^\/api\/agent\/admin\/(overview|tasks)(\/|$)/.test(pathname)) {
-    return NextResponse.json({ error: 'This Chronexa admin surface has been retired. Use Brand Macros OS.' }, { status: 410 });
+    return NextResponse.json({ error: 'This Chronexa admin surface has been retired. Use MacroBex OS.' }, { status: 410 });
   }
   // Authentication and updates stay reachable; work remains version-gated.
   if (['/api/agent/version', '/api/agent/android-version', '/api/agent/login', '/api/agent/diagnostics'].includes(pathname) || !desktopUpdateRequired()) return NextResponse.next();

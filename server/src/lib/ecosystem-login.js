@@ -2,7 +2,7 @@ import { prisma } from '@/lib/db.js';
 import * as bmos from '@/lib/bmos.js';
 
 /**
- * Resolves a sign-in against the Brand Macros OS hub, shared by the desktop
+ * Resolves a sign-in against the MacroBex OS hub, shared by the desktop
  * agent and the admin web login.
  *
  * On a hub-accepted login it mirrors the person into Chronexa's own tables (so
