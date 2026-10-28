@@ -5,7 +5,7 @@ import './configuration.css';
 const SECTIONS = [['work','Work schedule','Hours & targets'],['idle','Idle & tracking','Presence rules'],['capture','Capture','Screenshots & recording'],['people','Employees','Individual settings']];
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
 
-function Policy() {
+function Policy({ onViewAs }) {
   const { policy, employees, estimatedDailyBytes, error, loading, reload, save } = usePolicy();
   const [section,setSection] = useState('work');
   const [draft,setDraft] = useState(null);
@@ -19,7 +19,7 @@ function Policy() {
   const dirty = draft && JSON.stringify(draft)!==JSON.stringify(baseline);
   useEffect(()=>{ if(policy && !dirty){setDraft(policy);setBaseline(policy);} },[policy,dirty]);
   useEffect(()=>{if(!personId&&employees[0])setPersonId(employees[0].id);},[employees,personId]);
-  if(!draft)return <div className="cfg-empty">{error?<><p>{error.message}</p><button className="btn" onClick={reload}>Retry</button></>:loading?'Loading configuration…':'No configuration yet.'}</div>;
+  if(!draft)return <div className="cfg-empty">{error?<><p>{error.message}</p><button className="btn" onClick={reload}>Retry</button></>:loading?'Loading admin settings…':'No admin settings yet.'}</div>;
   const person=employees.find(p=>p.id===personId);
   const original=person?.overrides||{};
   const overrides=personDrafts[personId]||original;
@@ -35,9 +35,9 @@ function Policy() {
   }catch(err){setNotice({ok:false,text:err.message});}finally{setBusy(false);}}
   const enabled=section==='people'?Boolean(person&&personDirty):dirty;
   return <section className="cfg">
-    <header className="cfg-head"><div><h1>Configuration</h1><p>Team defaults and employee exceptions.</p></div><button className="btn" disabled={busy||loading} onClick={reload}>Refresh</button></header>
+    <header className="cfg-head"><div><h1>Admin</h1><p>Team defaults and employee exceptions.</p></div><div className="cfg-head-actions">{onViewAs&&<button type="button" className="btn" onClick={onViewAs}>View as role</button>}<button className="btn" disabled={busy||loading} onClick={reload}>Refresh</button></div></header>
     <form className="cfg-shell" onSubmit={commit}>
-      <nav className="cfg-nav" aria-label="Configuration sections">{SECTIONS.map(([id,label,hint])=><button type="button" key={id} disabled={busy} className={section===id?'active':''} onClick={()=>{setSection(id);setNotice(null);}}><strong>{label}</strong><small>{hint}</small>{id==='people'&&Object.keys(personDrafts).length>0&&<i/>}</button>)}<div className="cfg-nav-note">Changes apply through the next policy sync.</div></nav>
+      <nav className="cfg-nav" aria-label="Admin sections">{SECTIONS.map(([id,label,hint])=><button type="button" key={id} disabled={busy} className={section===id?'active':''} onClick={()=>{setSection(id);setNotice(null);}}><strong>{label}</strong><small>{hint}</small>{id==='people'&&Object.keys(personDrafts).length>0&&<i/>}</button>)}<div className="cfg-nav-note">Changes apply through the next policy sync.</div></nav>
       <div className="cfg-main"><header className="cfg-section-head"><h2>{SECTIONS.find(s=>s[0]===section)[1]}</h2><span>{section==='people'?'Per employee':'Team default'}</span></header><div className={"cfg-scroll "+(section==='people'?'cfg-scroll-people':'')}>
         {section==='work'&&<><Panel title="Office hours"><div className="cfg-pair"><Input label="Starts at" type="time" value={draft.officeStart} disabled={busy} onChange={value=>apply({officeStart:value})}/><Input label="Ends at" type="time" value={draft.officeEnd} disabled={busy} onChange={value=>apply({officeEnd:value})}/></div><div className="cfg-label">Working days</div><div className="cfg-days">{DAYS.map((label,index)=>{const days=new Set(String(draft.workDays).split(',').map(Number));const selected=days.has(index+1);return <button type="button" key={label} aria-pressed={selected} disabled={busy} className={selected?'on':''} onClick={()=>{selected?days.delete(index+1):days.add(index+1);apply({workDays:[...days].sort().join(',')||String(index+1)});}}>{label}</button>;})}</div></Panel><Panel title="Work targets"><div className="cfg-pair"><Input label="Daily target" unit="hours" type="number" min={0} max={24} step={.5} value={draft.dailyTargetHours} disabled={busy} onChange={value=>apply({dailyTargetHours:value})}/><Input label="Weekly target" unit="hours" type="number" min={0} max={168} step={.5} value={draft.weeklyTargetHours} disabled={busy} onChange={value=>apply({weeklyTargetHours:value})}/></div><p className="cfg-note">Set 0 for no target.</p></Panel></>}
         {section==='idle'&&<Panel title="Idle detection"><Input label="Mark idle after" unit="minutes" type="number" min={1} max={60} value={draft.idleThresholdMinutes} disabled={busy} onChange={value=>apply({idleThresholdMinutes:value})}/><div className="cfg-info"><strong>Pause → resume on activity</strong><span>After the presence countdown, tracking pauses until mouse or keyboard input returns.</span></div><Switch label="Count idle time as work" checked={draft.countIdleAsWork} disabled={busy} onChange={value=>apply({countIdleAsWork:value})}/></Panel>}

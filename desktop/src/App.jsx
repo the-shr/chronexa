@@ -34,12 +34,16 @@ function Application({ update, account, refreshAccount }) {
   const [previewId, setPreviewId] = useState('');
   const [previewMemberId, setPreviewMemberId] = useState('');
   const [previewError, setPreviewError] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [draftRoleId, setDraftRoleId] = useState('');
+  const [draftMemberId, setDraftMemberId] = useState('');
   const { snapshot, error } = useTrackerState();
   const tasks = useTasks();
   const [theme, toggleTheme] = useTheme();
   const { profile } = useProfile();
   const isRealSuperAdmin = Boolean(account?.user?.isSuperAdmin || account?.user?.roleKeys?.includes('SUPER_ADMIN'));
   const preview = previewRoles.find(role => role.id === previewId) || null;
+  const draftRole = previewRoles.find(role => role.id === draftRoleId) || null;
   const previewKeys = preview ? [String(preview.key).toUpperCase()] : [];
   const previewPerms = preview?.permissions || [];
   const previewPm = previewKeys.some(key => /^(CUSTOM_)?(ASSIGNED_)?PROJECT_MANAGER(?:_|$)/.test(key));
@@ -57,6 +61,37 @@ function Application({ update, account, refreshAccount }) {
   useEffect(() => {
     if (canConfigure) window.api.configuration.get().catch(() => {});
   }, [canConfigure]);
+
+  useEffect(() => {
+    if (!previewOpen) return;
+    const onKeyDown = event => { if (event.key === 'Escape') setPreviewOpen(false); };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [previewOpen]);
+
+  function openPreview() {
+    if (!isRealSuperAdmin) return;
+    setDraftRoleId(previewId);
+    setDraftMemberId(previewMemberId);
+    setPreviewError('');
+    setPreviewOpen(true);
+    window.api.admin.previewRoles().then(data => setPreviewRoles(data.roles || [])).catch(error => setPreviewError(error.message || 'Roles unavailable'));
+  }
+
+  function enterPreview() {
+    if (!isRealSuperAdmin || !draftRole?.members?.some(member => member.id === draftMemberId)) return;
+    setPreviewId(draftRoleId);
+    setPreviewMemberId(draftMemberId);
+    setPreviewOpen(false);
+    setTab('tracker');
+  }
+
+  function exitPreview() {
+    setPreviewId('');
+    setPreviewMemberId('');
+    setPreviewOpen(false);
+    setTab('configuration');
+  }
 
   // Say what happened rather than showing an empty window.
   if (error) {
@@ -90,7 +125,7 @@ function Application({ update, account, refreshAccount }) {
 
   const name = profile?.user?.name || account?.user?.name || account?.user?.email || 'Not signed in';
   const avatar = profile?.avatar || null;
-  const tabs = [...TABS, ...(canViewEmployees ? [{ id: 'employees', label: 'Employees' }] : []), ...(canConfigure ? [{ id: 'configuration', label: 'Configuration' }] : [])];
+  const tabs = [...TABS, ...(canViewEmployees ? [{ id: 'employees', label: 'Employees' }] : []), ...(canConfigure ? [{ id: 'configuration', label: 'Admin' }] : [])];
 
   return (
     <div className="app">
@@ -125,30 +160,19 @@ function Application({ update, account, refreshAccount }) {
 
       <UpdateBanner update={update} />
       <SessionBanner account={account} onSignedIn={refreshAccount} />
-      {isRealSuperAdmin && <div className="role-preview-bar">
-        <label htmlFor="role-preview-select">View as role</label>
-        <select id="role-preview-select" value={previewId} onChange={event => { const id = event.target.value; setPreviewId(id); setPreviewMemberId(previewRoles.find(role => role.id === id)?.members?.[0]?.id || ''); setTab('tracker'); }}>
-          <option value="">My view</option>
-          {previewRoles.map(role => <option key={role.id} value={role.id} disabled={!role.members?.length}>{role.name}{role.members?.length ? '' : ' (no members)'}</option>)}
-        </select>
-        {preview && <select aria-label="Role member to preview" value={previewMemberId} onChange={event => setPreviewMemberId(event.target.value)}>
-          {(preview.members || []).map(member => <option key={member.id} value={member.id}>{member.name}</option>)}
-        </select>}
-        {preview && <span>Viewing as {preview.name} · Read only</span>}
-        {previewError && <small>{previewError}</small>}
-      </div>}
-
       <main className="content">
         {preview && tab !== 'employees' && <p className="role-preview-note">Preview mode is read only. Your own tracking and settings are shown where a role has personal pages.</p>}
         <div style={preview && tab !== 'employees' ? { pointerEvents: 'none' } : undefined}>
           {tab === 'tracker' && <Home snapshot={snapshot} tasks={tasks} account={account} profile={profile} />}
           {tab === 'activity' && <Activity snapshot={snapshot} />}
           {tab === 'employees' && canViewEmployees && <Employees key={`${previewId}:${previewMemberId}`} previewUserIds={previewPm ? [...new Set([...(preview.trackingConfigured ? preview.trackingUserIds : []), previewMemberId].filter(Boolean))] : null} />}
-          {tab === 'configuration' && canConfigure && <Policy />}
+          {tab === 'configuration' && canConfigure && <Policy onViewAs={isRealSuperAdmin && !preview ? openPreview : undefined} />}
           {tab === 'profile' && <Profile />}
           {tab === 'settings' && <Preferences />}
         </div>
       </main>
+      {isRealSuperAdmin && preview && <aside className="role-preview-dock" aria-label="Role preview controls"><div><strong>Viewing {preview.name}</strong><span>{preview.members?.find(member => member.id === previewMemberId)?.name || 'Member'} · Read only</span></div><button className="btn" onClick={openPreview}>Change role</button><button className="btn primary" onClick={exitPreview}>Exit</button></aside>}
+      {isRealSuperAdmin && previewOpen && <div className="role-preview-scrim" onMouseDown={event => { if (event.target === event.currentTarget) setPreviewOpen(false); }}><section className="role-preview-dialog" role="dialog" aria-modal="true" aria-labelledby="role-preview-title"><header><div><h2 id="role-preview-title">View as role</h2><p>See Chronexa from a member's perspective.</p></div><button className="btn" aria-label="Close" onClick={() => setPreviewOpen(false)}>×</button></header><label>Role<select autoFocus value={draftRoleId} onChange={event => { const id = event.target.value; setDraftRoleId(id); setDraftMemberId(previewRoles.find(role => role.id === id)?.members?.[0]?.id || ''); }}><option value="">Choose role</option>{previewRoles.map(role => <option key={role.id} value={role.id} disabled={!role.members?.length}>{role.name}{role.members?.length ? '' : ' (no active members)'}</option>)}</select></label><label>Member<select value={draftMemberId} disabled={!draftRole} onChange={event => setDraftMemberId(event.target.value)}><option value="">Choose member</option>{(draftRole?.members || []).map(member => <option key={member.id} value={member.id}>{member.name}</option>)}</select></label><p className="role-preview-explainer">Read only preview. You stay signed in as Super Admin.</p>{previewError && <p className="form-error" role="alert">{previewError}</p>}<footer><button className="btn" onClick={() => setPreviewOpen(false)}>Cancel</button><button className="btn primary" disabled={!draftMemberId} onClick={enterPreview}>Start preview</button></footer></section></div>}
     </div>
   );
 }

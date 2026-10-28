@@ -1,1 +1,1 @@
-Super Admin can preview Chronexa as an OS role without changing tracking settings. Project Manager tracking follows the selected people in MacroBex OS. Historical Office Task sessions show their task name again.
+Super Admin can open View as role from Admin, switch roles in a preview window, and exit from a floating control. The Configuration tab is now Admin. Role preview remains read only.
