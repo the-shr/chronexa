@@ -59,14 +59,22 @@ export async function POST(request) {
 
   if (existing?.endedAt && !data.endedAt) return Response.json({ ok: true, id: existing.id });
 
+  // A session's task is historical data. Offline agents may retry an older
+  // General work payload after an admin has linked that session to an OS task.
+  // Keep the established association instead of clearing it on the retry.
+  if (existing?.externalTaskId && !externalTaskId) {
+    data.externalTaskId = existing.externalTaskId;
+    if (data.taskNote === 'General work') data.taskNote = existing.taskNote;
+  }
+
   const session = await prisma.workSession.upsert({
     where: { id: body.id },
     create: { id: body.id, ...data },
     update: data,
   });
 
-  if (externalTaskId && data.endedAt) {
-    const synced = await syncTaskSession(device.user.email, externalTaskId, { id: session.id, ...data });
+  if (data.externalTaskId && data.endedAt) {
+    const synced = await syncTaskSession(device.user.email, data.externalTaskId, { id: session.id, ...data });
     if (synced.error) return Response.json({ error: synced.error }, { status: 502 });
   }
 
