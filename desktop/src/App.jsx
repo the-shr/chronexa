@@ -30,12 +30,29 @@ export default function App() {
 
 function Application({ update, account, refreshAccount }) {
   const [tab, setTab] = useState('tracker');
+  const [previewRoles, setPreviewRoles] = useState([]);
+  const [previewId, setPreviewId] = useState('');
+  const [previewMemberId, setPreviewMemberId] = useState('');
+  const [previewError, setPreviewError] = useState('');
   const { snapshot, error } = useTrackerState();
   const tasks = useTasks();
   const [theme, toggleTheme] = useTheme();
   const { profile } = useProfile();
-  const canViewEmployees = Boolean(account?.user?.canViewEmployeeTracking || account?.user?.canManageTrackingPolicy);
-  const canConfigure = Boolean(account?.user?.canManageTrackingPolicy);
+  const isRealSuperAdmin = Boolean(account?.user?.isSuperAdmin || account?.user?.roleKeys?.includes('SUPER_ADMIN'));
+  const preview = previewRoles.find(role => role.id === previewId) || null;
+  const previewKeys = preview ? [String(preview.key).toUpperCase()] : [];
+  const previewPerms = preview?.permissions || [];
+  const previewPm = previewKeys.some(key => /^(CUSTOM_)?(ASSIGNED_)?PROJECT_MANAGER(?:_|$)/.test(key));
+  const previewAdmin = preview && !previewPm && (previewKeys.some(key => ['ADMIN','ADMINISTRATOR'].includes(key)) || previewPerms.some(key => ['settings.manage','attendance.manage'].includes(key)));
+  const canViewEmployees = preview ? Boolean(previewPm || previewAdmin) : Boolean(account?.user?.canViewEmployeeTracking || account?.user?.canManageTrackingPolicy);
+  const canConfigure = preview ? Boolean(previewAdmin) : Boolean(account?.user?.canManageTrackingPolicy);
+
+  useEffect(() => {
+    if (!isRealSuperAdmin) return;
+    let live = true;
+    window.api.admin.previewRoles().then(data => { if (live) setPreviewRoles(data.roles || []); }).catch(error => { if (live) setPreviewError(error.message || 'Roles unavailable'); });
+    return () => { live = false; };
+  }, [isRealSuperAdmin]);
 
   useEffect(() => {
     if (canConfigure) window.api.configuration.get().catch(() => {});
@@ -108,14 +125,29 @@ function Application({ update, account, refreshAccount }) {
 
       <UpdateBanner update={update} />
       <SessionBanner account={account} onSignedIn={refreshAccount} />
+      {isRealSuperAdmin && <div className="role-preview-bar">
+        <label htmlFor="role-preview-select">View as role</label>
+        <select id="role-preview-select" value={previewId} onChange={event => { const id = event.target.value; setPreviewId(id); setPreviewMemberId(previewRoles.find(role => role.id === id)?.members?.[0]?.id || ''); setTab('tracker'); }}>
+          <option value="">My view</option>
+          {previewRoles.map(role => <option key={role.id} value={role.id} disabled={!role.members?.length}>{role.name}{role.members?.length ? '' : ' (no members)'}</option>)}
+        </select>
+        {preview && <select aria-label="Role member to preview" value={previewMemberId} onChange={event => setPreviewMemberId(event.target.value)}>
+          {(preview.members || []).map(member => <option key={member.id} value={member.id}>{member.name}</option>)}
+        </select>}
+        {preview && <span>Viewing as {preview.name} · Read only</span>}
+        {previewError && <small>{previewError}</small>}
+      </div>}
 
       <main className="content">
-        {tab === 'tracker' && <Home snapshot={snapshot} tasks={tasks} account={account} profile={profile} />}
-        {tab === 'activity' && <Activity snapshot={snapshot} />}
-        {tab === 'employees' && canViewEmployees && <Employees />}
-        {tab === 'configuration' && canConfigure && <Policy />}
-        {tab === 'profile' && <Profile />}
-        {tab === 'settings' && <Preferences />}
+        {preview && tab !== 'employees' && <p className="role-preview-note">Preview mode is read only. Your own tracking and settings are shown where a role has personal pages.</p>}
+        <div style={preview && tab !== 'employees' ? { pointerEvents: 'none' } : undefined}>
+          {tab === 'tracker' && <Home snapshot={snapshot} tasks={tasks} account={account} profile={profile} />}
+          {tab === 'activity' && <Activity snapshot={snapshot} />}
+          {tab === 'employees' && canViewEmployees && <Employees key={`${previewId}:${previewMemberId}`} previewUserIds={previewPm ? [...new Set([...(preview.trackingConfigured ? preview.trackingUserIds : []), previewMemberId].filter(Boolean))] : null} />}
+          {tab === 'configuration' && canConfigure && <Policy />}
+          {tab === 'profile' && <Profile />}
+          {tab === 'settings' && <Preferences />}
+        </div>
       </main>
     </div>
   );

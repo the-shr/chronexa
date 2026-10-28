@@ -152,6 +152,11 @@ export async function employeeDetail(userId, { month = new Date(Date.now() + 216
     select: { id: true, name: true, email: true, role: true, active: true, avatarPath: true, createdAt: true },
   });
   if (!user) return { error: 'That employee no longer exists' };
+  // OS owns canonical tasks. Keep their titles visible in historical Chronexa
+  // sessions even if a task was temporarily unassigned and later restored.
+  const { fetchTasks } = await import('./bmos.js');
+  const hubTasks = await fetchTasks(user.email, { status: 'all' });
+  const hubTaskTitles = new Map((hubTasks || []).map((task) => [String(task.id), task.title]));
 
   const currentMonth = new Date(Date.now() + 21600000).toISOString().slice(0, 7);
   const earliestMonth = new Date(Date.now() + 21600000 - 365 * DAY).toISOString().slice(0, 7);
@@ -216,7 +221,7 @@ export async function employeeDetail(userId, { month = new Date(Date.now() + 216
       note: s.taskNote,
       taskId: s.task?.id || (s.externalTaskId ? `bmos:${s.externalTaskId}` : null),
       screenshotCount: s.screenshotCount,
-      taskTitle: s.task?.title || null,
+      taskTitle: s.task?.title || (s.externalTaskId ? hubTaskTitles.get(s.externalTaskId) : null) || null,
     })),
     tasks: [],
     screenshots: [],

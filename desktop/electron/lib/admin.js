@@ -54,6 +54,11 @@ module.exports = {
   policy() { return request('GET'); },
   updatePolicy(patch) { return request('PATCH', patch); },
   employees(period = 'month') { return request('GET', null, `/api/agent/admin/employees?period=${period === 'week' ? 'week' : 'month'}`); },
+  previewRoles() {
+    const actor = auth.get().user;
+    if (!actor?.isSuperAdmin && !(actor?.roleKeys || []).includes('SUPER_ADMIN')) throw new Error('Super Admin only.');
+    return request('GET', null, '/api/agent/admin/preview-roles');
+  },
   employee(id, month) { return request('GET', null, `/api/agent/admin/employees/${encodeURIComponent(id)}${month ? `?month=${encodeURIComponent(month)}` : ''}`); },
   async avatar(id) {
     if (!auth.isSignedIn() || !canView()) throw new Error('Employee access required.');

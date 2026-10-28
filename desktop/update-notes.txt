@@ -1,1 +1,1 @@
-Project Managers can view their own and lower-role employee tracking without configuration access. Super Admin, CEO, HOO and peer Project Manager tracking stays protected. Updated MacroBex branding on desktop and Android.
+Super Admin can preview Chronexa as an OS role without changing tracking settings. Project Manager tracking follows the selected people in MacroBex OS. Historical Office Task sessions show their task name again.

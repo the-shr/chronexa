@@ -9,7 +9,7 @@ const dhakaDay = (offset = 0) => new Date(Date.now() + 21600000 + offset * 86400
 const statusOf = (person) => !person.active ? 'Inactive' : person.online ? 'Online now' : 'Offline';
 const rankedUsers = (users) => users.filter((person) => person.rank).sort((a, b) => a.rank - b.rank || a.name.localeCompare(b.name));
 
-function Employees() {
+function Employees({ previewUserIds = null }) {
   const [period, setPeriod] = useState('month');
   const roster = useRoster(period);
   const periodLabel = period === 'month' ? 'month' : 'week';
@@ -26,15 +26,16 @@ function Employees() {
   const detail = useEmployee(userId, selectedDay.slice(0, 7));
   const shots = useScreenshots(userId, screenshotPage, Boolean(userId) && view === 'screens');
   const clips = useRecordings(userId, Boolean(userId) && view === 'recordings');
-  const user = roster.users.find((person) => person.id === userId);
+  const scopedUsers = previewUserIds === null ? roster.users : roster.users.filter(person => previewUserIds.includes(person.id));
+  const user = scopedUsers.find((person) => person.id === userId);
   const sessionDays = detail.data?.daily || groupSessionDays(detail.data?.sessions || []);
   const day = sessionDays.find((row) => row.date === selectedDay);
   const sessions = (detail.data?.sessions || []).filter((row) => day?.sessionIds.includes(row.id));
   const pages = Math.max(1, Math.ceil(shots.total / shots.pageSize));
   const dialog = useRef(null);
   const lastFocus = useRef(null);
-  const ranked = rankedUsers(roster.users);
-  const visible = roster.users.filter((person) => {
+  const ranked = rankedUsers(scopedUsers);
+  const visible = scopedUsers.filter((person) => {
     const ratio = person.periodTargetHours > 0 ? person.periodActive / (person.periodTargetHours * 3600) : null;
     return (person.name + ' ' + person.email + ' ' + person.role + ' ' + (person.department || '') + ' ' + (person.designation || '')).toLowerCase().includes(search.toLowerCase())
       && (status === 'all' || (status === 'active' ? person.active : person.active && person.online === (status === 'online')))
@@ -43,7 +44,7 @@ function Employees() {
       && (progress === 'all' || (ratio !== null && (progress === 'high' ? ratio >= .75 : ratio < .75)));
   });
   const visibleRanked = rankedUsers(visible);
-  const departments = [...new Set(roster.users.map((person) => person.department || 'Unassigned'))].sort((a,b) => a === 'Unassigned' ? 1 : b === 'Unassigned' ? -1 : a.localeCompare(b));
+  const departments = [...new Set(scopedUsers.map((person) => person.department || 'Unassigned'))].sort((a,b) => a === 'Unassigned' ? 1 : b === 'Unassigned' ? -1 : a.localeCompare(b));
   const groups = departments.map((label) => ({ label, people: visible.filter((person) => (person.department || 'Unassigned') === label) })).filter((group) => group.people.length);
 
   useEffect(() => {
@@ -57,7 +58,7 @@ function Employees() {
   function changeDay(offset) { const next = new Date(selectedDay + 'T12:00:00Z'); next.setUTCDate(next.getUTCDate() + offset); const value = next.toISOString().slice(0, 10); if (value >= dhakaDay(-365) && value <= dhakaDay()) setSelectedDay(value); }
 
   return <section className="tc">
-    <header className="tc-head"><div><h1>Employees</h1><p>{roster.loading && !roster.data ? 'Loading your team…' : `${roster.users.filter((person) => person.active).length} team members · ${roster.users.filter((person) => person.active && person.online).length} online`}</p></div><button className="tc-button" onClick={roster.reload} disabled={roster.loading}>Refresh</button></header>
+    <header className="tc-head"><div><h1>Employees</h1><p>{roster.loading && !roster.data ? 'Loading your team…' : `${scopedUsers.filter((person) => person.active).length} team members · ${scopedUsers.filter((person) => person.active && person.online).length} online`}</p></div><button className="tc-button" onClick={roster.reload} disabled={roster.loading}>Refresh</button></header>
     <nav className="tc-tabs" aria-label="Employee view"><button className={section === 'team' ? 'active' : ''} onClick={() => setSection('team')}>Team</button><button className={section === 'ranking' ? 'active' : ''} onClick={() => setSection('ranking')}>Ranking</button><small>Tracking</small></nav>
     <div className="tc-filters"><input aria-label="Search employees" placeholder="Search name or email…" value={search} onChange={(event) => setSearch(event.target.value)} /><select aria-label="Employee department" value={department} onChange={(event) => setDepartment(event.target.value)}><option value="all">All departments</option>{departments.map((label) => <option key={label}>{label}</option>)}</select><select aria-label="Employee role" value={role} onChange={(event) => setRole(event.target.value)}><option value="all">All roles</option><option value="employee">Employees</option><option value="admin">Admins</option></select><select aria-label="Employee status" value={status} onChange={(event) => setStatus(event.target.value)}><option value="active">Active members</option><option value="all">All members</option><option value="online">Online</option><option value="offline">Offline</option></select><select aria-label="Target progress" value={progress} onChange={(event) => setProgress(event.target.value)}><option value="all">Any progress</option><option value="high">75% or more</option><option value="low">Below 75%</option></select><select aria-label="Ranking period" value={period} onChange={event => setPeriod(event.target.value)}><option value="month">Monthly</option><option value="week">Weekly</option></select><span>From {roster.data?.ranking?.periodStart || '—'}</span></div>
     <div className="tc-board">

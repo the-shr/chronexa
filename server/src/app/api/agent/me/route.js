@@ -13,6 +13,7 @@ export function serialiseMe(user) {
     role: user.role,
     permissions: user.bmosPermissions || [],
     roleKeys: user.bmosRoleKeys || [],
+    isSuperAdmin: Boolean(user.bmosIsSuperAdmin),
     canViewEmployeeTracking: canViewEmployeeTracking(user),
     canManageTrackingPolicy: isChronexaAdmin(user),
     hasAvatar: Boolean(user.avatarPath || hasHubIdentity),

@@ -313,6 +313,7 @@ handle('profile:pick-avatar', async () => {
 handle('configuration:get', () => admin.policy());
 handle('configuration:update', (patch) => admin.updatePolicy(patch || {}));
 handle('admin:employees', (period) => admin.employees(period));
+handle('admin:preview-roles', () => admin.previewRoles());
 handle('admin:employee', (query) => typeof query === 'string' ? admin.employee(query) : admin.employee(query.id, query.month));
 handle('admin:avatar', (id) => admin.avatar(id));
 handle('admin:screenshots', (query) => admin.screenshots(query || {}));

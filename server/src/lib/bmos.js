@@ -50,6 +50,14 @@ export async function fetchTeamProfiles(actorEmail, options = {}) {
   teamRequests.set(key, pending);
   return pending;
 }
+export async function fetchPreviewRoles(actorEmail) {
+  if (!configured()) return null;
+  try {
+    const query = new URLSearchParams({ actorEmail });
+    const { ok, data } = await call(`/api/ecosystem/preview-roles?${query.toString()}`, { revalidate: 0 });
+    return ok && Array.isArray(data.roles) ? data.roles : null;
+  } catch { return null; }
+}
 async function loadTeamProfiles(actorEmail, { fresh = false } = {}) {
   if (!configured()) return null;
   const key = String(actorEmail || '').toLowerCase();

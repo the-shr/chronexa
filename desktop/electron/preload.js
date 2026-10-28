@@ -64,6 +64,7 @@ contextBridge.exposeInMainWorld('api', {
     update: (patch) => invoke('configuration:update', patch),
   },
   admin: {
+    previewRoles: () => invoke('admin:preview-roles'),
     employees: (period) => invoke('admin:employees', period),
     employee: (id, month) => invoke('admin:employee', { id, month }),
     avatar: (id) => invoke('admin:avatar', id),

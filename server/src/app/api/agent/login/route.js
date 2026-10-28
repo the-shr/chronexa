@@ -83,6 +83,7 @@ export async function POST(request) {
       name: user.name,
       permissions: user.bmosPermissions || [],
       roleKeys: user.bmosRoleKeys || [],
+      isSuperAdmin: Boolean(user.bmosIsSuperAdmin),
       canViewEmployeeTracking: canViewEmployeeTracking(user),
       canManageTrackingPolicy: isChronexaAdmin(user),
     },
