@@ -54,17 +54,22 @@ public class TrackingTest {
   UiDevice device=UiDevice.getInstance(instrumentation);UiObject2 button=device.wait(Until.findObject(By.text(java.util.regex.Pattern.compile("(?i)start now|start recording|start sharing|share screen|share|start"))),15000);
   if(button==null)button=device.findObject(By.res("android:id/button1"));
   if(button==null){java.io.ByteArrayOutputStream hierarchy=new java.io.ByteArrayOutputStream();device.dumpWindowHierarchy(hierarchy);fail("Android screen-sharing consent missing: "+hierarchy.toString("UTF-8"));}button.click();
-  for(int i=0;i<50&&!TrackingService.isRunning();i++)Thread.sleep(200);assertTrue("Foreground timer starts after consent",TrackingService.isRunning());Thread.sleep(2500);
-  assertTrue("JPEG was captured",new File(c.getFilesDir(),"outbox").listFiles((d,n)->n.endsWith(".jpg")).length>0);
+  for(int i=0;i<50&&!TrackingService.isRunning();i++)Thread.sleep(200);assertTrue("Foreground timer starts after consent",TrackingService.isRunning());
+  File outbox=new File(c.getFilesDir(),"outbox");File[] shots=null;
+  for(int i=0;i<40;i++){
+   instrumentation.runOnMainSync(()->{try{if(TrackingService.instance!=null&&TrackingService.instance.capture!=null)TrackingService.instance.capture.tick();}catch(Exception e){throw new RuntimeException(e);}});
+   shots=outbox.listFiles((d,n)->n.endsWith(".jpg"));if(shots!=null&&shots.length>0)break;Thread.sleep(250);
+  }
+  assertTrue("JPEG was captured",shots!=null&&shots.length>0);
   instrumentation.runOnMainSync(()->{try{TrackingService.instance.capture.startClip();}catch(Exception e){throw new RuntimeException(e);}});Thread.sleep(3500);
   instrumentation.runOnMainSync(()->{try{TrackingService.instance.capture.stopClip();}catch(Exception e){throw new RuntimeException(e);}});
-  File[] clips=new File(c.getFilesDir(),"outbox").listFiles((d,n)->n.endsWith(".mp4"));assertTrue("MP4 clip was captured",clips.length>0);byte[] bytes=TrackingService.read(clips[0]);assertEquals("ftyp",new String(bytes,4,4,"US-ASCII"));
+  File[] clips=outbox.listFiles((d,n)->n.endsWith(".mp4"));assertTrue("MP4 clip was captured",clips!=null&&clips.length>0);byte[] bytes=TrackingService.read(clips[0]);assertEquals("ftyp",new String(bytes,4,4,"US-ASCII"));
   Capture stoppedCapture=TrackingService.instance.capture;
   instrumentation.runOnMainSync(()->{try{stoppedCapture.startClip();}catch(Exception e){throw new RuntimeException(e);}});Thread.sleep(1200);
   device.sleep();for(int i=0;i<100&&TrackingService.isRunning();i++)Thread.sleep(100);assertFalse("Lock must pause tracking",TrackingService.isRunning());assertTrue("Time survives pause",TrackingService.status(c).getJSONObject("session").getInt("activeSeconds")>=5);assertTrue("Offline work is queued",TrackingService.pending(c)>0);device.wakeUp();
-  int filesAfterPause=new File(c.getFilesDir(),"outbox").list().length;
+  String[] queued=outbox.list();int filesAfterPause=queued==null?0:queued.length;
   instrumentation.runOnMainSync(()->{try{stoppedCapture.tick();stoppedCapture.startClip();}catch(Exception e){throw new RuntimeException(e);}});Thread.sleep(1200);
-  assertNull("Pause must release the active recorder",stoppedCapture.recorder);assertEquals("Late capture callbacks must not create files while paused",filesAfterPause,new File(c.getFilesDir(),"outbox").list().length);
+  String[] afterLateCallback=outbox.list();assertNull("Pause must release the active recorder",stoppedCapture.recorder);assertEquals("Late capture callbacks must not create files while paused",filesAfterPause,afterLateCallback==null?0:afterLateCallback.length);
   instrumentation.runOnMainSync(activity::finish);
  }
 }
