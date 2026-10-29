@@ -19,6 +19,7 @@ export default function Home({ snapshot, tasks, account, profile, attendance, on
   const sessions = useSessions(120);
   const [settings] = useSettings();
   const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   if (!settings) return null;
 
@@ -28,8 +29,11 @@ export default function Home({ snapshot, tasks, account, profile, attendance, on
 
   const run = async (fn) => {
     setBusy(true);
+    setActionError('');
     try {
       await fn();
+    } catch (cause) {
+      setActionError(cause.message || 'Could not start tracking.');
     } finally {
       setBusy(false);
     }
@@ -41,6 +45,7 @@ export default function Home({ snapshot, tasks, account, profile, attendance, on
         <h1>
           Track your work, <span>{firstName(account)}</span>
         </h1>
+        {actionError && <p className="form-error" role="alert">{actionError}</p>}
       </header>
 
       <MetricRow snapshot={snapshot} settings={settings} tasks={tasks} weekSeconds={weekSeconds} />

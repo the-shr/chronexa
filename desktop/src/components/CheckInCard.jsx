@@ -19,6 +19,6 @@ export default function CheckInCard({ attendance, work, onCheckIn, onHistory }) 
   }
   return <section className="card attendance-card">
     <div className="attendance-copy"><span className="card-kicker">Attendance</span><h2>{state.covered ? 'Checked in' : 'Ready to check in'}</h2><p>{state.expected ? `Duty starts ${state.expected}` : 'No duty time set'}{latest ? ` · Last check-in ${dhakaClock(latest.checkedInAt)} (${detail.label})` : ''}</p>{!state.covered && state.delta < 0 && <small>Early check-in will be recorded.</small>}{notice && <small role="status">{notice}</small>}</div>
-    <div className="attendance-actions"><button className="btn" type="button" onClick={onHistory}>Check-ins</button><button className="btn primary" type="button" disabled={busy || state.covered} onClick={checkIn}>{busy ? 'Checking in…' : state.covered ? 'Done' : 'Check in'}</button></div>
+    <div className="attendance-actions">{onHistory && <button className="btn" type="button" onClick={onHistory}>Check-ins</button>}<button className="btn primary" type="button" disabled={busy || state.covered} onClick={checkIn}>{busy ? 'Checking in…' : state.covered ? 'Done' : 'Check in'}</button></div>
   </section>;
 }

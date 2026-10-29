@@ -448,26 +448,26 @@ export function TaskHubCard({ tasks, snapshot, account, busy, onAction, onOpenTa
       <div className="task-hub-list">
         {!tree.length && <p className="empty">No assigned work is waiting.</p>}
         {tree.slice(0, 5).map(({ task, children }) => <div className="compact-task-group" key={task.id}>
-          <CompactTask task={task} selected={selectedId === task.id} tracking={snapshot.session?.taskId === task.id} childrenCount={children.length} expanded={expanded.has(task.id)} onSelect={() => select(task)} onExpand={() => toggle(task.id)} onOpen={() => setOpened(task)} onTrack={() => track(task)} onSubmit={() => setSubmitTask(task)} />
-          {expanded.has(task.id) && children.map((child) => <CompactTask key={child.id} child task={child} selected={selectedId === child.id} tracking={snapshot.session?.taskId === child.id} onSelect={() => select(child)} onOpen={() => setOpened(child)} onTrack={() => track(child)} onSubmit={() => setSubmitTask(child)} />)}
+          <CompactTask task={task} selected={selectedId === task.id} tracking={snapshot.session?.taskId === task.id} checkedIn={checkedIn} childrenCount={children.length} expanded={expanded.has(task.id)} onSelect={() => select(task)} onExpand={() => toggle(task.id)} onOpen={() => setOpened(task)} onTrack={() => track(task)} onSubmit={() => setSubmitTask(task)} />
+          {expanded.has(task.id) && children.map((child) => <CompactTask key={child.id} child task={child} selected={selectedId === child.id} tracking={snapshot.session?.taskId === child.id} checkedIn={checkedIn} onSelect={() => select(child)} onOpen={() => setOpened(child)} onTrack={() => track(child)} onSubmit={() => setSubmitTask(child)} />)}
         </div>)}
       </div>
-      {opened && <TaskViewer task={opened} snapshot={snapshot} busy={busy} onTrack={() => track(opened)} onClose={() => setOpened(null)} onRequestSubmit={() => setSubmitTask(opened)} onComment={(body) => onAction(async () => { await tasks.addComment(opened.id, body); const fresh = [...tasks.open, ...tasks.done].find((item) => item.id === opened.id); if (fresh) setOpened(fresh); })} />}
+      {opened && <TaskViewer task={opened} snapshot={snapshot} busy={busy} checkedIn={checkedIn} onTrack={() => track(opened)} onClose={() => setOpened(null)} onRequestSubmit={() => setSubmitTask(opened)} onComment={(body) => onAction(async () => { await tasks.addComment(opened.id, body); const fresh = [...tasks.open, ...tasks.done].find((item) => item.id === opened.id); if (fresh) setOpened(fresh); })} />}
       {submitTask && <SubmitTaskDialog task={submitTask} account={account} busy={busy} onClose={() => setSubmitTask(null)} onConfirm={(details) => onAction(async () => { if (snapshot.session?.taskId === submitTask.id) await window.api.tracker.stop('completed'); await tasks.setStatus(submitTask.id, 'done', details); if (opened?.id === submitTask.id) setOpened(null); setSubmitTask(null); })} />}
     </section>
   );
 }
 
-function CompactTask({ task, child, selected, tracking, childrenCount = 0, expanded, onSelect, onExpand, onOpen, onTrack, onSubmit }) {
+function CompactTask({ task, child, selected, tracking, checkedIn, childrenCount = 0, expanded, onSelect, onExpand, onOpen, onTrack, onSubmit }) {
   return <div className={`compact-task ${child ? 'child' : ''} ${selected ? 'selected' : ''}`} onClick={onSelect}>
     <button className={`task-state ${task.status === 'done' ? 'complete' : ''}`} title="Submit this task" onClick={(event) => { event.stopPropagation(); onSubmit(); }}>{task.status === 'done' && <IconCheck width={11} />}</button>
     <span className="compact-task-copy"><strong>{task.title}</strong><small>{[task.projectName, task.clientName].filter(Boolean).join(' · ') || 'Independent task'}</small></span>
-    {selected && <span className="compact-actions"><button className="compact-open" onClick={(event) => { event.stopPropagation(); onOpen(); }}>Open</button><button className={tracking ? 'compact-track active' : 'compact-track'} disabled={tracking} onClick={(event) => { event.stopPropagation(); onTrack(); }}><IconPlay width={11} /> {tracking ? 'Tracking' : 'Track'}</button></span>}
+    {selected && <span className="compact-actions"><button className="compact-open" onClick={(event) => { event.stopPropagation(); onOpen(); }}>Open</button><button className={tracking ? 'compact-track active' : 'compact-track'} disabled={tracking || !checkedIn} title={!checkedIn ? 'Check in before tracking' : undefined} onClick={(event) => { event.stopPropagation(); onTrack(); }}><IconPlay width={11} /> {tracking ? 'Tracking' : 'Track'}</button></span>}
     {childrenCount > 0 && <button className="compact-expand" onClick={(event) => { event.stopPropagation(); onExpand(); }} title={expanded ? 'Hide subtasks' : 'Show subtasks'}>{expanded ? <IconChevronDown width={15} /> : <IconChevronDown width={15} style={{ transform: 'rotate(-90deg)' }} />}</button>}
   </div>;
 }
 
-export function TaskViewer({ task, snapshot, busy, onClose, onComment, onRequestSubmit, onTrack }) {
+export function TaskViewer({ task, snapshot, busy, checkedIn = true, onClose, onComment, onRequestSubmit, onTrack }) {
   const [comment, setComment] = useState('');
   const trackingThis = snapshot.session?.taskId === task.id && ['running', 'paused'].includes(snapshot.state);
   return <div className="lightbox" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="task-viewer">
@@ -476,7 +476,7 @@ export function TaskViewer({ task, snapshot, busy, onClose, onComment, onRequest
     <section><h3>Description</h3><p className="viewer-description">{task.description || 'No description added.'}</p></section>
     <section><h3>Files & links</h3><div className="viewer-resources">{(task.resources || []).map((item) => <button key={item.id} onClick={() => window.api.app.openUpdate(item.url)}><span>{item.name}</span><small>{String(item.type || 'file').replaceAll('_', ' ')}</small></button>)}{!task.resources?.length && <p className="empty">No files or links.</p>}</div></section>
     <section className="viewer-comments"><h3>Comments</h3><div>{(task.comments || []).map((item) => <article key={item.id}><strong>{item.author?.name || 'Team member'}</strong><time>{new Date(item.createdAt).toLocaleString()}</time><p>{item.body}</p></article>)}{!task.comments?.length && <p className="empty">No comments yet.</p>}</div><form onSubmit={(event) => { event.preventDefault(); const body = comment.trim(); if (!body) return; onComment(body); setComment(''); }}><textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Add a comment" rows="2" /><button className="btn primary" disabled={busy || !comment.trim()}>Comment</button></form></section>
-    {task.status === 'open' ? <div className="viewer-actions"><button className="btn primary" disabled={busy || trackingThis} onClick={onTrack}><IconPlay width={14} /> {trackingThis ? 'Tracking now' : 'Track this task'}</button><button className="btn" disabled={busy} onClick={onRequestSubmit}><IconCheck width={14} /> Submit work</button></div> : <p className="viewer-task-status">{task.status === 'pending_approval' ? 'Pending approval' : 'Completed'}</p>}
+    {task.status === 'open' ? <div className="viewer-actions"><button className="btn primary" disabled={busy || trackingThis || !checkedIn} onClick={onTrack}><IconPlay width={14} /> {trackingThis ? 'Tracking now' : checkedIn ? 'Track this task' : 'Check in first'}</button><button className="btn" disabled={busy} onClick={onRequestSubmit}><IconCheck width={14} /> Submit work</button></div> : <p className="viewer-task-status">{task.status === 'pending_approval' ? 'Pending approval' : 'Completed'}</p>}
   </section></div>;
 }
 
