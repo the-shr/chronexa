@@ -1,10 +1,14 @@
 import { validVersion, isOlderVersion } from './update-version.js';
 export const MINIMUM_ANDROID_VERSION = '1.2.5';
+// A Windows release can become GitHub's latest before its Android APK is signed.
+// Keep Android update discovery on the last signed release in that interval.
+const LAST_SIGNED_ANDROID_TAG = 'v1.2.12';
 let cached = null, expires = 0;
 export async function getAndroidRelease() {
   if (cached && Date.now() < expires) return cached;
   try {
-    const response = await fetch('https://github.com/the-shr/chronexa/releases/latest/download/android-update.json', { next: { revalidate: 60 }, signal: AbortSignal.timeout(8000) });
+    let response = await fetch('https://github.com/the-shr/chronexa/releases/latest/download/android-update.json', { next: { revalidate: 60 }, signal: AbortSignal.timeout(8000) });
+    if (response.status === 404) response = await fetch(`https://github.com/the-shr/chronexa/releases/download/${LAST_SIGNED_ANDROID_TAG}/android-update.json`, { next: { revalidate: 60 }, signal: AbortSignal.timeout(8000) });
     if (!response.ok) throw new Error('Unavailable');
     const data = await response.json();
     const expected = `https://github.com/the-shr/chronexa/releases/download/v${data.latestVersion}/Chronexa.Android.${data.latestVersion}.apk`;
