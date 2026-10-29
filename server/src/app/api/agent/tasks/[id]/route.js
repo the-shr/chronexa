@@ -18,7 +18,7 @@ export async function PATCH(request, { params }) {
   if (body.status !== 'done') return Response.json({ error: 'Task status is managed in MacroBex OS.' }, { status: 405 });
   const result = await bmos.submitTask(device.user.email, id.replace(/^bmos:/, ''), body.completionNote, body.delayReason);
   if (result.error) return Response.json({ error: result.error }, { status: 502 });
-  return Response.json({ task: { id, status: 'done', source: 'bmos', completedAt: new Date() } });
+  return Response.json({ task: { id, status: result.status === 'APPROVED' ? 'done' : 'pending_approval', source: 'bmos', completedAt: result.status === 'APPROVED' ? new Date() : null } });
 }
 
 /** Task deletion belongs exclusively to MacroBex OS. */

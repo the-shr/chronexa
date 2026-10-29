@@ -421,7 +421,15 @@ export function TaskHubCard({ tasks, snapshot, account, busy, onAction }) {
   const [expanded, setExpanded] = useState(new Set());
   const [opened, setOpened] = useState(null);
   const [submitTask, setSubmitTask] = useState(null);
+  const [allOpen, setAllOpen] = useState(false);
+  const [listTab, setListTab] = useState('my');
+  const [page, setPage] = useState(1);
   const rows = tasks.open;
+  const allRows = [...tasks.open, ...(tasks.pending || []), ...tasks.done];
+  const filteredRows = listTab === 'pending' ? (tasks.pending || []) : listTab === 'completed' ? tasks.done : allRows;
+  const pageSize = 12;
+  const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const visibleRows = filteredRows.slice((Math.min(page, pageCount) - 1) * pageSize, Math.min(page, pageCount) * pageSize);
   const tree = useMemo(() => {
     const ids = new Set(rows.map((task) => task.id)); const children = new Map(); const roots = [];
     for (const task of rows) {
@@ -432,9 +440,9 @@ export function TaskHubCard({ tasks, snapshot, account, busy, onAction }) {
   }, [rows]);
   useEffect(() => {
     if (!opened) return;
-    const fresh = [...tasks.open, ...tasks.done].find((item) => item.id === opened.id);
+    const fresh = [...tasks.open, ...(tasks.pending || []), ...tasks.done].find((item) => item.id === opened.id);
     if (fresh && fresh !== opened) setOpened(fresh);
-  }, [tasks.open, tasks.done, opened]);
+  }, [tasks.open, tasks.pending, tasks.done, opened]);
   const select = (task) => setSelectedId((id) => id === task.id ? null : task.id);
   const track = (task) => onAction(async () => {
     if (snapshot.state === 'running' || snapshot.state === 'paused') await window.api.tracker.stop('manual');
@@ -443,14 +451,15 @@ export function TaskHubCard({ tasks, snapshot, account, busy, onAction }) {
   const toggle = (id) => setExpanded((current) => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; });
   return (
     <section className="card schedule-card task-hub-card">
-      <div className="task-hub-head"><div><span className="card-kicker">Assigned work</span><h2>Tasks</h2></div><span>{rows.length} open</span></div>
+      <div className="task-hub-head"><div><span className="card-kicker">Assigned work</span><h2>Tasks</h2></div><div className="task-hub-head-actions"><span>{rows.length} open{tasks.pending?.length ? ` · ${tasks.pending.length} pending approval` : ''}</span><button type="button" onClick={() => { setAllOpen(true); setPage(1); }}>View all tasks</button></div></div>
       <div className="task-hub-list">
         {!tree.length && <p className="empty">No assigned work is waiting.</p>}
-        {tree.map(({ task, children }) => <div className="compact-task-group" key={task.id}>
+        {tree.slice(0, 5).map(({ task, children }) => <div className="compact-task-group" key={task.id}>
           <CompactTask task={task} selected={selectedId === task.id} tracking={snapshot.session?.taskId === task.id} childrenCount={children.length} expanded={expanded.has(task.id)} onSelect={() => select(task)} onExpand={() => toggle(task.id)} onOpen={() => setOpened(task)} onTrack={() => track(task)} onSubmit={() => setSubmitTask(task)} />
           {expanded.has(task.id) && children.map((child) => <CompactTask key={child.id} child task={child} selected={selectedId === child.id} tracking={snapshot.session?.taskId === child.id} onSelect={() => select(child)} onOpen={() => setOpened(child)} onTrack={() => track(child)} onSubmit={() => setSubmitTask(child)} />)}
         </div>)}
       </div>
+      {allOpen && <div className="lightbox" onMouseDown={(event) => event.target === event.currentTarget && setAllOpen(false)}><section className="task-viewer all-tasks-dialog"><header><div><span className="card-kicker">Assigned work</span><h2>All tasks</h2></div><button className="viewer-close" aria-label="Close" onClick={() => setAllOpen(false)}>×</button></header><nav className="all-tasks-tabs" aria-label="Task status">{[['my', 'My tasks'], ['pending', `Pending approval (${tasks.pending?.length || 0})`], ['completed', `Completed (${tasks.done.length})`]].map(([key, label]) => <button key={key} type="button" className={listTab === key ? 'active' : ''} onClick={() => { setListTab(key); setPage(1); }}>{label}</button>)}</nav><div className="all-tasks-list">{visibleRows.map(task => <button key={task.id} type="button" className="all-tasks-row" onClick={() => { setOpened(task); setAllOpen(false); }}><span><strong>{task.title}</strong><small>{[task.projectName, task.clientName].filter(Boolean).join(' · ') || 'Independent task'}</small></span><em className={`all-tasks-status ${task.status}`}>{task.status === 'pending_approval' ? 'Pending approval' : task.status === 'done' ? 'Completed' : task.hubStatus === 'REVISION_REQUESTED' ? 'Revision requested' : 'Open'}</em></button>)}{!filteredRows.length && <p className="empty">No tasks here.</p>}</div><footer className="all-tasks-footer"><span>{filteredRows.length ? `${(Math.min(page, pageCount) - 1) * pageSize + 1}–${Math.min(Math.min(page, pageCount) * pageSize, filteredRows.length)} of ${filteredRows.length}` : '0 tasks'}</span><div><button disabled={page <= 1} onClick={() => setPage(value => Math.max(1, value - 1))}>Previous</button><span>{Math.min(page, pageCount)} / {pageCount}</span><button disabled={page >= pageCount} onClick={() => setPage(value => Math.min(pageCount, value + 1))}>Next</button></div></footer></section></div>}
       {opened && <TaskViewer task={opened} snapshot={snapshot} busy={busy} onTrack={() => track(opened)} onClose={() => setOpened(null)} onRequestSubmit={() => setSubmitTask(opened)} onComment={(body) => onAction(async () => { await tasks.addComment(opened.id, body); const fresh = [...tasks.open, ...tasks.done].find((item) => item.id === opened.id); if (fresh) setOpened(fresh); })} />}
       {submitTask && <SubmitTaskDialog task={submitTask} account={account} busy={busy} onClose={() => setSubmitTask(null)} onConfirm={(details) => onAction(async () => { if (snapshot.session?.taskId === submitTask.id) await window.api.tracker.stop('completed'); await tasks.setStatus(submitTask.id, 'done', details); if (opened?.id === submitTask.id) setOpened(null); setSubmitTask(null); })} />}
     </section>
@@ -475,7 +484,7 @@ function TaskViewer({ task, snapshot, busy, onClose, onComment, onRequestSubmit,
     <section><h3>Description</h3><p className="viewer-description">{task.description || 'No description added.'}</p></section>
     <section><h3>Files & links</h3><div className="viewer-resources">{(task.resources || []).map((item) => <button key={item.id} onClick={() => window.api.app.openUpdate(item.url)}><span>{item.name}</span><small>{String(item.type || 'file').replaceAll('_', ' ')}</small></button>)}{!task.resources?.length && <p className="empty">No files or links.</p>}</div></section>
     <section className="viewer-comments"><h3>Comments</h3><div>{(task.comments || []).map((item) => <article key={item.id}><strong>{item.author?.name || 'Team member'}</strong><time>{new Date(item.createdAt).toLocaleString()}</time><p>{item.body}</p></article>)}{!task.comments?.length && <p className="empty">No comments yet.</p>}</div><form onSubmit={(event) => { event.preventDefault(); const body = comment.trim(); if (!body) return; onComment(body); setComment(''); }}><textarea value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Add a comment" rows="2" /><button className="btn primary" disabled={busy || !comment.trim()}>Comment</button></form></section>
-    <div className="viewer-actions"><button className="btn primary" disabled={busy || trackingThis} onClick={onTrack}><IconPlay width={14} /> {trackingThis ? 'Tracking now' : 'Track this task'}</button><button className="btn" disabled={busy} onClick={onRequestSubmit}><IconCheck width={14} /> Submit work</button></div>
+    {task.status === 'open' ? <div className="viewer-actions"><button className="btn primary" disabled={busy || trackingThis} onClick={onTrack}><IconPlay width={14} /> {trackingThis ? 'Tracking now' : 'Track this task'}</button><button className="btn" disabled={busy} onClick={onRequestSubmit}><IconCheck width={14} /> Submit work</button></div> : <p className="viewer-task-status">{task.status === 'pending_approval' ? 'Pending approval' : 'Completed'}</p>}
   </section></div>;
 }
 
@@ -487,7 +496,7 @@ function SubmitTaskDialog({ task, account, busy, onClose, onConfirm }) {
   return <div className="lightbox submit-lightbox" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><form className="submit-task-dialog" onSubmit={(event) => { event.preventDefault(); onConfirm({ completionNote: completionNote.trim() || undefined, delayReason: delayReason.trim() || undefined }); }}>
     <header><span className="submit-check"><IconCheck width={20} /></span><div><span className="card-kicker">Finish task</span><h2>{task.title}</h2></div><button type="button" className="viewer-close" onClick={onClose}>×</button></header>
     <p className="submit-copy">Confirm only when this task is ready. Cancel to keep it in progress and continue tracking.</p>
-    <label><span>Completion note <small>Optional</small></span><textarea rows="3" value={completionNote} onChange={(event) => setCompletionNote(event.target.value)} placeholder="Add a short handover note" autoFocus /></label>
+    <label><span>Completion note</span><textarea rows="3" value={completionNote} onChange={(event) => setCompletionNote(event.target.value)} placeholder="Add a short handover note" autoFocus /></label>
     {overdue && !direct && <label><span>Reason for delay</span><textarea rows="2" required value={delayReason} onChange={(event) => setDelayReason(event.target.value)} placeholder="Why was the deadline missed?" /></label>}
     <footer><button type="button" className="btn" onClick={onClose}>Keep working</button><button className="btn primary" disabled={busy || (overdue && !direct && !delayReason.trim())}><IconCheck width={14} /> Confirm & submit</button></footer>
   </form></div>;

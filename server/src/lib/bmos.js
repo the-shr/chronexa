@@ -73,7 +73,7 @@ async function loadTeamProfiles(actorEmail, { fresh = false } = {}) {
   } catch { return null; }
 }
 
-async function call(path, { method = 'GET', body, revalidate } = {}) {
+async function call(path, { method = 'GET', body, revalidate, headers = {} } = {}) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -81,7 +81,7 @@ async function call(path, { method = 'GET', body, revalidate } = {}) {
       method,
       signal: controller.signal,
       ...(revalidate === undefined ? {} : revalidate ? { next: { revalidate } } : { cache: 'no-store' }),
-      headers: { ...appHeaders(), ...(body ? { 'content-type': 'application/json' } : {}) },
+      headers: { ...appHeaders(), ...headers, ...(body ? { 'content-type': 'application/json' } : {}) },
       body: body ? JSON.stringify(body) : undefined,
     });
     const data = await res.json().catch(() => ({}));
@@ -89,6 +89,14 @@ async function call(path, { method = 'GET', body, revalidate } = {}) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+export async function attendance(email, method = 'GET') {
+  if (!configured()) return { error: 'MacroBex OS is not configured' };
+  try {
+    const { ok, data } = await call('/api/ecosystem/attendance/check-in', { method, headers: { 'x-employee-email': email }, revalidate: 0 });
+    return ok ? data : { error: data?.error || 'Attendance is unavailable' };
+  } catch { return { error: 'MacroBex OS could not be reached' }; }
 }
 
 /**
@@ -170,7 +178,7 @@ export async function submitTask(email, taskId, completionNote, delayReason) {
       method: 'POST',
       body: { email, completionNote, delayReason },
     });
-    return ok ? { ok: true } : { error: data?.error || 'The hub rejected the update' };
+    return ok ? { ok: true, status: data.status } : { error: data?.error || 'The hub rejected the update' };
   } catch {
     return { error: 'The hub could not be reached' };
   }

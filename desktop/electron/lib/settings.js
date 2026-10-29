@@ -61,6 +61,7 @@ const DEFAULTS = {
     weeklyTargetHours: 40,
     officeStart: '09:00',
     officeEnd: '17:00',
+    segments: [{ start: '09:00', end: '17:00' }],
     workDays: '1,2,3,4,5',
   },
   general: {

@@ -3,7 +3,7 @@ import * as bmos from '@/lib/bmos.js';
 
 // MacroBex OS priority -> Chronexa's three levels.
 const HUB_PRIORITY = { URGENT: 'high', HIGH: 'high', MEDIUM: 'normal', LOW: 'low' };
-const COMPLETE = new Set(['PENDING_APPROVAL', 'APPROVED']);
+const COMPLETE = new Set(['APPROVED']);
 
 /**
  * A canonical BM OS task shaped for Chronexa's execution-only interface.
@@ -16,7 +16,7 @@ function serialiseHubTask(t) {
     id: t.id,
     title: t.title,
     description: t.description || '',
-    status: COMPLETE.has(t.status) ? 'done' : 'open',
+    status: t.status === 'PENDING_APPROVAL' ? 'pending_approval' : COMPLETE.has(t.status) ? 'done' : 'open',
     priority: HUB_PRIORITY[t.priority] || 'normal',
     source: 'bmos',
     position: Number.isFinite(t.sortOrder) ? t.sortOrder : 0,

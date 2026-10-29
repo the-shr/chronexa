@@ -237,7 +237,7 @@ const handle = (channel, fn) => ipcMain.handle(channel, (_event, payload) => {
 handle('tracker:start', (opts = {}) => {
   if (opts.taskId) {
     const task = tasks.get(String(opts.taskId));
-    if (!task || task.status === 'done') throw new Error('Choose an open task assigned to this account.');
+    if (!task || task.status !== 'open') throw new Error('Choose an open task assigned to this account.');
     return tracker.start({ taskId: task.id, taskNote: task.title });
   }
   return tracker.start({ taskNote: String(opts.taskNote || '').slice(0, 200) });
@@ -269,6 +269,19 @@ handle('tasks:list', () => tasks.list());
 handle('tasks:refresh', () => tasks.refresh());
 handle('tasks:set-status', ({ id, status, details }) => tasks.setStatus(id, status, details));
 handle('tasks:add-comment', ({ id, body }) => tasks.addComment(id, body));
+
+handle('attendance:today', () => attendanceRequest('GET'));
+handle('attendance:check-in', () => attendanceRequest('POST'));
+
+async function attendanceRequest(method) {
+  if (!auth.isSignedIn()) throw new Error('Sign in to check in.');
+  const url = `${settings.get().sync.serverUrl}/api/agent/attendance`;
+  const res = await fetch(url, { method, headers: auth.authHeaders(), signal: AbortSignal.timeout(15000) });
+  const data = await res.json().catch(() => ({}));
+  if (res.status === 401) { auth.markExpired('attendance request refused'); throw new Error('Your session has expired.'); }
+  if (!res.ok) throw new Error(data.error || `Attendance failed (${res.status})`);
+  return data;
+}
 
 handle('account:get', () => auth.status());
 handle('account:login', async (creds) => {

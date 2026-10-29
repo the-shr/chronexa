@@ -44,6 +44,10 @@ contextBridge.exposeInMainWorld('api', {
     addComment: (id, body) => invoke('tasks:add-comment', { id, body }),
     onChange: (fn) => subscribe('tasks:changed', fn),
   },
+  attendance: {
+    today: () => invoke('attendance:today'),
+    checkIn: () => invoke('attendance:check-in'),
+  },
   profile: {
     get: () => invoke('profile:get'),
     refresh: () => invoke('profile:refresh'),

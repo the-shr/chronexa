@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   MetricRow,
@@ -45,6 +45,7 @@ export default function Home({ snapshot, tasks, account, profile }) {
       <div className="page-body home-grid">
         <div className="side-col">
           <ProfileCard account={account} snapshot={snapshot} profile={profile} />
+          <AttendanceCard settings={settings} />
           <WorkConsistencyCard rows={daily} sessions={sessions} settings={settings} />
         </div>
 
@@ -58,6 +59,22 @@ export default function Home({ snapshot, tasks, account, profile }) {
       </div>
     </>
   );
+}
+
+function AttendanceCard({ settings }) {
+  const [punches, setPunches] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  useEffect(() => { window.api.attendance.today().then(data => setPunches(data.punches || [])).catch(() => {}); }, []);
+  const checkIn = async () => {
+    setBusy(true); setError('');
+    try { const data = await window.api.attendance.checkIn(); setPunches(data.punches || []); }
+    catch (cause) { setError(cause.message || 'Check-in failed'); }
+    finally { setBusy(false); }
+  };
+  const display = value => new Intl.DateTimeFormat('en-BD', { timeZone: 'Asia/Dhaka', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
+  const segments = settings.work?.segments || [{ start: settings.work?.officeStart, end: settings.work?.officeEnd }];
+  return <section className="card attendance-card"><div><span className="card-kicker">Attendance</span><h2>Today</h2><p>{segments.map(s => `${s.start}–${s.end}`).join(' · ')}</p><p>{punches.length ? `Checked in at ${punches.map(p => display(p.checkedInAt)).join(' · ')}` : 'Not checked in yet'}</p>{error && <small className="form-error">{error}</small>}</div><button className="btn primary" disabled={busy} onClick={checkIn}>{busy ? 'Checking in…' : 'Check in'}</button></section>;
 }
 
 function firstName(account) {

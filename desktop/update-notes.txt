@@ -1,1 +1,1 @@
-Super Admin can open View as role from Admin, switch roles in a preview window, and exit from a floating control. The Configuration tab is now Admin. Role preview remains read only.
+Check in to attendance directly from Chronexa. Admins can set multiple duty periods for employees with split schedules. Submitted work stays Pending approval until MacroBex OS approves it, and View all tasks now includes pending and completed work.

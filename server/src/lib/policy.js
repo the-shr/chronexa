@@ -32,6 +32,15 @@ const RANGES = {
 
 const TIME = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
+export function validateWorkSegments(value) {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 4) return { error: 'Choose 1 to 4 duty periods' };
+  const segments = value.map(item => ({ start: String(item?.start || ''), end: String(item?.end || '') }));
+  if (segments.some(item => !TIME.test(item.start) || !TIME.test(item.end) || item.start >= item.end)) return { error: 'Each duty period needs a valid start and end time' };
+  segments.sort((a, b) => a.start.localeCompare(b.start));
+  if (segments.some((item, index) => index > 0 && segments[index - 1].end > item.start)) return { error: 'Duty periods cannot overlap' };
+  return { value: segments };
+}
+
 /** The organisation policy, creating the default row the first time. */
 export async function getPolicy() {
   return prisma.policy.upsert({ where: { id: 'org' }, create: { id: 'org' }, update: {} });
@@ -119,6 +128,7 @@ const OVERRIDE_KINDS = {
   weeklyTargetHours: 'number',
   officeStart: 'time',
   officeEnd: 'time',
+  workSegments: 'segments',
   idleThresholdMinutes: 'number',
   idleOnTimeout: 'idleAction',
   countIdleAsWork: 'boolean',
@@ -140,6 +150,7 @@ function validateOverrideValue(key, value) {
     }
     case 'time':
       return TIME.test(String(value)) ? { value: String(value) } : { error: `${key} must look like 09:00` };
+    case 'segments': return validateWorkSegments(value);
     case 'boolean':
       return { value: Boolean(value) };
     case 'idleAction':
@@ -204,6 +215,7 @@ export async function effectivePolicy(userId) {
   const o = user?.overrides || {};
   const pick = (key) => (o[key] === undefined ? policy[key] : o[key]);
 
+  const segments = Array.isArray(o.workSegments) && o.workSegments.length ? o.workSegments : [{ start: pick('officeStart'), end: pick('officeEnd') }];
   return {
     version: `${policy.updatedAt.toISOString()}:${JSON.stringify(o)}`,
     work: {
@@ -211,6 +223,7 @@ export async function effectivePolicy(userId) {
       weeklyTargetHours: pick('weeklyTargetHours'),
       officeStart: pick('officeStart'),
       officeEnd: pick('officeEnd'),
+      segments,
       workDays: policy.workDays,
     },
     idle: {

@@ -54,7 +54,8 @@ class Tasks extends EventEmitter {
     // BM OS supplies the canonical hierarchy/order; Chronexa only caches it.
     const ordered = [...rows].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
     return {
-      open: ordered.filter((t) => t.status !== 'done'),
+      open: ordered.filter((t) => t.status === 'open'),
+      pending: ordered.filter((t) => t.status === 'pending_approval'),
       done: ordered.filter((t) => t.status === 'done'),
       fetchedAt,
       error: this.lastError,
@@ -114,11 +115,13 @@ class Tasks extends EventEmitter {
   /** Completion is optimistic and queued; every other task mutation belongs to BM OS. */
   setStatus(id, status, details = {}) {
     if (status !== 'done') return this.list();
+    if (this.get(id)?.status !== 'open') return this.list();
     this.store.update((data) => {
       const task = data.rows.find((t) => t.id === id);
       if (task) {
-        task.status = status;
-        task.completedAt = status === 'done' ? new Date().toISOString() : null;
+        task.status = 'pending_approval';
+        task.hubStatus = 'PENDING_APPROVAL';
+        task.completedAt = null;
       }
       return data;
     });

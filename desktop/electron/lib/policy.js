@@ -66,6 +66,7 @@ function apply(policy) {
       weeklyTargetHours: policy.work.weeklyTargetHours,
       officeStart: policy.work.officeStart,
       officeEnd: policy.work.officeEnd,
+      segments: policy.work.segments,
       workDays: policy.work.workDays,
     },
     idle: {
