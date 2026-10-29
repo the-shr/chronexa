@@ -1,1 +1,1 @@
-My Tasks is now a separate desktop tab with compact status filters and pagination. The Android app has a floating navigation dock, a clearer home screen, a dedicated task list, a responsive Admin screen, and a profile avatar that opens your profile.
+Attendance now sits above the tracker. Check in before starting or resuming work, including each split duty period. The new Check-ins page shows a monthly calendar, arrival time, scheduled start, and early or late duration. Android has the same check-in flow and a dedicated Check-ins screen.

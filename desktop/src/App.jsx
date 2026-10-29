@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import Home from './pages/Home.jsx';
 import Tasks from './pages/Tasks.jsx';
+import CheckIns from './pages/CheckIns.jsx';
 import Activity from './pages/Activity.jsx';
 import Profile from './pages/Profile.jsx';
 import Preferences from './pages/Preferences.jsx';
@@ -17,6 +18,7 @@ import { IconSun, IconMoon } from './components/Icons.jsx';
 const TABS = [
   { id: 'tracker', label: 'Tracker' },
   { id: 'tasks', label: 'My Tasks' },
+  { id: 'checkins', label: 'Check-ins' },
   { id: 'activity', label: 'My Activity' },
   { id: 'settings', label: 'Settings' },
 ];
@@ -42,6 +44,7 @@ function Application({ update, account, refreshAccount }) {
   const { snapshot, error } = useTrackerState();
   const tasks = useTasks();
   const [theme, toggleTheme] = useTheme();
+  const [attendance, setAttendance] = useState(null);
   const { profile } = useProfile();
   const isRealSuperAdmin = Boolean(account?.user?.isSuperAdmin || account?.user?.roleKeys?.includes('SUPER_ADMIN'));
   const preview = previewRoles.find(role => role.id === previewId) || null;
@@ -52,6 +55,15 @@ function Application({ update, account, refreshAccount }) {
   const previewAdmin = preview && !previewPm && (previewKeys.some(key => ['ADMIN','ADMINISTRATOR'].includes(key)) || previewPerms.some(key => ['settings.manage','attendance.manage'].includes(key)));
   const canViewEmployees = preview ? Boolean(previewPm || previewAdmin) : Boolean(account?.user?.canViewEmployeeTracking || account?.user?.canManageTrackingPolicy);
   const canConfigure = preview ? Boolean(previewAdmin) : Boolean(account?.user?.canManageTrackingPolicy);
+
+  useEffect(() => {
+    let live = true;
+    const refresh = () => window.api.attendance.today().then(data => { if (live) setAttendance(data); }).catch(() => {});
+    refresh();
+    const interval = setInterval(refresh, 60000);
+    return () => { live = false; clearInterval(interval); };
+  }, [account?.user?.id]);
+  const checkIn = async () => { const data = await window.api.attendance.checkIn(); setAttendance(data); return data; };
 
   useEffect(() => {
     if (!isRealSuperAdmin) return;
@@ -165,8 +177,9 @@ function Application({ update, account, refreshAccount }) {
       <main className="content">
         {preview && tab !== 'employees' && <p className="role-preview-note">Preview mode is read only. Your own tracking and settings are shown where a role has personal pages.</p>}
         <div style={preview && tab !== 'employees' ? { pointerEvents: 'none' } : undefined}>
-          {tab === 'tracker' && <Home snapshot={snapshot} tasks={tasks} account={account} profile={profile} onOpenTasks={() => setTab('tasks')} />}
-          {tab === 'tasks' && <Tasks tasks={tasks} snapshot={snapshot} account={account} />}
+          {tab === 'tracker' && <Home snapshot={snapshot} tasks={tasks} account={account} profile={profile} attendance={attendance} onCheckIn={checkIn} onOpenCheckIns={() => setTab('checkins')} onOpenTasks={() => setTab('tasks')} />}
+          {tab === 'tasks' && <Tasks tasks={tasks} snapshot={snapshot} account={account} attendance={attendance} />}
+          {tab === 'checkins' && <CheckIns attendance={attendance} onCheckIn={checkIn} />}
           {tab === 'activity' && <Activity snapshot={snapshot} />}
           {tab === 'employees' && canViewEmployees && <Employees key={`${previewId}:${previewMemberId}`} previewUserIds={previewPm ? [...new Set([...(preview.trackingConfigured ? preview.trackingUserIds : []), previewMemberId].filter(Boolean))] : null} />}
           {tab === 'configuration' && canConfigure && <Policy onViewAs={isRealSuperAdmin && !preview ? openPreview : undefined} />}

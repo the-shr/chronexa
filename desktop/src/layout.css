@@ -241,6 +241,7 @@
   .content > div:first-child:has(.home-grid) { display: block; }
   .content > div:first-child .home-grid { display: flex; flex-direction: column; min-height: 0; margin-top: 12px; }
   .content > div:first-child .home-grid > * { flex: none; min-height: 220px; }
+  .content > div:first-child .home-grid > .attendance-card { min-height: 0; }
   .content > div:first-child .home-grid .side-col { display: none; }
   .content > div:first-child .home-grid .schedule-card { display: block; }
   .content > div:first-child .home-grid .right-col { min-height: 0; }
@@ -440,9 +441,10 @@
  */
 .home-grid {
   grid-template-columns: 262px minmax(0, 1fr) minmax(0, 1fr) 264px;
-  grid-template-rows: minmax(0, 1.08fr) minmax(0, 1fr);
+  grid-template-rows: minmax(74px, auto) minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:
-    'side progress tracker  right'
+    'side attendance attendance right'
+    'side progress tracker right'
     'side schedule schedule right';
 }
 
@@ -470,6 +472,7 @@
 .tracker-card {
   grid-area: tracker;
 }
+.home-grid > .attendance-card { grid-area: attendance; }
 
 .schedule-card {
   grid-area: schedule;
@@ -489,7 +492,8 @@
   .home-grid {
     grid-template-columns: 232px minmax(0, 1fr) 224px;
     grid-template-areas:
-      'side tracker  right'
+      'side attendance right'
+      'side tracker right'
       'side progress right';
   }
   .schedule-card {
@@ -501,7 +505,8 @@
   .home-grid {
     grid-template-columns: minmax(0, 1fr) 214px;
     grid-template-areas:
-      'tracker  right'
+      'attendance right'
+      'tracker right'
       'progress right';
   }
   .side-col {
@@ -929,9 +934,32 @@
 
 .task-hub-card { padding: 0; overflow: hidden; }
 .task-hub-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
-.attendance-card { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px; }
+.attendance-card { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; min-width: 0; }
 .attendance-card h2 { margin: 3px 0; font-size: 16px; }
 .attendance-card p { margin: 0; color: var(--text-dim); font-size: 11px; }
+.attendance-copy { min-width: 0; }
+.attendance-copy p { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.attendance-copy small { display: block; margin-top: 4px; color: var(--accent-text); font-size: 10px; }
+.attendance-actions { display: flex; flex: none; gap: 6px; }
+.attendance-actions .btn { padding: 7px 9px; font-size: 10px; }
+.checkins-page { max-width: 1000px; width: 100%; margin: 0 auto; padding: 24px; }
+.checkins-page > .attendance-card { margin-bottom: 14px; }
+.checkins-content { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr); gap: 14px; }
+.checkins-calendar, .checkins-detail { padding: 19px; }
+.checkins-calendar > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.checkins-calendar h2,.checkins-detail h2 { margin: 0; font-size: 17px; }
+.checkins-calendar > header div { display: flex; gap: 6px; }
+.checkins-calendar > header button { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 9px; color: var(--text); background: var(--surface-2); font-size: 20px; }
+.checkins-grid { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 7px; }
+.checkins-grid > .weekday { display: grid; place-items: center; color: var(--text-dim); font-size: 10px; }
+.checkins-grid button { aspect-ratio: 1; min-width: 0; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--surface-2); cursor: pointer; }
+.checkins-grid button.selected { border-color: var(--accent); background: color-mix(in srgb,var(--accent) 23%,var(--surface-2)); }
+.checkins-grid button i { width: 5px; height: 5px; border-radius: 50%; background: transparent; }
+.checkins-grid button.has-punch i { background: var(--accent); }
+.checkins-detail h2 { margin: 7px 0 20px; }
+.checkins-entry { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); font-size: 12px; }
+.checkins-entry strong { font-size: 16px; }.checkins-entry span { color: var(--text-dim); }.checkins-entry b { margin-left: auto; }.checkins-entry .late { color: var(--danger); }.checkins-entry .early { color: var(--warn); }.checkins-entry .on-time { color: var(--success); }
+@media (max-width: 720px) { .checkins-content { grid-template-columns: 1fr; }.checkins-page { padding: 14px; }.attendance-card { flex-wrap: wrap; }.attendance-actions { width: 100%; }.attendance-actions .btn { flex: 1; } }
 .task-hub-head h2 { margin-top: 3px; font-size: 17px; }
 .task-hub-head > span { color: var(--text-dim); font-size: 10px; }
 .task-hub-head-actions { display: flex; align-items: center; gap: 14px; }

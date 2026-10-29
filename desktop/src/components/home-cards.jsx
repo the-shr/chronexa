@@ -235,7 +235,7 @@ export function ProgressCard({ rows, weekSeconds, countIdle, settings }) {
 
 /* ------------------------------- tracker -------------------------------- */
 
-export function TrackerCard({ snapshot, settings, busy, onAction }) {
+export function TrackerCard({ snapshot, settings, busy, onAction, checkedIn }) {
   const { state, idlePhase, session, today } = snapshot;
   const running = state === 'running';
   const paused = state === 'paused';
@@ -283,9 +283,9 @@ export function TrackerCard({ snapshot, settings, busy, onAction }) {
         ) : (
           <button
             className="round-ctl"
-            disabled={busy}
+            disabled={busy || !checkedIn}
             onClick={() => onAction(() => (paused ? window.api.tracker.resume() : window.api.tracker.start({})))}
-            title={paused ? 'Resume' : 'Start'}
+            title={!checkedIn ? 'Check in before tracking' : paused ? 'Resume' : 'Start'}
           >
             <IconPlay width={15} height={15} />
           </button>
@@ -416,7 +416,7 @@ export function CountdownCard() {
 
 /* --------------------------- assigned work ----------------------------- */
 
-export function TaskHubCard({ tasks, snapshot, account, busy, onAction, onOpenTasks }) {
+export function TaskHubCard({ tasks, snapshot, account, busy, onAction, onOpenTasks, checkedIn }) {
   const [selectedId, setSelectedId] = useState(null);
   const [expanded, setExpanded] = useState(new Set());
   const [opened, setOpened] = useState(null);
@@ -437,6 +437,7 @@ export function TaskHubCard({ tasks, snapshot, account, busy, onAction, onOpenTa
   }, [tasks.open, tasks.pending, tasks.done, opened]);
   const select = (task) => setSelectedId((id) => id === task.id ? null : task.id);
   const track = (task) => onAction(async () => {
+    if (!checkedIn) throw new Error('Check in before tracking a task.');
     if (snapshot.state === 'running' || snapshot.state === 'paused') await window.api.tracker.stop('manual');
     await window.api.tracker.start({ taskId: task.id, taskNote: task.title });
   });

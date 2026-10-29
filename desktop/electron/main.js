@@ -48,9 +48,9 @@ app.whenReady().then(() => {
 
   windows.createMainWindow({ onCloseRequest: handleMainClose });
   tray.create({
-    onStart: () => { if (!updatePolicy.snapshot().blocked) tracker.start(); },
+    onStart: () => { if (!updatePolicy.snapshot().blocked) ensureCheckedIn().then(() => tracker.start()).catch(() => windows.createMainWindow({ onCloseRequest: handleMainClose })); },
     onPause: () => tracker.pause(),
-    onResume: () => { if (!updatePolicy.snapshot().blocked) tracker.resume(); },
+    onResume: () => { if (!updatePolicy.snapshot().blocked) ensureCheckedIn().then(() => tracker.resume()).catch(() => windows.createMainWindow({ onCloseRequest: handleMainClose })); },
     onStop: () => tracker.stop('tray'),
     onShow: () => windows.createMainWindow({ onCloseRequest: handleMainClose }),
     onQuit: () => quitApp(),
@@ -100,7 +100,7 @@ app.whenReady().then(() => {
   // Admins are not tracked -- they run this build to watch the team, and
   // auto-starting a session for them would put phantom hours in the reports.
   updatePolicy.start().then(() => {
-    if (!updatePolicy.snapshot().blocked && auth.isSignedIn() && settings.get().general.startTrackingOnLaunch) tracker.start();
+    if (!updatePolicy.snapshot().blocked && auth.isSignedIn() && settings.get().general.startTrackingOnLaunch) ensureCheckedIn().then(() => tracker.start()).catch(() => {});
   }).catch((error) => log.warn('update policy:', error.message));
 
   log.info('app: ready, data dir =', paths.root());
@@ -234,7 +234,8 @@ const handle = (channel, fn) => ipcMain.handle(channel, (_event, payload) => {
   return fn(payload);
 });
 
-handle('tracker:start', (opts = {}) => {
+handle('tracker:start', async (opts = {}) => {
+  await ensureCheckedIn();
   if (opts.taskId) {
     const task = tasks.get(String(opts.taskId));
     if (!task || task.status !== 'open') throw new Error('Choose an open task assigned to this account.');
@@ -243,7 +244,7 @@ handle('tracker:start', (opts = {}) => {
   return tracker.start({ taskNote: String(opts.taskNote || '').slice(0, 200) });
 });
 handle('tracker:pause', () => tracker.pause());
-handle('tracker:resume', () => tracker.resume());
+handle('tracker:resume', async () => { await ensureCheckedIn(); return tracker.resume(); });
 handle('tracker:stop', (reason) => tracker.stop(reason || 'manual'));
 handle('tracker:snapshot', () => tracker.snapshot());
 handle('overlay:expand', (expanded) => windows.setOverlayExpanded(expanded));
@@ -271,16 +272,28 @@ handle('tasks:set-status', ({ id, status, details }) => tasks.setStatus(id, stat
 handle('tasks:add-comment', ({ id, body }) => tasks.addComment(id, body));
 
 handle('attendance:today', () => attendanceRequest('GET'));
+handle('attendance:month', (month) => attendanceRequest('GET', month));
 handle('attendance:check-in', () => attendanceRequest('POST'));
 
-async function attendanceRequest(method) {
+async function attendanceRequest(method, month = '') {
   if (!auth.isSignedIn()) throw new Error('Sign in to check in.');
-  const url = `${settings.get().sync.serverUrl}/api/agent/attendance`;
+  if (month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error('Invalid month.');
+  const url = `${settings.get().sync.serverUrl}/api/agent/attendance${month ? `?month=${month}` : ''}`;
   const res = await fetch(url, { method, headers: auth.authHeaders(), signal: AbortSignal.timeout(15000) });
   const data = await res.json().catch(() => ({}));
   if (res.status === 401) { auth.markExpired('attendance request refused'); throw new Error('Your session has expired.'); }
   if (!res.ok) throw new Error(data.error || `Attendance failed (${res.status})`);
   return data;
+}
+
+async function ensureCheckedIn() {
+  const data = await attendanceRequest('GET');
+  const segments = settings.get().work?.segments || [{ start: settings.get().work?.officeStart || '09:00', end: settings.get().work?.officeEnd || '17:00' }];
+  const minute = value => { const [hour, part] = String(value || '00:00').split(':').map(Number); return hour * 60 + part; };
+  const localMinute = value => { const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value)); return minute(parts); };
+  const period = value => { const time = localMinute(value); const inside = segments.findIndex(row => time >= minute(row.start) && time <= minute(row.end)); if (inside >= 0) return inside; const next = segments.findIndex(row => time < minute(row.start)); return next >= 0 ? next : segments.length - 1; };
+  const current = period(new Date());
+  if (!data.punches?.some(punch => period(punch.checkedInAt) === current)) throw new Error('Check in for this duty period before tracking.');
 }
 
 handle('account:get', () => auth.status());

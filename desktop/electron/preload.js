@@ -46,6 +46,7 @@ contextBridge.exposeInMainWorld('api', {
   },
   attendance: {
     today: () => invoke('attendance:today'),
+    month: (month) => invoke('attendance:month', month),
     checkIn: () => invoke('attendance:check-in'),
   },
   profile: {

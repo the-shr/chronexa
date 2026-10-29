@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { TaskViewer, SubmitTaskDialog } from '../components/home-cards.jsx';
+import { checkInState } from '../lib/check-ins.js';
+import { useSettings } from '../lib/hooks.js';
 
 const PAGE_SIZE = 12;
 const FILTERS = [
@@ -9,7 +11,8 @@ const FILTERS = [
   ['done', 'Completed'],
 ];
 
-export default function Tasks({ tasks, snapshot, account }) {
+export default function Tasks({ tasks, snapshot, account, attendance }) {
+  const [settings] = useSettings();
   const [filter, setFilter] = useState('all');
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -41,6 +44,7 @@ export default function Tasks({ tasks, snapshot, account }) {
   }
 
   const track = task => run(async () => {
+    if (!checkInState(attendance?.punches || [], settings?.work).covered) throw new Error('Check in before tracking a task.');
     if (snapshot.state === 'running' || snapshot.state === 'paused') await window.api.tracker.stop('manual');
     await window.api.tracker.start({ taskId: task.id, taskNote: task.title });
   });

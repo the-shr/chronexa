@@ -91,10 +91,11 @@ async function call(path, { method = 'GET', body, revalidate, headers = {} } = {
   }
 }
 
-export async function attendance(email, method = 'GET') {
+export async function attendance(email, method = 'GET', month = '') {
   if (!configured()) return { error: 'MacroBex OS is not configured' };
   try {
-    const { ok, data } = await call('/api/ecosystem/attendance/check-in', { method, headers: { 'x-employee-email': email }, revalidate: 0 });
+    const suffix = month ? `?month=${encodeURIComponent(month)}` : '';
+    const { ok, data } = await call(`/api/ecosystem/attendance/check-in${suffix}`, { method, headers: { 'x-employee-email': email }, revalidate: 0 });
     return ok ? data : { error: data?.error || 'Attendance is unavailable' };
   } catch { return { error: 'MacroBex OS could not be reached' }; }
 }
