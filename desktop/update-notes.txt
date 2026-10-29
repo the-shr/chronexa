@@ -1,1 +1,1 @@
-Check in to attendance directly from Chronexa. Admins can set multiple duty periods for employees with split schedules. Submitted work stays Pending approval until MacroBex OS approves it, and View all tasks now includes pending and completed work.
+My Tasks is now a separate desktop tab with compact status filters and pagination. The Android app has a floating navigation dock, a clearer home screen, a dedicated task list, a responsive Admin screen, and a profile avatar that opens your profile.
