@@ -12,7 +12,7 @@ import {
 } from '../components/home-cards.jsx';
 import { useDailyTotals, useSessions, useSettings } from '../lib/hooks.js';
 
-export default function Home({ snapshot, tasks, account, profile }) {
+export default function Home({ snapshot, tasks, account, profile, onOpenTasks }) {
   const daily = useDailyTotals(7);
   const sessions = useSessions(120);
   const [settings] = useSettings();
@@ -51,7 +51,7 @@ export default function Home({ snapshot, tasks, account, profile }) {
 
         <ProgressCard rows={daily} weekSeconds={weekSeconds} countIdle={countIdle} settings={settings} />
         <TrackerCard snapshot={snapshot} settings={settings} busy={busy} onAction={run} />
-        <TaskHubCard tasks={tasks} snapshot={snapshot} account={account} busy={busy} onAction={run} />
+        <TaskHubCard tasks={tasks} snapshot={snapshot} account={account} busy={busy} onAction={run} onOpenTasks={onOpenTasks} />
         <div className="right-col">
           <DeadlinePulseCard tasks={tasks} />
           <TodayBreakdownCard snapshot={snapshot} settings={settings} />

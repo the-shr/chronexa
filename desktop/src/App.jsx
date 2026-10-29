@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import Home from './pages/Home.jsx';
+import Tasks from './pages/Tasks.jsx';
 import Activity from './pages/Activity.jsx';
 import Profile from './pages/Profile.jsx';
 import Preferences from './pages/Preferences.jsx';
@@ -15,6 +16,7 @@ import { IconSun, IconMoon } from './components/Icons.jsx';
 
 const TABS = [
   { id: 'tracker', label: 'Tracker' },
+  { id: 'tasks', label: 'My Tasks' },
   { id: 'activity', label: 'My Activity' },
   { id: 'settings', label: 'Settings' },
 ];
@@ -136,7 +138,7 @@ function Application({ update, account, refreshAccount }) {
           {tabs.map(({ id, label }) => (
             <button key={id} className={tab === id ? 'top-tab active' : 'top-tab'} onClick={() => setTab(id)}>
               {label}
-              {id === 'tracker' && tasks.open.length > 0 && <span className="nav-badge">{tasks.open.length}</span>}
+              {id === 'tasks' && tasks.open.length > 0 && <span className="nav-badge">{tasks.open.length}</span>}
             </button>
           ))}
         </nav>
@@ -163,7 +165,8 @@ function Application({ update, account, refreshAccount }) {
       <main className="content">
         {preview && tab !== 'employees' && <p className="role-preview-note">Preview mode is read only. Your own tracking and settings are shown where a role has personal pages.</p>}
         <div style={preview && tab !== 'employees' ? { pointerEvents: 'none' } : undefined}>
-          {tab === 'tracker' && <Home snapshot={snapshot} tasks={tasks} account={account} profile={profile} />}
+          {tab === 'tracker' && <Home snapshot={snapshot} tasks={tasks} account={account} profile={profile} onOpenTasks={() => setTab('tasks')} />}
+          {tab === 'tasks' && <Tasks tasks={tasks} snapshot={snapshot} account={account} />}
           {tab === 'activity' && <Activity snapshot={snapshot} />}
           {tab === 'employees' && canViewEmployees && <Employees key={`${previewId}:${previewMemberId}`} previewUserIds={previewPm ? [...new Set([...(preview.trackingConfigured ? preview.trackingUserIds : []), previewMemberId].filter(Boolean))] : null} />}
           {tab === 'configuration' && canConfigure && <Policy onViewAs={isRealSuperAdmin && !preview ? openPreview : undefined} />}

@@ -225,6 +225,57 @@
   overflow: hidden;
 }
 
+/* The page wrapper is the grid child; let it shrink before its cards overflow. */
+.content > div:first-child { grid-row: 1 / -1; min-width: 0; min-height: 0; height: 100%; overflow: auto; }
+.content > div:first-child:has(.home-grid) { display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 12px; }
+.content > div:first-child .home-grid { min-height: 0; }
+@media (max-height: 740px) {
+  .content > div:first-child:has(.home-grid) { display: block; }
+  .content > div:first-child .home-grid { min-height: 590px; margin-top: 12px; }
+}
+@media (max-width: 760px) {
+  .topbar { padding-inline: 12px; flex-wrap: wrap; }
+  .top-nav { order: 5; width: 100%; overflow-x: auto; }
+  .top-tab { padding-inline: 11px; }
+  .content { padding-inline: 12px; }
+  .content > div:first-child:has(.home-grid) { display: block; }
+  .content > div:first-child .home-grid { display: flex; flex-direction: column; min-height: 0; margin-top: 12px; }
+  .content > div:first-child .home-grid > * { flex: none; min-height: 220px; }
+  .content > div:first-child .home-grid .side-col { display: none; }
+  .content > div:first-child .home-grid .schedule-card { display: block; }
+  .content > div:first-child .home-grid .right-col { min-height: 0; }
+}
+
+.my-tasks-page { display: flex; flex-direction: column; min-width: 0; max-width: 1040px; height: 100%; min-height: 0; margin: 0 auto; color: var(--text); }
+.my-tasks-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 2px 17px; }
+.my-tasks-head h1 { margin: 3px 0; font-size: clamp(22px, 3vw, 28px); font-weight: 600; }
+.my-tasks-head p { margin: 0; color: var(--text-dim); font-size: 12px; }
+.my-tasks-total { flex: none; color: var(--text-dim); font-size: 12px; }
+.my-tasks-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 2px 12px; }
+.my-tasks-filters { display: flex; gap: 5px; min-width: 0; overflow-x: auto; }
+.my-tasks-filters button { display: flex; align-items: center; gap: 6px; flex: none; border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; color: var(--text-dim); background: var(--surface); cursor: pointer; font-size: 11px; }
+.my-tasks-filters button[aria-pressed="true"] { color: var(--text); border-color: var(--line-strong); background: var(--surface-2); }
+.my-tasks-filters button span { color: var(--text-dim); font-size: 10px; }
+.my-tasks-toolbar input { width: min(220px, 30%); min-width: 145px; border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px; color: var(--text); background: var(--surface); }
+.my-tasks-scroll { min-height: 0; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.my-tasks-list { min-height: 0; }
+.my-tasks-row { display: flex; align-items: center; width: 100%; min-width: 0; gap: 12px; border: 0; border-bottom: 1px solid var(--line); padding: 13px 16px; text-align: left; color: var(--text); background: transparent; cursor: pointer; }
+.my-tasks-row:hover { background: var(--surface-2); }
+.my-tasks-row-main { min-width: 0; flex: 1; }
+.my-tasks-row-main strong, .my-tasks-row-main small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.my-tasks-row-main strong { font-size: 12px; font-weight: 560; }
+.my-tasks-row-main small { margin-top: 4px; font-size: 10px; color: var(--text-dim); }
+.my-tasks-status { flex: none; color: var(--text-dim); font-size: 10px; }
+.my-tasks-status.pending_approval { color: #e6a84b; }
+.my-tasks-status.done { color: var(--ok); }
+.my-tasks-chevron { color: var(--text-dim); font-size: 18px; }
+.my-tasks-empty { margin: 0; padding: 30px 16px; color: var(--text-dim); font-size: 12px; text-align: center; }
+.my-tasks-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; color: var(--text-dim); font-size: 11px; }
+.my-tasks-pagination > div { display: flex; align-items: center; gap: 8px; }
+.my-tasks-pagination button { border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; color: var(--text); background: var(--surface-2); cursor: pointer; }
+.my-tasks-pagination button:disabled { opacity: .4; cursor: default; }
+@media (max-width: 700px) { .my-tasks-toolbar { align-items: stretch; flex-direction: column; } .my-tasks-toolbar input { width: 100%; } .my-tasks-head p { display: none; } }
+
 /* Pages without a metric row only need two rows. */
 .content:has(> .page-head) {
   grid-template-rows: auto minmax(0, 1fr);
@@ -924,7 +975,7 @@
 .compact-expand { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border: 0; border-radius: 6px; color: var(--text-dim); background: transparent; }
 .compact-expand:hover { background: var(--surface-3); color: var(--text); }
 
-.task-viewer { width: min(640px, calc(100vw - 32px)); max-height: calc(100vh - 28px); overflow: auto; padding: 0 18px 18px; border: 1px solid var(--line-strong); border-radius: 10px; color: var(--text); background: var(--surface); box-shadow: 0 28px 80px rgba(0,0,0,.42); }
+.task-viewer { width: min(640px, calc(100vw - 32px)); max-height: calc(100dvh - 28px); overflow: auto; padding: 0 18px 18px; border: 1px solid var(--line-strong); border-radius: 10px; color: var(--text); background: var(--surface); box-shadow: 0 28px 80px rgba(0,0,0,.42); }
 .task-viewer > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
 .task-viewer > header { position: sticky; top: 0; z-index: 2; margin: 0 -18px; padding: 15px 18px 12px; border-bottom: 1px solid var(--line); background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(18px); }
 .task-viewer > header h2 { margin: 3px 0; font-size: 18px; line-height: 1.2; }

@@ -416,20 +416,12 @@ export function CountdownCard() {
 
 /* --------------------------- assigned work ----------------------------- */
 
-export function TaskHubCard({ tasks, snapshot, account, busy, onAction }) {
+export function TaskHubCard({ tasks, snapshot, account, busy, onAction, onOpenTasks }) {
   const [selectedId, setSelectedId] = useState(null);
   const [expanded, setExpanded] = useState(new Set());
   const [opened, setOpened] = useState(null);
   const [submitTask, setSubmitTask] = useState(null);
-  const [allOpen, setAllOpen] = useState(false);
-  const [listTab, setListTab] = useState('my');
-  const [page, setPage] = useState(1);
   const rows = tasks.open;
-  const allRows = [...tasks.open, ...(tasks.pending || []), ...tasks.done];
-  const filteredRows = listTab === 'pending' ? (tasks.pending || []) : listTab === 'completed' ? tasks.done : allRows;
-  const pageSize = 12;
-  const pageCount = Math.max(1, Math.ceil(filteredRows.length / pageSize));
-  const visibleRows = filteredRows.slice((Math.min(page, pageCount) - 1) * pageSize, Math.min(page, pageCount) * pageSize);
   const tree = useMemo(() => {
     const ids = new Set(rows.map((task) => task.id)); const children = new Map(); const roots = [];
     for (const task of rows) {
@@ -451,7 +443,7 @@ export function TaskHubCard({ tasks, snapshot, account, busy, onAction }) {
   const toggle = (id) => setExpanded((current) => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; });
   return (
     <section className="card schedule-card task-hub-card">
-      <div className="task-hub-head"><div><span className="card-kicker">Assigned work</span><h2>Tasks</h2></div><div className="task-hub-head-actions"><span>{rows.length} open{tasks.pending?.length ? ` · ${tasks.pending.length} pending approval` : ''}</span><button type="button" onClick={() => { setAllOpen(true); setPage(1); }}>View all tasks</button></div></div>
+      <div className="task-hub-head"><div><span className="card-kicker">Assigned work</span><h2>Tasks</h2></div><div className="task-hub-head-actions"><span>{rows.length} open{tasks.pending?.length ? ` · ${tasks.pending.length} pending approval` : ''}</span><button type="button" onClick={onOpenTasks}>View all tasks</button></div></div>
       <div className="task-hub-list">
         {!tree.length && <p className="empty">No assigned work is waiting.</p>}
         {tree.slice(0, 5).map(({ task, children }) => <div className="compact-task-group" key={task.id}>
@@ -459,7 +451,6 @@ export function TaskHubCard({ tasks, snapshot, account, busy, onAction }) {
           {expanded.has(task.id) && children.map((child) => <CompactTask key={child.id} child task={child} selected={selectedId === child.id} tracking={snapshot.session?.taskId === child.id} onSelect={() => select(child)} onOpen={() => setOpened(child)} onTrack={() => track(child)} onSubmit={() => setSubmitTask(child)} />)}
         </div>)}
       </div>
-      {allOpen && <div className="lightbox" onMouseDown={(event) => event.target === event.currentTarget && setAllOpen(false)}><section className="task-viewer all-tasks-dialog"><header><div><span className="card-kicker">Assigned work</span><h2>All tasks</h2></div><button className="viewer-close" aria-label="Close" onClick={() => setAllOpen(false)}>×</button></header><nav className="all-tasks-tabs" aria-label="Task status">{[['my', 'My tasks'], ['pending', `Pending approval (${tasks.pending?.length || 0})`], ['completed', `Completed (${tasks.done.length})`]].map(([key, label]) => <button key={key} type="button" className={listTab === key ? 'active' : ''} onClick={() => { setListTab(key); setPage(1); }}>{label}</button>)}</nav><div className="all-tasks-list">{visibleRows.map(task => <button key={task.id} type="button" className="all-tasks-row" onClick={() => { setOpened(task); setAllOpen(false); }}><span><strong>{task.title}</strong><small>{[task.projectName, task.clientName].filter(Boolean).join(' · ') || 'Independent task'}</small></span><em className={`all-tasks-status ${task.status}`}>{task.status === 'pending_approval' ? 'Pending approval' : task.status === 'done' ? 'Completed' : task.hubStatus === 'REVISION_REQUESTED' ? 'Revision requested' : 'Open'}</em></button>)}{!filteredRows.length && <p className="empty">No tasks here.</p>}</div><footer className="all-tasks-footer"><span>{filteredRows.length ? `${(Math.min(page, pageCount) - 1) * pageSize + 1}–${Math.min(Math.min(page, pageCount) * pageSize, filteredRows.length)} of ${filteredRows.length}` : '0 tasks'}</span><div><button disabled={page <= 1} onClick={() => setPage(value => Math.max(1, value - 1))}>Previous</button><span>{Math.min(page, pageCount)} / {pageCount}</span><button disabled={page >= pageCount} onClick={() => setPage(value => Math.min(pageCount, value + 1))}>Next</button></div></footer></section></div>}
       {opened && <TaskViewer task={opened} snapshot={snapshot} busy={busy} onTrack={() => track(opened)} onClose={() => setOpened(null)} onRequestSubmit={() => setSubmitTask(opened)} onComment={(body) => onAction(async () => { await tasks.addComment(opened.id, body); const fresh = [...tasks.open, ...tasks.done].find((item) => item.id === opened.id); if (fresh) setOpened(fresh); })} />}
       {submitTask && <SubmitTaskDialog task={submitTask} account={account} busy={busy} onClose={() => setSubmitTask(null)} onConfirm={(details) => onAction(async () => { if (snapshot.session?.taskId === submitTask.id) await window.api.tracker.stop('completed'); await tasks.setStatus(submitTask.id, 'done', details); if (opened?.id === submitTask.id) setOpened(null); setSubmitTask(null); })} />}
     </section>
@@ -475,7 +466,7 @@ function CompactTask({ task, child, selected, tracking, childrenCount = 0, expan
   </div>;
 }
 
-function TaskViewer({ task, snapshot, busy, onClose, onComment, onRequestSubmit, onTrack }) {
+export function TaskViewer({ task, snapshot, busy, onClose, onComment, onRequestSubmit, onTrack }) {
   const [comment, setComment] = useState('');
   const trackingThis = snapshot.session?.taskId === task.id && ['running', 'paused'].includes(snapshot.state);
   return <div className="lightbox" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="task-viewer">
@@ -488,7 +479,7 @@ function TaskViewer({ task, snapshot, busy, onClose, onComment, onRequestSubmit,
   </section></div>;
 }
 
-function SubmitTaskDialog({ task, account, busy, onClose, onConfirm }) {
+export function SubmitTaskDialog({ task, account, busy, onClose, onConfirm }) {
   const [completionNote, setCompletionNote] = useState('');
   const [delayReason, setDelayReason] = useState('');
   const overdue = task.dueAt && new Date(task.dueAt) < new Date();
