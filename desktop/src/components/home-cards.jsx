@@ -269,8 +269,8 @@ export function TrackerCard({ snapshot, settings, busy, onAction, checkedIn }) {
           style={{ '--progress': progress, '--ring-color': colour }}
         >
           <div className="ring-inner">
-            <span className="ring-time mono">{shortClock(session ? session.activeSeconds : 0)}</span>
-            <span className="ring-label">{idle ? 'paused' : running ? 'work time' : 'not started'}</span>
+            <span className="ring-time mono">{shortClock(today.workSeconds)}</span>
+            <span className="ring-label">{idle ? 'paused' : 'tracked today'}</span>
           </div>
         </div>
       </div>

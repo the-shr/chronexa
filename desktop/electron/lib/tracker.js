@@ -65,6 +65,7 @@ class Tracker extends EventEmitter {
       id: randomUUID(), startedAt: new Date().toISOString(), endedAt: null,
       activeSeconds: 0, idleSeconds: 0, taskId, taskNote, stopReason: null,
       screenshotCount: 0, synced: false, pendingIdleSeconds: 0,
+      checkpointAt: new Date().toISOString(),
     };
     db.upsertSession(this.session);
     this.resumePromptShown = false; this.lastIdleSample = null; this.presenceConfirmedAt = null;
@@ -319,9 +320,11 @@ class Tracker extends EventEmitter {
 
   persist() {
     if (this.session) {
+      this.session.checkpointAt = new Date().toISOString();
       this.session.pendingIdleSeconds = this.idleReview?.get(this.session.id) || 0;
       db.upsertSession(this.session);
       db.enqueue({ id: `session:${this.session.id}`, type: 'session', payload: { ...this.session } });
+      db.flushTracking();
     }
   }
 

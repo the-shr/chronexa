@@ -14,8 +14,8 @@ export default function Preferences() {
     catch (err) { setError(err.message); }
     finally { setSaving(false); }
   };
-  return <><header className="page-head"><h1>Settings</h1></header>
-    <section className="card" style={{ padding: 24, alignSelf: 'start', gap: 24 }}>
+  return <section className="card profile-preferences" style={{ padding: 24, alignSelf: 'start', gap: 24 }}>
+      <h2>Settings</h2>
       {rows.map((row) => <div key={row.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
         <strong id={row.id}>{row.label}</strong>
         <div className="seg-row" role="group" aria-labelledby={row.id}>
@@ -24,5 +24,5 @@ export default function Preferences() {
         </div>
       </div>)}
       {error && <p className="form-error" role="alert">{error}</p>}
-    </section></>;
+    </section>;
 }

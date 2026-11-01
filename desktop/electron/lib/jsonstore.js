@@ -24,12 +24,19 @@ class JsonStore {
 
   read() {
     if (this._data !== null) return this._data;
-    try {
-      const raw = fs.readFileSync(this.filePath, 'utf8');
-      this._data = JSON.parse(raw);
-    } catch {
-      this._data = structuredClone(this.fallback);
+    const candidates = [this.filePath, `${this.filePath}.tmp`, `${this.filePath}.bak`]
+      .filter(candidate => fs.existsSync(candidate))
+      .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+    let found = false;
+    for (const candidate of candidates) {
+      found = true;
+      try {
+        this._data = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+        return this._data;
+      } catch { /* Try the last atomic write or backup. */ }
     }
+    if (found) throw new Error(`Could not recover local data: ${path.basename(this.filePath)}`);
+    this._data = structuredClone(this.fallback);
     return this._data;
   }
 
@@ -52,6 +59,7 @@ class JsonStore {
     const tmp = `${this.filePath}.tmp`;
     fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
     fs.writeFileSync(tmp, JSON.stringify(this._data, null, 2), 'utf8');
+    if (fs.existsSync(this.filePath)) fs.copyFileSync(this.filePath, `${this.filePath}.bak`);
     fs.renameSync(tmp, this.filePath);
   }
 

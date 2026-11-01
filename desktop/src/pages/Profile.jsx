@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useProfile } from '../lib/hooks.js';
 import { clockTime } from '../lib/format.js';
 import { IconUser, IconTrash } from '../components/Icons.jsx';
+import Preferences from './Preferences.jsx';
 
 export default function Profile() {
   const { profile, update, changePassword, pickAvatar, removeAvatar } = useProfile();
@@ -189,6 +190,7 @@ export default function Profile() {
           </form>
         </section>
       </div>
+      <Preferences />
     </>
   );
 }

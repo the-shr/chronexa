@@ -247,7 +247,7 @@
   .content > div:first-child .home-grid .right-col { min-height: 0; }
 }
 
-.my-tasks-page { display: flex; flex-direction: column; min-width: 0; max-width: 1040px; height: 100%; min-height: 0; margin: 0 auto; color: var(--text); }
+.my-tasks-page { display: flex; flex-direction: column; min-width: 0; width: 100%; height: 100%; min-height: 0; margin: 0 auto; color: var(--text); }
 .my-tasks-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 2px 17px; }
 .my-tasks-head h1 { margin: 3px 0; font-size: clamp(22px, 3vw, 28px); font-weight: 600; }
 .my-tasks-head p { margin: 0; color: var(--text-dim); font-size: 12px; }
@@ -258,8 +258,8 @@
 .my-tasks-filters button[aria-pressed="true"] { color: var(--text); border-color: var(--line-strong); background: var(--surface-2); }
 .my-tasks-filters button span { color: var(--text-dim); font-size: 10px; }
 .my-tasks-toolbar input { width: min(220px, 30%); min-width: 145px; border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px; color: var(--text); background: var(--surface); }
-.my-tasks-scroll { min-height: 0; overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
-.my-tasks-list { min-height: 0; }
+.my-tasks-scroll { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.my-tasks-list { flex: 1; min-height: 0; overflow-y: auto; }
 .my-tasks-row { display: flex; align-items: center; width: 100%; min-width: 0; gap: 12px; border: 0; border-bottom: 1px solid var(--line); padding: 13px 16px; text-align: left; color: var(--text); background: transparent; cursor: pointer; }
 .my-tasks-row:hover { background: var(--surface-2); }
 .my-tasks-row-main { min-width: 0; flex: 1; }
@@ -271,7 +271,7 @@
 .my-tasks-status.done { color: var(--ok); }
 .my-tasks-chevron { color: var(--text-dim); font-size: 18px; }
 .my-tasks-empty { margin: 0; padding: 30px 16px; color: var(--text-dim); font-size: 12px; text-align: center; }
-.my-tasks-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; color: var(--text-dim); font-size: 11px; }
+.my-tasks-pagination { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px; border-top: 1px solid var(--line); color: var(--text-dim); font-size: 11px; }
 .my-tasks-pagination > div { display: flex; align-items: center; gap: 8px; }
 .my-tasks-pagination button { border: 1px solid var(--line); border-radius: 7px; padding: 6px 9px; color: var(--text); background: var(--surface-2); cursor: pointer; }
 .my-tasks-pagination button:disabled { opacity: .4; cursor: default; }
@@ -942,17 +942,18 @@
 .attendance-copy small { display: block; margin-top: 4px; color: var(--accent-text); font-size: 10px; }
 .attendance-actions { display: flex; flex: none; gap: 6px; }
 .attendance-actions .btn { padding: 7px 9px; font-size: 10px; }
-.checkins-page { max-width: 1000px; width: 100%; margin: 0 auto; padding: 24px; }
+.checkins-page { width: 100%; height: 100%; min-height: 0; margin: 0 auto; padding: 4px 0; overflow: auto; }
 .checkins-page > .attendance-card { margin-bottom: 14px; }
 .checkins-content { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr); gap: 14px; }
-.checkins-calendar, .checkins-detail { padding: 19px; }
+.checkins-calendar, .checkins-detail { padding: 14px; }
 .checkins-calendar > header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
 .checkins-calendar h2,.checkins-detail h2 { margin: 0; font-size: 17px; }
 .checkins-calendar > header div { display: flex; gap: 6px; }
 .checkins-calendar > header button { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 9px; color: var(--text); background: var(--surface-2); font-size: 20px; }
-.checkins-grid { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 7px; }
+.checkins-grid { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); gap: 5px; }
 .checkins-grid > .weekday { display: grid; place-items: center; color: var(--text-dim); font-size: 10px; }
-.checkins-grid button { aspect-ratio: 1; min-width: 0; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: var(--surface-2); cursor: pointer; }
+.checkins-grid button { height: clamp(30px, 5.2vh, 43px); min-width: 0; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 10px; color: var(--text); background: var(--surface-2); cursor: pointer; }
+.profile-preferences { margin-top: 14px; }
 .checkins-grid button.selected { border-color: var(--accent); background: color-mix(in srgb,var(--accent) 23%,var(--surface-2)); }
 .checkins-grid button i { width: 5px; height: 5px; border-radius: 50%; background: transparent; }
 .checkins-grid button.has-punch i { background: var(--accent); }

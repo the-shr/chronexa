@@ -173,7 +173,7 @@ function updateOverlay(snapshot) {
   const sessionId = snapshot.session?.id || null;
   const freshPlay = snapshot.state === 'running' && (overlayLastState !== 'running' || sessionId !== overlayLastSession);
   overlayLastState = snapshot.state; overlayLastSession = sessionId;
-  if (freshPlay) { overlayHidden = false; setOverlayExpanded(false); if (!settings.get().general.timerOverlayVisible) settings.set({ general: { timerOverlayVisible: true } }); }
+  if (freshPlay) { overlayHidden = false; setOverlayExpanded(false); }
   if (overlayHidden || !settings.get().general.timerOverlayVisible || !['running', 'paused'].includes(snapshot.state)) { if (overlayWindow && !overlayWindow.isDestroyed()) overlayWindow.hide(); return; }
   if (!overlayWindow || overlayWindow.isDestroyed()) {
     const area = screen.getPrimaryDisplay().workArea, saved = overlayPosition || { x: area.x + area.width - 190, y: area.y + 30 }, display = screen.getDisplayNearestPoint(saved).workArea;

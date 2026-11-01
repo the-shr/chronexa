@@ -5,7 +5,6 @@ import Tasks from './pages/Tasks.jsx';
 import CheckIns from './pages/CheckIns.jsx';
 import Activity from './pages/Activity.jsx';
 import Profile from './pages/Profile.jsx';
-import Preferences from './pages/Preferences.jsx';
 import SignIn from './pages/SignIn.jsx';
 import Policy from './pages/admin/Policy.jsx';
 import Employees from './pages/admin/Employees.jsx';
@@ -18,9 +17,7 @@ import { IconSun, IconMoon } from './components/Icons.jsx';
 const TABS = [
   { id: 'tracker', label: 'Tracker' },
   { id: 'tasks', label: 'My Tasks' },
-  { id: 'checkins', label: 'Check-ins' },
   { id: 'activity', label: 'My Activity' },
-  { id: 'settings', label: 'Settings' },
 ];
 
 export default function App() {
@@ -184,7 +181,6 @@ function Application({ update, account, refreshAccount }) {
           {tab === 'employees' && canViewEmployees && <Employees key={`${previewId}:${previewMemberId}`} previewUserIds={previewPm ? [...new Set([...(preview.trackingConfigured ? preview.trackingUserIds : []), previewMemberId].filter(Boolean))] : null} />}
           {tab === 'configuration' && canConfigure && <Policy onViewAs={isRealSuperAdmin && !preview ? openPreview : undefined} />}
           {tab === 'profile' && <Profile />}
-          {tab === 'settings' && <Preferences />}
         </div>
       </main>
       {isRealSuperAdmin && preview && <aside className="role-preview-dock" aria-label="Role preview controls"><div><strong>Viewing {preview.name}</strong><span>{preview.members?.find(member => member.id === previewMemberId)?.name || 'Member'} · Read only</span></div><button className="btn" onClick={openPreview}>Change role</button><button className="btn primary" onClick={exitPreview}>Exit</button></aside>}

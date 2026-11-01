@@ -34,7 +34,7 @@ function App(){
  const current=timer.session;
  const todayKey=new Date(Date.now()+21600000).toISOString().slice(0,10);const todaySessions=new Map();for(const row of [...(activity?.sessions||[]),...(timer.localSessions||[])]){if(new Date(new Date(row.startedAt).getTime()+21600000).toISOString().slice(0,10)!==todayKey)continue;const seconds=(row.activeSeconds||0)+(activity?.countIdleAsWork?(row.idleSeconds||0):0);todaySessions.set(row.id,Math.max(todaySessions.get(row.id)||0,seconds));}const todaySeconds=[...todaySessions.values()].reduce((sum,n)=>sum+n,0);
  const captureRequired=policy?.screenshots?.enabled||policy?.recording?.enabled;
- return <MobileLayout {...{account,setAccount,tab,setTab,error,setError,busy,timer,setTimer,tasks,setTasks,taskId,setTaskId,note,setNote,policy,activity,setActivity,selectedDay,setSelectedDay,attendance,setAttendance,update,auto,setAuto,act,refresh,load,checkUpdate,outdated,todaySeconds,current,captureRequired}}/>;
+ return <MobileLayout {...{account,setAccount,tab,setTab,error,setError,busy,timer,setTimer,tasks,setTasks,taskId,setTaskId,note,setNote,policy,activity,setActivity,selectedDay,setSelectedDay,attendance,setAttendance,update,auto,setAuto,floating,setFloating,act,refresh,load,checkUpdate,outdated,todaySeconds,current,captureRequired}}/>;
 }
 function compare(a,b){const x=a.split('.').map(Number),y=b.split('.').map(Number);for(let i=0;i<3;i++)if(x[i]!==y[i])return x[i]-y[i];return 0;}
 createRoot(document.getElementById('root')).render(<App/>);

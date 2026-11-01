@@ -16,7 +16,7 @@ final class FloatingTimer {
  FloatingTimer(TrackingService service){this.service=service;lastX=dp(20);lastY=dp(180);}
  void newSession(){hidden=false;setExpanded(false);refresh();}
  void refresh(){try{
-  if(hidden||!Settings.canDrawOverlays(service)){close();return;}
+  if(hidden||!Store.read(service,"preferences").optBoolean("floating",true)||!Settings.canDrawOverlays(service)){close();return;}
   if(panel==null)open();
   renderTime(TrackingService.todaySeconds(service));
   play.setImageDrawable(new ControlIcon(service.running?0:1));

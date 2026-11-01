@@ -4,7 +4,7 @@ Android 8.0+ app using the same Chronexa account and server as desktop. Employee
 
 Screen capture uses Android's MediaProjection consent dialog and a visible foreground service notification. The employee approves screen sharing for each tracking run; capture then follows their effective screenshot/recording policy. Screenshots are JPEG; recordings are H.264 MP4, split into bounded segments. Locking the phone or stopping projection pauses tracking. Unlocking shows a resume reminder; it never starts time tracking automatically. Android does not expose other apps' mouse/keyboard activity, so desktop input-idle detection is replaced with screen-lock/projection lifecycle handling. Protected screens may appear blank under Android's security rules.
 
-The optional floating timer requires the system's display-over-other-apps permission. Drag its time label, use +/- to resize, or close it and re-enable it in Settings. Disabling Android notifications can prevent resume reminders from being displayed.
+The floating timer requires the system's display-over-other-apps permission. Drag its time label or hide it until the next tracking session; Profile settings can disable it persistently. Disabling Android notifications can prevent resume reminders from being displayed.
 
 Time checkpoints, account tokens and session outbox use Android Keystore encryption. Captures remain in private app storage until upload. Pending sessions/captures survive restarts; sign-out is blocked until the queue has synced. A killed process is closed at its saved checkpoint rather than crediting the time it was not running. Android handles APK installation confirmation; the app verifies the published SHA-256 before opening the installer.
 

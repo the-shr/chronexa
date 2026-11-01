@@ -19,20 +19,29 @@ function init() {
   screenshots = new JsonStore(paths.screenshotsFile(), { rows: [] });
   recordings = new JsonStore(paths.recordingsFile(), { rows: [] });
   outbox = new JsonStore(paths.outboxFile(), { rows: [] });
-  // A crash cannot leave unacknowledged warning time permanently credited.
+  // Close sessions left open by a power cut at their last saved checkpoint.
+  // Never credit the unobserved time between the checkpoint and next launch.
   for (const row of [...sessions.read().rows]) {
-    if (!(row.pendingIdleSeconds > 0)) continue;
-    const moved = Math.min(row.pendingIdleSeconds, row.activeSeconds || 0);
-    const recovered = { ...row, activeSeconds: (row.activeSeconds || 0) - moved, idleSeconds: (row.idleSeconds || 0) + moved, pendingIdleSeconds: 0, synced: false };
+    if (row.endedAt && !(row.pendingIdleSeconds > 0)) continue;
+    const moved = Math.min(row.pendingIdleSeconds || 0, row.activeSeconds || 0);
+    const fallbackEnd = new Date(new Date(row.startedAt).getTime() + ((row.activeSeconds || 0) + (row.idleSeconds || 0)) * 1000);
+    const end = row.checkpointAt ? new Date(row.checkpointAt) : fallbackEnd;
+    const safeEnd = Number.isNaN(end.getTime()) || end < new Date(row.startedAt) ? new Date(row.startedAt) : end;
+    const recovered = { ...row, endedAt: row.endedAt || safeEnd.toISOString(), stopReason: row.stopReason || 'interrupted', activeSeconds: (row.activeSeconds || 0) - moved, idleSeconds: (row.idleSeconds || 0) + moved, pendingIdleSeconds: 0, synced: false };
     upsertSession(recovered);
     enqueue({ id: `session:${row.id}`, type: 'session', payload: recovered });
   }
+  flush();
 }
 
 function flush() {
   sessions?.flush();
   screenshots?.flush();
   recordings?.flush();
+  outbox?.flush();
+}
+function flushTracking() {
+  sessions?.flush();
   outbox?.flush();
 }
 
@@ -224,6 +233,7 @@ function bumpAttempts(ids) {
 module.exports = {
   init,
   flush,
+  flushTracking,
   upsertSession,
   listSessions,
   getSession,
