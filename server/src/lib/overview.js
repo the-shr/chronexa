@@ -7,6 +7,7 @@ import { prisma } from './db.js';
 import { effectivePolicy } from './policy.js';
 import { removeScreenshot } from './storage.js';
 import { deleteFile as deleteDriveFile } from './drive.js';
+import { dutyDayFor } from './duty-day.js';
 
 const DAY = 86400000;
 
@@ -28,9 +29,8 @@ function isLive(session, now) {
  */
 export async function teamOverview({ days = 7, now = new Date() } = {}) {
   const since = startOfDay(-(days - 1), now);
-  const today = startOfDay(0, now);
 
-  const [employees, sessions, tasks] = await Promise.all([
+  const [employees, sessions, tasks, orgPolicy] = await Promise.all([
     prisma.user.findMany({
       where: { active: true, role: 'employee' },
       orderBy: { name: 'asc' },
@@ -39,6 +39,7 @@ export async function teamOverview({ days = 7, now = new Date() } = {}) {
         name: true,
         email: true,
         avatarPath: true,
+        overrides: true,
         createdAt: true,
         devices: { orderBy: { lastSeenAt: 'desc' }, take: 1, select: { lastSeenAt: true, platform: true } },
       },
@@ -60,6 +61,7 @@ export async function teamOverview({ days = 7, now = new Date() } = {}) {
       },
     }),
     prisma.task.groupBy({ by: ['userId', 'status'], _count: { _all: true } }),
+    prisma.policy.findUnique({ where: { id: 'org' }, select: { officeStart: true, officeEnd: true } }),
   ]);
 
   const byUser = new Map(employees.map((e) => [e.id, []]));
@@ -76,15 +78,17 @@ export async function teamOverview({ days = 7, now = new Date() } = {}) {
 
   const people = employees.map((user) => {
     const mine = byUser.get(user.id) || [];
-    const todays = mine.filter((s) => s.startedAt >= today);
+    const override = user.overrides || {};
+    const work = { segments: Array.isArray(override.workSegments) && override.workSegments.length ? override.workSegments : [{ start: override.officeStart || orgPolicy?.officeStart || '09:00', end: override.officeEnd || orgPolicy?.officeEnd || '17:00' }] };
+    const currentDutyDay = dutyDayFor(now, work);
+    const todays = mine.filter((s) => dutyDayFor(s.startedAt, work) === currentDutyDay);
     const open = mine.find((s) => !s.endedAt);
 
     // One bar per day, oldest first, so the chart can render straight from this.
     const daily = [];
     for (let i = days - 1; i >= 0; i -= 1) {
       const from = startOfDay(-i, now);
-      const to = new Date(from.getTime() + DAY);
-      const inDay = mine.filter((s) => s.startedAt >= from && s.startedAt < to);
+      const inDay = mine.filter((s) => dutyDayFor(s.startedAt, work) === new Date(from.getTime() + 6 * 3600000).toISOString().slice(0, 10));
       daily.push({
         date: new Date(from.getTime() + 6 * 3600000).toISOString().slice(0, 10),
         activeSeconds: inDay.reduce((sum, s) => sum + s.activeSeconds, 0),
@@ -94,6 +98,7 @@ export async function teamOverview({ days = 7, now = new Date() } = {}) {
 
     return {
       id: user.id,
+      dutyDate: currentDutyDay,
       name: user.name,
       email: user.email,
       hasAvatar: Boolean(user.avatarPath),
@@ -166,7 +171,7 @@ export async function employeeDetail(userId, { month = new Date(Date.now() + 216
   const until = new Date(next.getTime() - 21600000);
 
   const sessions = await prisma.workSession.findMany({
-      where: { userId: user.id, OR: [{ startedAt: { gte: since, lt: until } }, { startedAt: { gte: startOfDay(-6), lte: new Date() } }] },
+      where: { userId: user.id, startedAt: { gte: since, lt: new Date(until.getTime() + DAY) } },
       orderBy: { startedAt: 'desc' },
       select: {
         id: true,
@@ -183,10 +188,11 @@ export async function employeeDetail(userId, { month = new Date(Date.now() + 216
     });
 
   const policy = await effectivePolicy(user.id);
+  const monthSessions = sessions.filter(session => dutyDayFor(session.startedAt, policy.work).startsWith(selectedMonth));
   const countIdle = policy.idle.countIdleAsWork;
   const groups = new Map();
-  for (const session of sessions) {
-    const date = new Date(session.startedAt.getTime() + 6 * 3600000).toISOString().slice(0, 10);
+  for (const session of monthSessions) {
+    const date = dutyDayFor(session.startedAt, policy.work);
     if (!groups.has(date)) groups.set(date, { date, activeSeconds: 0, idleSeconds: 0, workSeconds: 0, sessionIds: [] });
     const group = groups.get(date);
     group.activeSeconds += session.activeSeconds;
@@ -201,7 +207,7 @@ export async function employeeDetail(userId, { month = new Date(Date.now() + 216
     dailyTargetHours: policy.work.dailyTargetHours,
     workDays: policy.work.workDays,
     daily: [...groups.values()],
-    totals: { activeSeconds: sessions.reduce((sum, row) => sum + row.activeSeconds, 0), idleSeconds: sessions.reduce((sum, row) => sum + row.idleSeconds, 0), workSeconds: sessions.reduce((sum, row) => sum + row.activeSeconds + (countIdle ? row.idleSeconds : 0), 0), sessions: sessions.length },
+    totals: { activeSeconds: monthSessions.reduce((sum, row) => sum + row.activeSeconds, 0), idleSeconds: monthSessions.reduce((sum, row) => sum + row.idleSeconds, 0), workSeconds: monthSessions.reduce((sum, row) => sum + row.activeSeconds + (countIdle ? row.idleSeconds : 0), 0), sessions: monthSessions.length },
     user: {
       id: user.id,
       name: user.name,
@@ -211,8 +217,9 @@ export async function employeeDetail(userId, { month = new Date(Date.now() + 216
       hasAvatar: Boolean(user.avatarPath),
       joinedAt: user.createdAt.toISOString(),
     },
-    sessions: sessions.map((s) => ({
+    sessions: monthSessions.map((s) => ({
       id: s.id,
+      dutyDate: dutyDayFor(s.startedAt, policy.work),
       startedAt: s.startedAt.toISOString(),
       endedAt: s.endedAt?.toISOString() || null,
       activeSeconds: s.activeSeconds,

@@ -3,7 +3,7 @@ import { usePager, ROW } from '../components/Pager.jsx';
 import { humanDuration, clockTime, dayLabel, STOP_REASONS } from '../lib/format.js';
 import { useDailyTotals, useSessions, useSettings } from '../lib/hooks.js';
 
-export default function Activity() {
+export default function Activity({ onOpenCheckIns }) {
   const daily = useDailyTotals(14);
   const sessions = useSessions(120);
   const [settings] = useSettings();
@@ -32,6 +32,7 @@ export default function Activity() {
           <h1>Activity</h1>
           <p>How your last two weeks look</p>
         </div>
+        <button className="btn" type="button" onClick={onOpenCheckIns}>Check-ins</button>
       </header>
 
       <div className="page-body" style={{ gridTemplateRows: 'auto minmax(140px, 200px) minmax(0, 1fr)' }}>

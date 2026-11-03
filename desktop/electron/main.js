@@ -264,7 +264,7 @@ handle('settings:set', (patch) => settings.setFromRenderer(patch));
 handle('history:sessions', (opts) =>
   db.listSessions(opts || {}).map(({ screenshotCount, ...session }) => session),
 );
-handle('history:daily', (days) => db.dailyTotals(days || 7));
+handle('history:daily', (days) => db.dailyTotals(days || 7, { work: settings.get().work }));
 
 handle('tasks:list', () => tasks.list());
 handle('tasks:refresh', () => tasks.refresh());
@@ -288,12 +288,8 @@ async function attendanceRequest(method, month = '') {
 
 async function ensureCheckedIn() {
   const data = await attendanceRequest('GET');
-  const segments = settings.get().work?.segments || [{ start: settings.get().work?.officeStart || '09:00', end: settings.get().work?.officeEnd || '17:00' }];
-  const minute = value => { const [hour, part] = String(value || '00:00').split(':').map(Number); return hour * 60 + part; };
-  const localMinute = value => { const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(value)); return minute(parts); };
-  const period = value => { const time = localMinute(value); const inside = segments.findIndex(row => time >= minute(row.start) && time <= minute(row.end)); if (inside >= 0) return inside; const next = segments.findIndex(row => time < minute(row.start)); return next >= 0 ? next : segments.length - 1; };
-  const current = period(new Date());
-  if (!data.punches?.some(punch => period(punch.checkedInAt) === current)) throw new Error('Check in for this duty period before tracking.');
+  const { checkInState } = require('./lib/check-ins-core.cjs');
+  if (!checkInState(data.recentPunches || data.punches || [], settings.get().work).covered) throw new Error('Check in for this duty period before tracking.');
 }
 
 handle('account:get', () => auth.status());

@@ -67,6 +67,9 @@
 .mobile-attendance-title{align-items:center;margin:8px 2px 8px}
 .mobile-attendance-title h2{margin:0;font-size:16px}
 .mobile-attendance-title .btn{min-height:36px;padding:7px 17px;color:#17121e;background:#ac93d8;border:1px solid #d7c1f061;border-radius:12px;font-weight:650}
+.mobile-checkin-prompt{display:flex;align-items:center;gap:11px;margin:0 2px 12px}
+.mobile-checkin-prompt .btn{flex:none;min-height:39px;padding:8px 17px;color:#17121e;background:#ac93d8;border:1px solid #d7c1f061;border-radius:13px;font-weight:650}
+.mobile-checkin-prompt span{min-width:0;color:#a9a5b0;font-size:11px;line-height:1.4}
 .mobile-home .mobile-attendance{padding:11px 14px;margin-bottom:12px}
 .mobile-home .mobile-attendance h2{margin:0 0 3px;font-size:12px}
 .mobile-home .mobile-section-title:not(.mobile-attendance-title){margin-top:16px}

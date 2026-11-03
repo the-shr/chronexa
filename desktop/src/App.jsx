@@ -177,7 +177,7 @@ function Application({ update, account, refreshAccount }) {
           {tab === 'tracker' && <Home snapshot={snapshot} tasks={tasks} account={account} profile={profile} attendance={attendance} onCheckIn={checkIn} onOpenCheckIns={() => setTab('checkins')} onOpenTasks={() => setTab('tasks')} />}
           {tab === 'tasks' && <Tasks tasks={tasks} snapshot={snapshot} account={account} attendance={attendance} />}
           {tab === 'checkins' && <CheckIns attendance={attendance} onCheckIn={checkIn} />}
-          {tab === 'activity' && <Activity snapshot={snapshot} />}
+          {tab === 'activity' && <Activity snapshot={snapshot} onOpenCheckIns={() => setTab('checkins')} />}
           {tab === 'employees' && canViewEmployees && <Employees key={`${previewId}:${previewMemberId}`} previewUserIds={previewPm ? [...new Set([...(preview.trackingConfigured ? preview.trackingUserIds : []), previewMemberId].filter(Boolean))] : null} />}
           {tab === 'configuration' && canConfigure && <Policy onViewAs={isRealSuperAdmin && !preview ? openPreview : undefined} />}
           {tab === 'profile' && <Profile />}

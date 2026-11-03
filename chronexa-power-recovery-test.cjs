@@ -35,7 +35,8 @@ try {
     module, structuredClone, Date,
     require: id => id === './jsonstore' ? { JsonStore: MemoryStore }
       : id === './paths' ? { sessionsFile: () => 'sessions', screenshotsFile: () => 'screenshots', recordingsFile: () => 'recordings', outboxFile: () => 'outbox' }
-      : id === './workday' ? { dayBounds: () => [0, Infinity] } : require(id),
+      : id === './workday' ? { dayBounds: () => [0, Infinity] }
+      : id === './check-ins-core.cjs' ? require('./desktop/electron/lib/check-ins-core.cjs') : require(id),
   });
   const db = module.exports;
   db.init();

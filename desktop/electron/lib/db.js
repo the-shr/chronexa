@@ -2,6 +2,7 @@
 
 const paths = require('./paths');
 const { dayBounds } = require('./workday');
+const { dutyDayFor } = require('./check-ins-core.cjs');
 const { JsonStore } = require('./jsonstore');
 
 /**
@@ -74,13 +75,14 @@ function getSession(id) {
  * lets the tracker leave out the live session, whose persisted row is always a
  * few seconds behind its in-memory counter.
  */
-function totalsOnDay(date = new Date(), { excludeId = null } = {}) {
+function totalsOnDay(date = new Date(), { excludeId = null, work = null } = {}) {
   const [start, end] = dayBounds(date);
+  const key = new Date(start + 21600000).toISOString().slice(0, 10);
   return sessions.read().rows.reduce(
     (totals, r) => {
       if (r.id === excludeId) return totals;
       const t = new Date(r.startedAt).getTime();
-      if (t < start || t >= end) return totals;
+      if (work ? dutyDayFor(r.startedAt, work) !== key : t < start || t >= end) return totals;
       totals.activeSeconds += r.activeSeconds || 0;
       totals.idleSeconds += r.idleSeconds || 0;
       return totals;
@@ -90,12 +92,12 @@ function totalsOnDay(date = new Date(), { excludeId = null } = {}) {
 }
 
 /** Per-day totals for the last `days` days, oldest first -- feeds the weekly chart. */
-function dailyTotals(days = 7, { excludeId = null } = {}) {
+function dailyTotals(days = 7, { excludeId = null, work = null } = {}) {
   const out = [];
   for (let i = days - 1; i >= 0; i -= 1) {
     const date = new Date();
     date.setDate(date.getDate() - i);
-    out.push({ date: date.toISOString(), ...totalsOnDay(date, { excludeId }) });
+    out.push({ date: date.toISOString(), ...totalsOnDay(date, { excludeId, work }) });
   }
   return out;
 }

@@ -35,9 +35,14 @@ const TIME = /^([01]\d|2[0-3]):([0-5]\d)$/;
 export function validateWorkSegments(value) {
   if (!Array.isArray(value) || value.length < 1 || value.length > 4) return { error: 'Choose 1 to 4 duty periods' };
   const segments = value.map(item => ({ start: String(item?.start || ''), end: String(item?.end || '') }));
-  if (segments.some(item => !TIME.test(item.start) || !TIME.test(item.end) || item.start >= item.end)) return { error: 'Each duty period needs a valid start and end time' };
+  if (segments.some(item => !TIME.test(item.start) || !TIME.test(item.end) || item.start === item.end)) return { error: 'Each duty period needs different start and end times' };
   segments.sort((a, b) => a.start.localeCompare(b.start));
-  if (segments.some((item, index) => index > 0 && segments[index - 1].end > item.start)) return { error: 'Duty periods cannot overlap' };
+  const minute = value => { const [hour, part] = value.split(':').map(Number); return hour * 60 + part; };
+  const intervals = segments.flatMap(item => {
+    const start = minute(item.start), end = minute(item.end) + (minute(item.end) < start ? 1440 : 0);
+    return [{ start, end }, { start: start + 1440, end: end + 1440 }];
+  });
+  if (intervals.some((item, index) => intervals.some((other, otherIndex) => index !== otherIndex && item.start < other.end && other.start < item.end))) return { error: 'Duty periods cannot overlap' };
   return { value: segments };
 }
 

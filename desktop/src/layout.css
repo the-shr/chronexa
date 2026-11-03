@@ -242,6 +242,7 @@
   .content > div:first-child .home-grid { display: flex; flex-direction: column; min-height: 0; margin-top: 12px; }
   .content > div:first-child .home-grid > * { flex: none; min-height: 220px; }
   .content > div:first-child .home-grid > .attendance-card { min-height: 0; }
+  .content > div:first-child .home-grid > .checkin-prompt { min-height: 0; }
   .content > div:first-child .home-grid .side-col { display: none; }
   .content > div:first-child .home-grid .schedule-card { display: block; }
   .content > div:first-child .home-grid .right-col { min-height: 0; }
@@ -441,12 +442,21 @@
  */
 .home-grid {
   grid-template-columns: 262px minmax(0, 1fr) minmax(0, 1fr) 264px;
-  grid-template-rows: minmax(74px, auto) minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(46px, auto) minmax(0, 1fr) minmax(0, 1fr);
   grid-template-areas:
     'side attendance attendance right'
     'side progress tracker right'
     'side schedule schedule right';
 }
+.home-grid.checked-in {
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-areas:
+    'side progress tracker right'
+    'side schedule schedule right';
+}
+.checkin-prompt { grid-area: attendance; display: flex; align-items: center; gap: 12px; padding: 2px 0; min-width: 0; }
+.checkin-prompt .btn { flex: none; padding: 8px 17px; }
+.checkin-prompt span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-dim); font-size: 11px; }
 
 .side-col {
   grid-area: side;
@@ -499,6 +509,7 @@
   .schedule-card {
     display: none;
   }
+  .home-grid.checked-in { grid-template-areas: 'side tracker right' 'side progress right'; }
 }
 
 @media (max-width: 1000px) {
@@ -512,6 +523,7 @@
   .side-col {
     display: none;
   }
+  .home-grid.checked-in { grid-template-areas: 'tracker right' 'progress right'; }
 }
 
 /* -------------------------------- profile ------------------------------- */

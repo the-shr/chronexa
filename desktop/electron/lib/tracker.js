@@ -7,6 +7,7 @@ const { powerMonitor } = require('electron');
 const settings = require('./settings');
 const updatePolicy = require('./update-policy');
 const { dayKey } = require('./workday');
+const { dutyDayFor } = require('./check-ins-core.cjs');
 const screenshots = require('./screenshots');
 const db = require('./db');
 const log = require('./log');
@@ -330,7 +331,8 @@ class Tracker extends EventEmitter {
 
   snapshot() {
     const cfg = settings.get();
-    const today = db.totalsOnDay(new Date(), { excludeId: this.session?.id });
+    const dutyDate = dutyDayFor(new Date(), cfg.work);
+    const today = db.totalsOnDay(new Date(`${dutyDate}T12:00:00+06:00`), { excludeId: this.session?.id, work: cfg.work });
     const activeSeconds = today.activeSeconds + (this.session?.activeSeconds || 0);
     const idleSeconds = today.idleSeconds + (this.session?.idleSeconds || 0);
 

@@ -5,6 +5,7 @@ import Employees from '../desktop/src/pages/admin/Employees.jsx';
 import Policy from '../desktop/src/pages/admin/Policy.jsx';
 import ActivityHistory from '../desktop/src/pages/admin/ActivityHistory.jsx';
 import {humanDuration} from '../desktop/src/lib/format.js';
+import {dutyDayFor} from '../desktop/src/lib/check-ins.js';
 import '../desktop/src/styles.css';
 import '../desktop/src/admin.css';
 import '../desktop/src/liquid-glass.css';
@@ -16,10 +17,10 @@ import MobileLayout from './MobileLayout.jsx';
 
 function App(){
  const[account,setAccount]=useState(null),[tab,setTab]=useState('track'),[error,setError]=useState(''),[busy,setBusy]=useState(false),[timer,setTimer]=useState({}),[tasks,setTasks]=useState([]),[taskId,setTaskId]=useState(''),[note,setNote]=useState(''),[policy,setPolicy]=useState(null),[activity,setActivity]=useState(null),[selectedDay,setSelectedDay]=useState(()=>new Date(Date.now()+21600000).toISOString().slice(0,10));
- const[floating,setFloating]=useState(false);const[attendance,setAttendance]=useState(null);
+ const[floating,setFloating]=useState(true);const[attendance,setAttendance]=useState(null);
  const[update,setUpdate]=useState(null),[auto,setAuto]=useState(()=>localStorage.getItem('autoUpdate')!=='false');
  async function act(fn){setBusy(true);setError('');try{await fn();}catch(e){setError(e.message);}finally{setBusy(false);}}
- async function refresh(){const status=await native('status');setTimer(status);setFloating(status.floatingEnabled===true);}
+ async function refresh(){const status=await native('status');setTimer(status);setFloating(status.floatingEnabled!==false);}
  async function load(){await Promise.all([request('/api/agent/tasks').then(data=>setTasks(data.tasks||[])),request('/api/agent/attendance').then(setAttendance).catch(()=>{}),request('/api/agent/policy').then(setPolicy),request(`/api/agent/activity?month=${selectedDay.slice(0,7)}`).then(setActivity)]);}
  useEffect(()=>{native('account').then(setAccount).catch(e=>setError(e.message));const timer=setInterval(()=>{if(document.visibilityState!=='hidden')refresh().catch(()=>{});},1000);const back=()=>{if(document.querySelector('.monitor-lightbox')){window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}));return;}const dialog=document.querySelector('dialog[open]');if(dialog)dialog.dispatchEvent(new Event('cancel',{cancelable:true}));else setTab('track');};window.addEventListener('chronexa-back',back);return()=>{clearInterval(timer);window.removeEventListener('chronexa-back',back);};},[]);
  useEffect(()=>{if(!account?.signedIn)return;act(load);native('floating').then(data=>setFloating(data.floating===true)).catch(()=>{});request('/api/agent/me').then(data=>setAccount(current=>({...current,user:data.user}))).catch(()=>{});checkUpdate();const id=setInterval(()=>{if(auto)checkUpdate();},3600000);const refreshData=()=>{if(document.visibilityState!=='hidden')load().catch(e=>setError(e.message));};const dataTimer=setInterval(refreshData,60000);window.addEventListener('chronexa-active',refreshData);return()=>{clearInterval(id);clearInterval(dataTimer);window.removeEventListener('chronexa-active',refreshData);};},[account?.signedIn,auto]);
@@ -32,7 +33,7 @@ function App(){
  const admin=account.user?.canManageTrackingPolicy;
  const canViewEmployees=admin||account.user?.canViewEmployeeTracking;
  const current=timer.session;
- const todayKey=new Date(Date.now()+21600000).toISOString().slice(0,10);const todaySessions=new Map();for(const row of [...(activity?.sessions||[]),...(timer.localSessions||[])]){if(new Date(new Date(row.startedAt).getTime()+21600000).toISOString().slice(0,10)!==todayKey)continue;const seconds=(row.activeSeconds||0)+(activity?.countIdleAsWork?(row.idleSeconds||0):0);todaySessions.set(row.id,Math.max(todaySessions.get(row.id)||0,seconds));}const todaySeconds=[...todaySessions.values()].reduce((sum,n)=>sum+n,0);
+ const todayKey=dutyDayFor(new Date(),policy?.work);const todaySessions=new Map();for(const row of [...(activity?.sessions||[]),...(timer.localSessions||[])]){if(dutyDayFor(row.startedAt,policy?.work)!==todayKey)continue;const seconds=(row.activeSeconds||0)+(activity?.countIdleAsWork?(row.idleSeconds||0):0);todaySessions.set(row.id,Math.max(todaySessions.get(row.id)||0,seconds));}const todaySeconds=[...todaySessions.values()].reduce((sum,n)=>sum+n,0);
  const captureRequired=policy?.screenshots?.enabled||policy?.recording?.enabled;
  return <MobileLayout {...{account,setAccount,tab,setTab,error,setError,busy,timer,setTimer,tasks,setTasks,taskId,setTaskId,note,setNote,policy,activity,setActivity,selectedDay,setSelectedDay,attendance,setAttendance,update,auto,setAuto,floating,setFloating,act,refresh,load,checkUpdate,outdated,todaySeconds,current,captureRequired}}/>;
 }

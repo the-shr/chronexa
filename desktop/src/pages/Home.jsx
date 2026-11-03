@@ -25,7 +25,7 @@ export default function Home({ snapshot, tasks, account, profile, attendance, on
 
   const countIdle = settings.idle.countIdleAsWork;
   const weekSeconds = daily.reduce((sum, r) => sum + r.activeSeconds + (countIdle ? r.idleSeconds : 0), 0);
-  const checkedIn = checkInState(attendance?.punches || [], settings.work).covered;
+  const checkedIn = checkInState(attendance?.recentPunches || attendance?.punches || [], settings.work).covered;
 
   const run = async (fn) => {
     setBusy(true);
@@ -50,14 +50,14 @@ export default function Home({ snapshot, tasks, account, profile, attendance, on
 
       <MetricRow snapshot={snapshot} settings={settings} tasks={tasks} weekSeconds={weekSeconds} />
 
-      <div className="page-body home-grid">
+      <div className={`page-body home-grid ${checkedIn ? 'checked-in' : ''}`}>
         <div className="side-col">
           <ProfileCard account={account} snapshot={snapshot} profile={profile} />
           <WorkConsistencyCard rows={daily} sessions={sessions} settings={settings} />
         </div>
 
         <ProgressCard rows={daily} weekSeconds={weekSeconds} countIdle={countIdle} settings={settings} />
-        <CheckInCard attendance={attendance} work={settings.work} onCheckIn={onCheckIn} onHistory={onOpenCheckIns} />
+        <CheckInCard attendance={attendance} work={settings.work} onCheckIn={onCheckIn} compact />
         <TrackerCard snapshot={snapshot} settings={settings} busy={busy} onAction={run} checkedIn={checkedIn} />
         <TaskHubCard tasks={tasks} snapshot={snapshot} account={account} busy={busy} onAction={run} onOpenTasks={onOpenTasks} checkedIn={checkedIn} />
         <div className="right-col">
