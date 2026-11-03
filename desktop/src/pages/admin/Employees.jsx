@@ -141,6 +141,6 @@ function groupScreenshotsByDay(rows) {
 }
 
 function dhakaTime(value) { return new Date(value).toLocaleTimeString([], { timeZone: 'Asia/Dhaka', hour: '2-digit', minute: '2-digit' }); }
-function groupSessionDays(rows) { const groups = new Map(); for (const row of rows) { const date = new Date(new Date(row.startedAt).getTime() + 6 * 3600000).toISOString().slice(0, 10); if (!groups.has(date)) groups.set(date, { date, activeSeconds: 0, idleSeconds: 0, workSeconds: 0, sessionIds: [] }); const day = groups.get(date); day.activeSeconds += row.activeSeconds; day.idleSeconds += row.idleSeconds; day.workSeconds += row.activeSeconds; day.sessionIds.push(row.id); } return [...groups.values()]; }
+function groupSessionDays(rows) { const groups = new Map(); for (const row of rows) { const date = row.dutyDate || new Date(new Date(row.startedAt).getTime() + 6 * 3600000).toISOString().slice(0, 10); if (!groups.has(date)) groups.set(date, { date, activeSeconds: 0, idleSeconds: 0, workSeconds: 0, sessionIds: [] }); const day = groups.get(date); day.activeSeconds += row.activeSeconds; day.idleSeconds += row.idleSeconds; day.workSeconds += row.activeSeconds; day.sessionIds.push(row.id); } return [...groups.values()]; }
 
 export default memo(Employees);
