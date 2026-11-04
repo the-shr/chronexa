@@ -14,8 +14,11 @@ public class TrackingService extends Service {
  static volatile TrackingService instance;
  static final Object LOCK=new Object();
  static final java.util.concurrent.locks.ReentrantLock SYNC_LOCK=new java.util.concurrent.locks.ReentrantLock();
+ static final java.util.concurrent.locks.ReentrantLock SESSION_SYNC_LOCK=new java.util.concurrent.locks.ReentrantLock();
  static final java.util.concurrent.atomic.AtomicBoolean syncQueued=new java.util.concurrent.atomic.AtomicBoolean();
+ static final java.util.concurrent.atomic.AtomicBoolean sessionSyncQueued=new java.util.concurrent.atomic.AtomicBoolean();
  static final java.util.concurrent.ExecutorService network=Executors.newSingleThreadExecutor();
+ static final java.util.concurrent.ExecutorService sessionNetwork=Executors.newSingleThreadExecutor();
  static final java.util.concurrent.ExecutorService policyNetwork=Executors.newSingleThreadExecutor();
  final Handler handler=new Handler(Looper.getMainLooper());
  JSONObject session; long elapsed; Capture capture; FloatingTimer floating; boolean running;String error="";long lastSync;
@@ -39,17 +42,50 @@ public class TrackingService extends Service {
  static boolean isRunning(){return instance!=null&&instance.running;}
  static int pending(Context c)throws Exception{ synchronized(LOCK){return Store.read(c,"queue").optJSONArray("sessions")==null?mediaCount(c):Store.read(c,"queue").getJSONArray("sessions").length()+mediaCount(c);}}
  static JSONArray localSessions(Context c)throws Exception{JSONArray saved=Store.read(c,"history").optJSONArray("sessions"),result=new JSONArray(),segments=dutySegments(c);java.util.Map<String,JSONObject> rows=new java.util.LinkedHashMap<>();String today=dutyDay(System.currentTimeMillis(),segments);if(saved!=null)for(int i=0;i<saved.length();i++){JSONObject row=saved.getJSONObject(i);if(dutyDay(Instant.parse(row.getString("startedAt")).toEpochMilli(),segments).equals(today))rows.put(row.getString("id"),row);}JSONObject current=Store.read(c,"timer").optJSONObject("session");if(current!=null&&dutyDay(Instant.parse(current.getString("startedAt")).toEpochMilli(),segments).equals(today))rows.put(current.getString("id"),current);for(JSONObject row:rows.values())result.put(row);return result;}
- static long todaySeconds(Context c)throws Exception{java.util.Map<String,Long> totals=new java.util.HashMap<>();JSONObject cached=Store.read(c,"activity-today");if(dutyDay(c,System.currentTimeMillis()).equals(cached.optString("date"))){JSONArray rows=cached.optJSONArray("sessions");if(rows!=null)for(int i=0;i<rows.length();i++){JSONObject row=rows.getJSONObject(i);totals.put(row.getString("id"),row.optLong("seconds"));}}JSONArray local=localSessions(c);boolean idle=Store.read(c,"policy").optJSONObject("idle")!=null&&Store.read(c,"policy").getJSONObject("idle").optBoolean("countIdleAsWork");for(int i=0;i<local.length();i++){JSONObject row=local.getJSONObject(i);String id=row.getString("id");totals.put(id,Math.max(totals.getOrDefault(id,0L),row.optLong("activeSeconds")+(idle?row.optLong("idleSeconds"):0)));}long seconds=0;for(long value:totals.values())seconds+=value;return seconds;}
+ static long todaySeconds(Context c)throws Exception{java.util.Map<String,Long> totals=new java.util.HashMap<>();JSONObject cached=Store.read(c,"activity-today");if(dutyDay(c,System.currentTimeMillis()).equals(cached.optString("date"))){JSONArray rows=cached.optJSONArray("sessions");if(rows!=null)for(int i=0;i<rows.length();i++){JSONObject row=rows.getJSONObject(i);totals.put(row.getString("id"),row.optLong("seconds"));}}JSONArray local=localSessions(c);boolean idle=Store.read(c,"policy").optJSONObject("idle")!=null&&Store.read(c,"policy").getJSONObject("idle").optBoolean("countIdleAsWork");for(int i=0;i<local.length();i++){JSONObject row=local.getJSONObject(i);String id=row.getString("id");totals.put(id,row.optLong("activeSeconds")+(idle?row.optLong("idleSeconds"):0));}long seconds=0;for(long value:totals.values())seconds+=value;return seconds;}
  static int mediaCount(Context c){File[] files=new File(c.getFilesDir(),"outbox").listFiles((dir,name)->name.endsWith(".json"));return files==null?0:files.length;}
  static JSONObject status(Context c)throws Exception {synchronized(LOCK){JSONObject state=Store.read(c,"timer");if(!isRunning()&&state.optBoolean("running"))recover(c);state=Store.read(c,"timer");boolean floating=Store.read(c,"preferences").optBoolean("floating",true);return new JSONObject().put("running",isRunning()).put("session",state.optJSONObject("session")).put("localSessions",localSessions(c)).put("floatingEnabled",floating).put("floatingVisible",instance!=null&&instance.floating!=null&&instance.floating.panel!=null).put("floatingPermissionGranted",android.provider.Settings.canDrawOverlays(c)).put("syncing",SYNC_LOCK.isLocked()).put("lastSyncedAt",Store.read(c,"sync-state").optString("lastSuccess")).put("syncError",Store.read(c,"sync-state").optString("error")).put("pending",pending(c)).put("reason",state.optString("reason")).put("error",instance==null?state.optString("error"):instance.error).put("capture",isRunning()&&instance.capture!=null).put("version",BuildConfig.VERSION_NAME);}}
  static void recover(Context c)throws Exception {synchronized(LOCK){JSONObject state=Store.read(c,"timer");JSONObject old=state.optJSONObject("session");if(state.optBoolean("running")&&old!=null){old.put("endedAt",state.optString("checkpoint",old.getString("startedAt"))).put("stopReason","android-interrupted");enqueue(c,old);state.put("running",false).put("reason","Tracking was interrupted. Tap Resume to continue.");Store.save(c,"timer",state);}}}
  static void enqueue(Context c,JSONObject row)throws Exception {synchronized(LOCK){JSONObject q=Store.read(c,"queue");JSONArray rows=q.optJSONArray("sessions");if(rows==null)rows=new JSONArray();JSONArray next=new JSONArray();for(int i=0;i<rows.length();i++)if(!rows.getJSONObject(i).getString("id").equals(row.getString("id")))next.put(rows.getJSONObject(i));next.put(new JSONObject(row.toString()));Store.save(c,"queue",new JSONObject().put("sessions",next));JSONObject history=Store.read(c,"history");JSONArray old=history.optJSONArray("sessions"),kept=new JSONArray();if(old!=null)for(int i=0;i<old.length();i++){JSONObject item=old.getJSONObject(i);if(!item.getString("id").equals(row.getString("id"))&&Instant.parse(item.getString("startedAt")).toEpochMilli()>System.currentTimeMillis()-32L*86400000)kept.put(item);}kept.put(new JSONObject(row.toString()));Store.save(c,"history",new JSONObject().put("sessions",kept));}SyncWorker.schedule(c);}
- static void sync(Context source){Context c=source.getApplicationContext();SyncWorker.schedule(c);if(!syncQueued.compareAndSet(false,true))return;network.execute(()->{try{syncNow(c);}finally{syncQueued.set(false);}});}
+ static void sync(Context source){
+  Context c=source.getApplicationContext();
+  SyncWorker.schedule(c);
+  // A large capture upload must not hold up the next timer checkpoint.
+  if(SYNC_LOCK.isLocked()&&sessionSyncQueued.compareAndSet(false,true)){
+   sessionNetwork.execute(()->{
+    try{uploadSessions(c,SystemClock.elapsedRealtime()+30000);}
+    catch(Exception e){Telemetry.health(c,"sync",Telemetry.code(e));}
+    finally{sessionSyncQueued.set(false);}
+   });
+  }
+  if(!syncQueued.compareAndSet(false,true))return;
+  network.execute(()->{try{syncNow(c);}finally{syncQueued.set(false);}});
+ }
+ static void uploadSessions(Context c,long deadline)throws Exception{
+  if(!SESSION_SYNC_LOCK.tryLock())return;
+  try{
+   if(Store.read(c,"account").optString("token").isEmpty())return;
+   JSONArray rows;
+   synchronized(LOCK){rows=Store.read(c,"queue").optJSONArray("sessions");}
+   if(rows==null)return;
+   for(int i=0;i<rows.length()&&i<32&&SystemClock.elapsedRealtime()<deadline;i++){
+    JSONObject row=rows.getJSONObject(i);
+    Api.json(c,"/api/agent/sessions","POST",row);
+    synchronized(LOCK){
+     JSONArray current=Store.read(c,"queue").getJSONArray("sessions"),next=new JSONArray();
+     for(int j=0;j<current.length();j++){
+      JSONObject item=current.getJSONObject(j);
+      if(!item.toString().equals(row.toString()))next.put(item);
+     }
+     Store.save(c,"queue",new JSONObject().put("sessions",next));
+    }
+   }
+  }finally{SESSION_SYNC_LOCK.unlock();}
+ }
  static boolean syncNow(Context source){Context c=source.getApplicationContext();if(!SYNC_LOCK.tryLock())return false;try{
   if(Store.read(c,"account").optString("token").isEmpty())return true;
-  JSONArray rows; synchronized(LOCK){rows=Store.read(c,"queue").optJSONArray("sessions");}
-  long deadline=SystemClock.elapsedRealtime()+90000;int sent=0;
-  if(rows!=null)for(int i=0;i<rows.length()&&sent<32&&SystemClock.elapsedRealtime()<deadline;i++){JSONObject row=rows.getJSONObject(i);Api.json(c,"/api/agent/sessions","POST",row);sent++;synchronized(LOCK){JSONArray current=Store.read(c,"queue").getJSONArray("sessions"),next=new JSONArray();for(int j=0;j<current.length();j++){JSONObject item=current.getJSONObject(j);if(!item.toString().equals(row.toString()))next.put(item);}Store.save(c,"queue",new JSONObject().put("sessions",next));}}
+  long deadline=SystemClock.elapsedRealtime()+90000;
+  uploadSessions(c,deadline);
   File dir=new File(c.getFilesDir(),"outbox");File[] metaFiles=dir.listFiles((d,n)->n.endsWith(".json"));int captures=0;
   if(metaFiles!=null)for(File metaFile:metaFiles){if(captures++>=8||SystemClock.elapsedRealtime()>=deadline)break;JSONObject meta=new JSONObject(new String(read(metaFile),"UTF-8"));File file=new File(dir,meta.getString("id")+meta.getString("extension"));String component=meta.getString("mime").equals("image/jpeg")?"screenshotUpload":"recordingUpload";try{Api.upload(c,meta.getString("path"),file,meta,meta.getString("mime"));Telemetry.health(c,component,null);}catch(Exception e){Telemetry.health(c,component,Telemetry.code(e));throw e;}metaFile.delete();file.delete();}
   String previousError=Store.read(c,"sync-state").optString("error");if(instance!=null&&(instance.error.equals(previousError)||instance.error.startsWith("Sync pending.")))instance.error="";synchronized(LOCK){JSONObject timer=Store.read(c,"timer");String timerError=timer.optString("error");if(!timerError.isEmpty()&&(timerError.equals(previousError)||timerError.startsWith("Sync pending."))){timer.put("error","");Store.save(c,"timer",timer);}}Store.save(c,"sync-state",new JSONObject().put("lastSuccess",iso(System.currentTimeMillis())).put("error",""));Telemetry.health(c,"sync",null);Telemetry.report(c,true);

@@ -1,4 +1,4 @@
-import React,{useEffect,useState} from 'react';
+import React,{useEffect,useRef,useState} from 'react';
 import {createRoot} from 'react-dom/client';
 import {native,request} from './bridge.js';
 import Employees from '../desktop/src/pages/admin/Employees.jsx';
@@ -19,11 +19,49 @@ function App(){
  const[account,setAccount]=useState(null),[tab,setTab]=useState('track'),[error,setError]=useState(''),[busy,setBusy]=useState(false),[timer,setTimer]=useState({}),[tasks,setTasks]=useState([]),[taskId,setTaskId]=useState(''),[note,setNote]=useState(''),[policy,setPolicy]=useState(null),[activity,setActivity]=useState(null),[selectedDay,setSelectedDay]=useState(()=>new Date(Date.now()+21600000).toISOString().slice(0,10));
  const[floating,setFloating]=useState(true);const[attendance,setAttendance]=useState(null);
  const[update,setUpdate]=useState(null),[auto,setAuto]=useState(()=>localStorage.getItem('autoUpdate')!=='false');
- async function act(fn){setBusy(true);setError('');try{await fn();}catch(e){setError(e.message);}finally{setBusy(false);}}
- async function refresh(){const status=await native('status');setTimer(status);setFloating(status.floatingEnabled!==false);}
- async function load(){await Promise.all([request('/api/agent/tasks').then(data=>setTasks(data.tasks||[])),request('/api/agent/attendance').then(setAttendance).catch(()=>setAttendance(current=>current??{unavailable:true})),request('/api/agent/policy').then(setPolicy),request(`/api/agent/activity?month=${selectedDay.slice(0,7)}`).then(setActivity)]);}
- useEffect(()=>{native('account').then(setAccount).catch(e=>setError(e.message));const timer=setInterval(()=>{if(document.visibilityState!=='hidden')refresh().catch(()=>{});},1000);const back=()=>{if(document.querySelector('.monitor-lightbox')){window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}));return;}const dialog=document.querySelector('dialog[open]');if(dialog)dialog.dispatchEvent(new Event('cancel',{cancelable:true}));else setTab('track');};window.addEventListener('chronexa-back',back);return()=>{clearInterval(timer);window.removeEventListener('chronexa-back',back);};},[]);
- useEffect(()=>{if(!account?.signedIn)return;act(load);native('floating').then(data=>setFloating(data.floating===true)).catch(()=>{});request('/api/agent/me').then(data=>setAccount(current=>({...current,user:data.user}))).catch(()=>{});checkUpdate();const id=setInterval(()=>{if(auto)checkUpdate();},3600000);const refreshData=()=>{if(document.visibilityState!=='hidden')load().catch(e=>setError(e.message));};const dataTimer=setInterval(refreshData,60000);window.addEventListener('chronexa-active',refreshData);return()=>{clearInterval(id);clearInterval(dataTimer);window.removeEventListener('chronexa-active',refreshData);};},[account?.signedIn,auto]);
+ const [today,setToday]=useState(null);
+ const actionPending=useRef(false), statusPending=useRef(null);
+ async function act(fn){
+  if(actionPending.current)return;
+  actionPending.current=true;setBusy(true);setError('');
+  try{await fn();}catch(e){setError(e.message);}finally{actionPending.current=false;setBusy(false);}
+ }
+ function refresh(){
+  if(statusPending.current)return statusPending.current;
+  const pending=native('status').then(status=>{setTimer(status);setFloating(status.floatingEnabled!==false);})
+    .finally(()=>{if(statusPending.current===pending)statusPending.current=null;});
+  statusPending.current=pending;
+  return pending;
+ }
+ async function load(){await Promise.all([request('/api/agent/tasks').then(data=>setTasks(data.tasks||[])),request('/api/agent/attendance').then(setAttendance).catch(()=>setAttendance(current=>current??{unavailable:true})),request('/api/agent/policy').then(setPolicy)]);}
+ useEffect(()=>{native('account').then(setAccount).catch(e=>setError(e.message));const back=()=>{if(document.querySelector('.monitor-lightbox')){window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}));return;}const dialog=document.querySelector('dialog[open]');if(dialog)dialog.dispatchEvent(new Event('cancel',{cancelable:true}));else setTab('track');};window.addEventListener('chronexa-back',back);return()=>window.removeEventListener('chronexa-back',back);},[]);
+ useEffect(()=>{
+  if(!account?.signedIn)return;
+  const poll=()=>{if(document.visibilityState!=='hidden')refresh().catch(()=>{});};
+  poll();
+  const interval=setInterval(poll,timer.running?1000:3000);
+  return()=>clearInterval(interval);
+ },[account?.signedIn,timer.running]);
+ useEffect(()=>{
+  if(!account?.signedIn){setToday(null);setAttendance(null);setPolicy(null);setActivity(null);setTasks([]);setTimer({});return;}
+  let active=true;
+  const loadToday=()=>{if(document.visibilityState!=='hidden')request('/api/agent/activity?scope=today').then(data=>{if(active)setToday(data);}).catch(()=>{});};
+  const loadWorkspace=()=>{if(document.visibilityState!=='hidden')load().catch(e=>{if(active)setError(e.message);});};
+  const onActive=()=>{loadWorkspace();loadToday();};
+  onActive();
+  request('/api/agent/me').then(data=>{if(active)setAccount(current=>({...current,user:data.user}));}).catch(()=>{});
+  const workspaceTimer=setInterval(loadWorkspace,60000);
+  const todayTimer=setInterval(loadToday,45000);
+  window.addEventListener('chronexa-active',onActive);
+  return()=>{active=false;clearInterval(workspaceTimer);clearInterval(todayTimer);window.removeEventListener('chronexa-active',onActive);};
+ },[account?.signedIn]);
+ useEffect(()=>{
+  if(!account?.signedIn)return;
+  checkUpdate();
+  if(!auto)return;
+  const interval=setInterval(checkUpdate,3600000);
+  return()=>clearInterval(interval);
+ },[account?.signedIn,auto]);
  useEffect(()=>{if(!account?.signedIn)return;const resume=()=>{native('consumeResume').then(data=>{if(data.requested)act(async()=>{const result=await native('start',data.task||{});if(result.attendance)setAttendance(result.attendance);await refresh();});}).catch(e=>setError(e.message));};resume();window.addEventListener('chronexa-resume',resume);return()=>window.removeEventListener('chronexa-resume',resume);},[account?.signedIn]);
  useEffect(()=>{if(!account?.signedIn||tab!=='activity')return;let current=true;request(`/api/agent/activity?month=${selectedDay.slice(0,7)}`).then(data=>{if(current)setActivity(data);}).catch(e=>{if(current)setError(e.message);});return()=>{current=false;};},[account?.signedIn,tab,selectedDay.slice(0,7)]);
  async function checkUpdate(){try{const data=await request('/api/agent/android-version');setUpdate(data);}catch(e){setError(e.message);}}
@@ -33,7 +71,14 @@ function App(){
  const admin=account.user?.canManageTrackingPolicy;
  const canViewEmployees=admin||account.user?.canViewEmployeeTracking;
  const current=timer.session;
- const todayKey=dutyDayFor(new Date(),policy?.work);const todaySessions=new Map();for(const row of [...(activity?.sessions||[]),...(timer.localSessions||[])]){if(dutyDayFor(row.startedAt,policy?.work)!==todayKey)continue;const seconds=(row.activeSeconds||0)+(activity?.countIdleAsWork?(row.idleSeconds||0):0);todaySessions.set(row.id,Math.max(todaySessions.get(row.id)||0,seconds));}const todaySeconds=[...todaySessions.values()].reduce((sum,n)=>sum+n,0);
+ const todayKey=dutyDayFor(new Date(),policy?.work);
+ const serverRows=today?.date===todayKey?(today.sessions||[]):[];
+ const todaySessions=new Map(serverRows.map(row=>[row.id,row]));
+ for(const row of timer.localSessions||[]) {
+  if(dutyDayFor(row.startedAt,policy?.work)===todayKey)todaySessions.set(row.id,row);
+ }
+ const countIdle=today?.countIdleAsWork??policy?.idle?.countIdleAsWork;
+ const todaySeconds=[...todaySessions.values()].reduce((sum,row)=>sum+(row.activeSeconds||0)+(countIdle?(row.idleSeconds||0):0),0);
  const captureRequired=policy?.screenshots?.enabled||policy?.recording?.enabled;
  return <MobileLayout {...{account,setAccount,tab,setTab,error,setError,busy,timer,setTimer,tasks,setTasks,taskId,setTaskId,note,setNote,policy,activity,setActivity,selectedDay,setSelectedDay,attendance,setAttendance,update,auto,setAuto,floating,setFloating,act,refresh,load,checkUpdate,outdated,todaySeconds,current,captureRequired}}/>;
 }

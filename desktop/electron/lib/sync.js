@@ -53,8 +53,9 @@ class Sync extends EventEmitter {
       return this.status();
     }
 
+    const queuedIds = new Set(db.peekOutbox(999999).map(item => item.id));
     for (const session of db.listSessions({ limit: Number.MAX_SAFE_INTEGER })) {
-      if (!session.synced && !db.peekOutbox(999999).some((item) => item.id === `session:${session.id}`)) {
+      if (!session.synced && !queuedIds.has(`session:${session.id}`)) {
         db.enqueue({ id: `session:${session.id}`, type: 'session', payload: session });
       }
     }
@@ -128,6 +129,7 @@ class Sync extends EventEmitter {
       method: 'POST',
       headers: { 'content-type': 'application/json', ...auth.authHeaders() },
       body: JSON.stringify(session),
+      signal: AbortSignal.timeout(15000),
     });
     this.guard(res, 'sessions');
     const current = db.getSession(session.id);
@@ -161,7 +163,7 @@ class Sync extends EventEmitter {
     form.set('meta', JSON.stringify({ ...row, filePath: undefined, thumbPath: undefined }));
     form.set(
       'file',
-      new Blob([fs.readFileSync(row.filePath)], { type: 'image/jpeg' }),
+      new Blob([await fs.promises.readFile(row.filePath)], { type: 'image/jpeg' }),
       path.basename(row.filePath),
     );
 
@@ -189,7 +191,7 @@ class Sync extends EventEmitter {
 
     const form = new FormData();
     form.set('meta', JSON.stringify({ ...row, filePath: undefined }));
-    form.set('file', new Blob([fs.readFileSync(row.filePath)], { type: 'video/webm' }), path.basename(row.filePath));
+    form.set('file', new Blob([await fs.promises.readFile(row.filePath)], { type: 'video/webm' }), path.basename(row.filePath));
 
     const res = await fetch(`${this.base()}/api/agent/recordings`, {
       method: 'POST',

@@ -332,7 +332,8 @@ class Tracker extends EventEmitter {
   snapshot() {
     const cfg = settings.get();
     const dutyDate = dutyDayFor(new Date(), cfg.work);
-    const today = db.totalsOnDay(new Date(`${dutyDate}T12:00:00+06:00`), { excludeId: this.session?.id, work: cfg.work });
+    const remoteRows = this.remoteToday?.date === dutyDate ? this.remoteToday.sessions : [];
+    const today = db.totalsOnDay(new Date(`${dutyDate}T12:00:00+06:00`), { excludeId: this.session?.id, work: cfg.work, remoteRows });
     const activeSeconds = today.activeSeconds + (this.session?.activeSeconds || 0);
     const idleSeconds = today.idleSeconds + (this.session?.idleSeconds || 0);
 

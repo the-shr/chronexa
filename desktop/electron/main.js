@@ -27,6 +27,10 @@ if (!app.requestSingleInstanceLock()) {
 }
 
 let quitting = false;
+let attendanceCache;
+let todayRequest;
+let lastTodayRequestAt = 0;
+let trackingAccount;
 process.on('uncaughtExceptionMonitor', error => { diagnostics.record('app',false,error); diagnostics.stop(); });
 app.on('web-contents-created', (_event, contents) => {
   contents.on('render-process-gone', () => diagnostics.record('app',false,'Renderer crashed'));
@@ -84,10 +88,27 @@ app.whenReady().then(() => {
   // A rejected token used to be a log line and nothing else; the employee saw
   // a dashboard that had quietly stopped syncing.
   auth.on('changed', (status) => {
+    const token = status.signedIn ? auth.get().token : null;
+    if (token !== trackingAccount) {
+      trackingAccount = token;
+      attendanceCache = null;
+      todayRequest = null;
+      lastTodayRequestAt = 0;
+      tracker.remoteToday = null;
+      if (token) refreshTrackedToday();
+    }
     if (!status.signedIn && tracker.state !== 'stopped') tracker.stop('signed-out');
     windows.broadcast('account:changed', status);
     if (status.signedIn) updatePolicy.preferencesChanged();
   });
+  trackingAccount = auth.isSignedIn() ? auth.get().token : null;
+  refreshTrackedToday();
+  app.on('browser-window-focus', refreshTrackedToday);
+  setInterval(() => {
+    const visible = [windows.getMainWindow(), windows.getOverlayWindow()]
+      .some(win => win && !win.isDestroyed() && win.isVisible() && !win.isMinimized());
+    if (visible) refreshTrackedToday();
+  }, 45000).unref();
 
   profile.on('changed', (p) => windows.broadcast('profile:changed', p));
   profile.refresh().catch(() => {});
@@ -279,21 +300,49 @@ handle('attendance:check-in', () => attendanceRequest('POST'));
 async function attendanceRequest(method, month = '') {
   if (!auth.isSignedIn()) throw new Error('Sign in to check in.');
   if (month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error('Invalid month.');
+  const token = auth.get().token;
+  if (method === 'GET' && !month && token === trackingAccount && attendanceCache && Date.now() - attendanceCache.at < 5000) {
+    return attendanceCache.data;
+  }
   const url = `${settings.get().sync.serverUrl}/api/agent/attendance${month ? `?month=${month}` : ''}`;
   const res = await fetch(url, { method, headers: auth.authHeaders(), signal: AbortSignal.timeout(15000) });
   const data = await res.json().catch(() => ({}));
   if (res.status === 401) { auth.markExpired('attendance request refused'); throw new Error('Your session has expired.'); }
   if (!res.ok) throw new Error(data.error || `Attendance failed (${res.status})`);
+  if (!month && token === trackingAccount) attendanceCache = { data, at: Date.now() };
   return data;
 }
 
 async function ensureCheckedIn() {
-  const data = await attendanceRequest('GET');
+  if (!auth.isSignedIn()) throw new Error('Sign in to check in.');
+  const token = auth.get().token;
   const { checkInState } = require('./lib/check-ins-core.cjs');
-  if (!checkInState(data.recentPunches || data.punches || [], settings.get().work).covered) {
+  const covered = data => checkInState(data.recentPunches || data.punches || [], settings.get().work).covered;
+  if (token === trackingAccount && attendanceCache && Date.now() - attendanceCache.at < 300000 && covered(attendanceCache.data)) return;
+  const data = await attendanceRequest('GET');
+  if (!auth.isSignedIn() || auth.get().token !== token) throw new Error('Account changed. Please retry.');
+  if (!covered(data)) {
     const recorded = await attendanceRequest('POST');
-    if (!checkInState(recorded.recentPunches || recorded.punches || [], settings.get().work).covered) throw new Error('Check-in was not recorded for this duty period. Please retry.');
+    if (!auth.isSignedIn() || auth.get().token !== token) throw new Error('Account changed. Please retry.');
+    if (!covered(recorded)) throw new Error('Check-in was not recorded for this duty period. Please retry.');
   }
+}
+
+function refreshTrackedToday() {
+  const token = trackingAccount;
+  if (!token || todayRequest || Date.now() - lastTodayRequestAt < 15000 || updatePolicy.snapshot().blocked) return;
+  lastTodayRequestAt = Date.now();
+  const url = `${settings.get().sync.serverUrl}/api/agent/activity?scope=today`;
+  const pending = fetch(url, { headers: auth.authHeaders(), signal: AbortSignal.timeout(12000) })
+    .then(res => res.ok ? res.json() : null)
+    .then(data => {
+      if (token !== trackingAccount || !data?.date || !Array.isArray(data.sessions)) return;
+      tracker.remoteToday = data;
+      tracker.emitState();
+    })
+    .catch(() => {})
+    .finally(() => { if (todayRequest === pending) todayRequest = null; });
+  todayRequest = pending;
 }
 
 handle('account:get', () => auth.status());
@@ -303,8 +352,7 @@ handle('account:login', async (creds) => {
   // Pull the organisation policy before the first session so it never runs on
   // stale local settings.
   if (updatePolicy.snapshot().blocked) return user;
-  await policy.refresh().catch(() => {});
-  await tasks.refresh().catch(() => {});
+  await Promise.all([policy.refresh().catch(() => {}), tasks.refresh().catch(() => {})]);
   profile.refresh().catch(() => {});
   return user;
 });
