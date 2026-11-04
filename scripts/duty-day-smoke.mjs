@@ -22,6 +22,10 @@ for (const [stamp, work, day] of [
 const nightPunch = { checkedInAt: '2026-11-03T11:30:00Z' };
 assert.equal(checkInState([nightPunch], overnight, new Date('2026-11-03T18:30:00Z')).covered, true);
 assert.equal(punctuality(nightPunch, overnight).label, '30m early');
-const late = { checkedInAt: '2026-11-03T19:00:00Z' };
+const late = { checkedInAt: '2026-11-03T18:59:59Z' };
 assert.equal(punctuality(late, { segments: [{ start: '23:00', end: '01:00' }] }).label, '2h late');
+const next = new Date('2026-11-03T19:00:00Z');
+assert.equal(checkInState([nightPunch], overnight, next).covered, false);
+assert.equal(checkInState([{checkedInAt: next}], overnight, next).covered, true);
+assert.equal(punctuality({checkedInAt: next}, overnight).label, '17h early');
 console.log('Duty dates, overnight check-in, and punctuality passed in both JavaScript runtimes.');

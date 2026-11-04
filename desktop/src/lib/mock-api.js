@@ -8,6 +8,8 @@
  * drift, the mock is wrong, not the app.
  */
 
+import { checkInState, dhakaClock, dhakaDay } from './check-ins.js';
+
 const DAY = 86400000;
 const listeners = { tracker: [], settings: [], tasks: [], sync: [], profile: [], account: [] };
 
@@ -46,7 +48,16 @@ let settings = {
   idle: { enabled: true, thresholdMinutes: 5, onTimeout: 'pause', countIdleAsWork: false },
 };
 
-let state = 'running';
+let state = 'stopped';
+let punches = [];
+if (new URLSearchParams(window.location.search).get('scenario') === 'after-duty' || window.__chronexaOfflineScenario === 'after-duty') {
+  const now = Date.now();
+  settings.work.segments = [{ start: dhakaClock(now - 60 * 60000), end: dhakaClock(now - 2 * 60000) }];
+  const checkedInAt = new Date(now - 30 * 60000).toISOString();
+  punches = [{ id: 'previous-shift', checkedInAt, date: dhakaDay(checkedInAt) }];
+}
+const attendance = () => ({ punches: [...punches], recentPunches: [...punches] });
+function recordCheckIn() { const checkedInAt = new Date().toISOString(); punches.push({ id: checkedInAt, checkedInAt, date: new Date(Date.now() + 21600000).toISOString().slice(0, 10) }); return attendance(); }
 let idlePhase = 'active';
 let session = {
   id: 'mock-session',
@@ -117,8 +128,10 @@ setInterval(() => {
 
 export function installMockApi() {
   window.api = {
+    attendance: { today: async () => attendance(), month: async month => ({ punches: punches.filter(p => p.date.startsWith(month)) }), checkIn: async () => recordCheckIn() },
     tracker: {
       start: async ({ taskId, taskNote } = {}) => {
+        if (!checkInState(punches, settings.work).covered) recordCheckIn();
         state = 'running';
         idlePhase = 'active';
         session = { id: `mock-${Date.now()}`, startedAt: new Date().toISOString(), activeSeconds: 0, idleSeconds: 0, taskId: taskId ?? null, taskNote: taskNote ?? '' };
@@ -131,6 +144,7 @@ export function installMockApi() {
         return snapshot();
       },
       resume: async () => {
+        if (!checkInState(punches, settings.work).covered) recordCheckIn();
         state = 'running';
         emit('tracker', snapshot());
         return snapshot();

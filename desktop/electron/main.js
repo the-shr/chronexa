@@ -235,12 +235,13 @@ const handle = (channel, fn) => ipcMain.handle(channel, (_event, payload) => {
 });
 
 handle('tracker:start', async (opts = {}) => {
-  await ensureCheckedIn();
   if (opts.taskId) {
     const task = tasks.get(String(opts.taskId));
     if (!task || task.status !== 'open') throw new Error('Choose an open task assigned to this account.');
+    await ensureCheckedIn();
     return tracker.start({ taskId: task.id, taskNote: task.title });
   }
+  await ensureCheckedIn();
   return tracker.start({ taskNote: String(opts.taskNote || '').slice(0, 200) });
 });
 handle('tracker:pause', () => tracker.pause());
@@ -289,7 +290,10 @@ async function attendanceRequest(method, month = '') {
 async function ensureCheckedIn() {
   const data = await attendanceRequest('GET');
   const { checkInState } = require('./lib/check-ins-core.cjs');
-  if (!checkInState(data.recentPunches || data.punches || [], settings.get().work).covered) throw new Error('Check in for this duty period before tracking.');
+  if (!checkInState(data.recentPunches || data.punches || [], settings.get().work).covered) {
+    const recorded = await attendanceRequest('POST');
+    if (!checkInState(recorded.recentPunches || recorded.punches || [], settings.get().work).covered) throw new Error('Check-in was not recorded for this duty period. Please retry.');
+  }
 }
 
 handle('account:get', () => auth.status());

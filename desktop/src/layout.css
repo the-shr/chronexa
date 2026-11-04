@@ -509,7 +509,8 @@
   .schedule-card {
     display: none;
   }
-  .home-grid.checked-in { grid-template-areas: 'side tracker right' 'side progress right'; }
+  .home-grid.checked-in { grid-template-rows: minmax(220px,1fr) minmax(160px,1fr) minmax(170px,auto); grid-template-areas: 'side tracker right' 'side progress right' 'schedule schedule schedule'; }
+  .home-grid.checked-in .schedule-card { display: block; }
 }
 
 @media (max-width: 1000px) {
@@ -523,7 +524,7 @@
   .side-col {
     display: none;
   }
-  .home-grid.checked-in { grid-template-areas: 'tracker right' 'progress right'; }
+  .home-grid.checked-in { grid-template-areas: 'tracker right' 'progress right' 'schedule schedule'; }
 }
 
 /* -------------------------------- profile ------------------------------- */

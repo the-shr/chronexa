@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import CheckInCard from '../components/CheckInCard.jsx';
+import CheckInGate from '../components/CheckInGate.jsx';
 import { checkInState } from '../lib/check-ins.js';
 
 import {
@@ -50,18 +50,17 @@ export default function Home({ snapshot, tasks, account, profile, attendance, on
 
       <MetricRow snapshot={snapshot} settings={settings} tasks={tasks} weekSeconds={weekSeconds} />
 
-      <div className={`page-body home-grid ${checkedIn ? 'checked-in' : ''}`}>
+      <div className="page-body home-grid checked-in">
         <div className="side-col">
           <ProfileCard account={account} snapshot={snapshot} profile={profile} />
           <WorkConsistencyCard rows={daily} sessions={sessions} settings={settings} />
         </div>
 
         <ProgressCard rows={daily} weekSeconds={weekSeconds} countIdle={countIdle} settings={settings} />
-        <CheckInCard attendance={attendance} work={settings.work} onCheckIn={onCheckIn} compact />
-        <TrackerCard snapshot={snapshot} settings={settings} busy={busy} onAction={run} checkedIn={checkedIn} />
-        <TaskHubCard tasks={tasks} snapshot={snapshot} account={account} busy={busy} onAction={run} onOpenTasks={onOpenTasks} checkedIn={checkedIn} />
+        <CheckInGate className="tracker-gate" locked={!checkedIn && snapshot.state !== 'running'} onCheckIn={onCheckIn}><TrackerCard snapshot={snapshot} settings={settings} busy={busy} onAction={run} checkedIn={checkedIn} /></CheckInGate>
+        <CheckInGate className="tasks-gate" locked={!checkedIn} onCheckIn={onCheckIn}><TaskHubCard tasks={tasks} snapshot={snapshot} account={account} busy={busy} onAction={run} onOpenTasks={onOpenTasks} checkedIn={checkedIn} /></CheckInGate>
         <div className="right-col">
-          <DeadlinePulseCard tasks={tasks} />
+          {checkedIn && <DeadlinePulseCard tasks={tasks} />}
           <TodayBreakdownCard snapshot={snapshot} settings={settings} />
         </div>
       </div>

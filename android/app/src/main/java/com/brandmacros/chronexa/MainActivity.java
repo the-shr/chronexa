@@ -63,10 +63,8 @@ public class MainActivity extends Activity {
     }
     case "start": {
      JSONObject policy=Api.json(MainActivity.this,"/api/agent/policy","GET",null);Store.save(MainActivity.this,"policy",policy);
-     JSONObject attendance=Api.json(MainActivity.this,"/api/agent/attendance","GET",null);
-     if(!checkedInForPeriod(attendance,policy))throw new Exception("Check in for this duty period before tracking.");
      boolean capture=policy.getJSONObject("screenshots").optBoolean("enabled")||policy.getJSONObject("recording").optBoolean("enabled");
-     runOnUiThread(()->{if(startRequest!=null){reply(id,false,"Another tracking request is open.");return;}startRequest=id;startPayload=payload;startNeedsCapture=capture;
+     runOnUiThread(()->{if(startRequest!=null){reply(id,false,"Another tracking request is open.");return;}startRequest=id;startPayload=payload;startNeedsCapture=capture;startAttendancePolicy=policy;
       new AlertDialog.Builder(MainActivity.this).setTitle("Start work tracking?").setMessage(capture?"Your work time and screen will be shared with your organisation according to its capture settings. Android will ask you to share your screen. Locking your phone or stopping screen sharing pauses tracking.":"Your work time will be shared with your organisation. Locking your phone pauses tracking.").setPositiveButton("Continue",(dialog,which)->{requestTrackingPermissions();}).setNegativeButton("Cancel",(dialog,which)->cancelStart()).setOnCancelListener(dialog->cancelStart()).show();
      });return;
     }
@@ -74,6 +72,7 @@ public class MainActivity extends Activity {
    }reply(id,true,result);
   }catch(Exception e){reply(id,false,e.getMessage()==null?"Action failed":e.getMessage());}});}
  }
+ JSONObject startAttendancePolicy;
  boolean checkedInForPeriod(JSONObject attendance,JSONObject policy)throws Exception{
   JSONObject work=policy.optJSONObject("work");org.json.JSONArray segments=work==null?null:work.optJSONArray("segments");
   if(segments==null||segments.length()==0){segments=new org.json.JSONArray();segments.put(new JSONObject().put("start",work==null?"09:00":work.optString("officeStart","09:00")).put("end",work==null?"17:00":work.optString("officeEnd","17:00")));}
@@ -85,25 +84,36 @@ public class MainActivity extends Activity {
  long periodStartFor(long stamp,org.json.JSONArray segments)throws Exception{
   java.time.ZoneId zone=java.time.ZoneId.of("Asia/Dhaka");
   java.time.LocalDate date=java.time.Instant.ofEpochMilli(stamp).atZone(zone).toLocalDate();
-  long inside=Long.MIN_VALUE,lateOvernight=Long.MIN_VALUE,lateEnd=Long.MIN_VALUE,upcoming=Long.MAX_VALUE;
+  long inside=Long.MIN_VALUE,upcoming=Long.MAX_VALUE;
   for(int day=-1;day<=1;day++)for(int i=0;i<segments.length();i++){
    JSONObject row=segments.getJSONObject(i);int startMinute=minuteOf(row.getString("start")),endMinute=minuteOf(row.getString("end"));
    long dayStart=date.plusDays(day).atStartOfDay(zone).toInstant().toEpochMilli();
    long start=dayStart+startMinute*60000L,end=dayStart+(endMinute<=startMinute?endMinute+1440L:endMinute)*60000L;
-   if(stamp>=start&&stamp<=end)inside=start;
-   if(endMinute<=startMinute&&end<stamp&&stamp-end<=2L*3600000&&end>lateEnd){lateOvernight=start;lateEnd=end;}
+   if(stamp>=start&&stamp<end)inside=start;
    if(start>stamp&&start<upcoming)upcoming=start;
   }
-  return inside!=Long.MIN_VALUE?inside:lateOvernight!=Long.MIN_VALUE?lateOvernight:upcoming;
+  return inside!=Long.MIN_VALUE?inside:upcoming;
  }
  int minuteOf(String clock){String[] parts=clock.split(":");return Integer.parseInt(parts[0])*60+Integer.parseInt(parts[1]);}
  void cacheToday(JSONObject data)throws Exception{org.json.JSONArray rows=data.optJSONArray("sessions"),todayRows=new org.json.JSONArray(),segments=TrackingService.dutySegments(this);String today=TrackingService.dutyDay(System.currentTimeMillis(),segments);if(rows!=null)for(int i=0;i<rows.length();i++){JSONObject row=rows.getJSONObject(i);if(TrackingService.dutyDay(java.time.Instant.parse(row.getString("startedAt")).toEpochMilli(),segments).equals(today))todayRows.put(new JSONObject().put("id",row.getString("id")).put("seconds",row.optLong("activeSeconds")+(data.optBoolean("countIdleAsWork")?row.optLong("idleSeconds"):0)));}Store.save(this,"activity-today",new JSONObject().put("date",today).put("sessions",todayRows));}
  void requestTrackingPermissions(){try{JSONObject preferences=Store.read(this,"preferences");if(!android.provider.Settings.canDrawOverlays(this)&&!preferences.optBoolean("overlayPermissionAsked")){preferences.put("overlayPermissionAsked",true);Store.save(this,"preferences",preferences);startActivityForResult(new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,android.net.Uri.parse("package:"+getPackageName())),42);return;}requestCapture();}catch(Exception e){cancelStart();}}
  void requestCapture(){if(startNeedsCapture)startActivityForResult(captureIntent(),31);else begin(null,0);}
  @Override protected void onNewIntent(Intent intent){super.onNewIntent(intent);setIntent(intent);if(intent.getBooleanExtra("resumeFromOverlay",false)){overlayResumeRequested=true;if(web!=null)web.evaluateJavascript("window.dispatchEvent(new Event('chronexa-resume'))",null);}}
- void cancelStart(){reply(startRequest,false,"Tracking was not started.");startRequest=null;startPayload=null;}
+ void cancelStart(){startAttendancePolicy=null;reply(startRequest,false,"Tracking was not started.");startRequest=null;startPayload=null;}
  Intent captureIntent(){MediaProjectionManager manager=(MediaProjectionManager)getSystemService(MEDIA_PROJECTION_SERVICE);return Build.VERSION.SDK_INT>=34?manager.createScreenCaptureIntent(android.media.projection.MediaProjectionConfig.createConfigForDefaultDisplay()):manager.createScreenCaptureIntent();}
- void begin(Intent permission,int code){try{Intent intent=new Intent(this,TrackingService.class).setAction("start").putExtra("task",startPayload.toString());if(permission!=null)intent.putExtra("permission",permission).putExtra("result",code);startForegroundService(intent);reply(startRequest,true,new JSONObject());}catch(Exception e){reply(startRequest,false,"Could not start tracking. Please try again.");}finally{startRequest=null;startPayload=null;}}
+ void begin(Intent permission,int code){
+  final JSONObject policy=startAttendancePolicy; startAttendancePolicy=null;
+  if(policy==null){launchTracking(permission,code,new JSONObject());return;}
+  final String request=startRequest;
+  worker.execute(()->{try{
+   JSONObject attendance=Api.json(this,"/api/agent/attendance","GET",null);
+   if(!checkedInForPeriod(attendance,policy))attendance=Api.json(this,"/api/agent/attendance","POST",null);
+   if(!checkedInForPeriod(attendance,policy))throw new Exception("Check-in was not recorded for this duty period. Please retry.");
+   final JSONObject result=new JSONObject().put("attendance",attendance);
+   runOnUiThread(()->{if(request!=null&&request.equals(startRequest))launchTracking(permission,code,result);});
+  }catch(Exception e){runOnUiThread(()->{if(request!=null&&request.equals(startRequest)){reply(request,false,e.getMessage()==null?"Check-in failed. Please retry.":e.getMessage());startRequest=null;startPayload=null;}});}});
+ }
+ void launchTracking(Intent permission,int code,JSONObject result){try{Intent intent=new Intent(this,TrackingService.class).setAction("start").putExtra("task",startPayload.toString());if(permission!=null)intent.putExtra("permission",permission).putExtra("result",code);startForegroundService(intent);reply(startRequest,true,result);}catch(Exception e){reply(startRequest,false,"Could not start tracking. Please try again.");}finally{startRequest=null;startPayload=null;}}
  @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request==42&&startRequest!=null){requestCapture();return;}if(request==31){if(result==RESULT_OK&&data!=null)begin(data,result);else cancelStart();}}
  @Override public void onBackPressed(){web.evaluateJavascript("window.dispatchEvent(new Event('chronexa-back'))",null);}
  @Override protected void onResume(){super.onResume();worker.execute(()->SyncWorker.initialize(MainActivity.this));if(web!=null)web.evaluateJavascript("window.dispatchEvent(new Event('chronexa-active'))",null);}

@@ -1,3 +1,4 @@
+import CheckInGate from '../desktop/src/components/CheckInGate.jsx';
 import React, { useEffect, useState } from 'react';
 import Employees from '../desktop/src/pages/admin/Employees.jsx';
 import Policy from '../desktop/src/pages/admin/Policy.jsx';
@@ -47,13 +48,19 @@ export default function MobileLayout(props) {
   const openTasks = tasks.filter(task => task.status === 'open');
   const checkin = checkInState(attendance?.recentPunches || attendance?.punches || [], policy?.work);
   const [checkInNotice, setCheckInNotice] = useState('');
-  const performCheckIn = () => act(async () => {
+  const recordCheckIn = async () => {
     const early = checkin.delta !== null && checkin.delta < 0;
     const result = await request('/api/agent/attendance', 'POST');
     setAttendance(result);
     const refreshed = checkInState(result.recentPunches || result.punches || [], policy?.work);
     setCheckInNotice(!refreshed.covered ? 'A recent check-in exists. Try again when this duty period begins.' : early ? `Early check-in recorded. Duty starts at ${checkin.expected}.` : 'Check-in recorded.');
-  });
+  };
+  const performCheckIn = () => act(recordCheckIn);
+  const startTracking = async () => {
+    const result = await native('start', { taskId: taskId ? 'bmos:' + taskId : note ? '' : current?.taskId || '', taskNote: tasks.find(task => task.id === taskId)?.title || note || current?.taskNote || 'General work' });
+    if (result.attendance) setAttendance(result.attendance);
+    await refresh();
+  };
   const targetHours = Number(activity?.dailyTargetHours ?? policy?.dailyTargetHours ?? 0);
   const progress = targetHours > 0 ? Math.min(100, Math.round(todaySeconds / (targetHours * 3600) * 100)) : 0;
   return <div className="mobile-app">
@@ -62,13 +69,12 @@ export default function MobileLayout(props) {
     {error && <aside className="mobile-error" role="alert">{error}<button aria-label="Dismiss error" onClick={() => setError('')}>×</button></aside>}
     <main className="mobile-main">
       {tab === 'track' && <section className="mobile-page mobile-home"><div className="mobile-page-intro"><span className="mobile-eyebrow">{new Intl.DateTimeFormat('en-BD', { timeZone: 'Asia/Dhaka', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date())}</span><h1>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {account.user?.name?.split(' ')[0] || 'there'}.</h1></div>
-        {!checkin.covered && <div className="mobile-checkin-prompt"><button className="btn primary" disabled={busy} onClick={performCheckIn}>Check in</button><span>{checkInNotice || (checkin.expected ? `Duty starts ${checkin.expected}` : 'Check in before tracking')}{checkin.delta < 0 && !checkInNotice ? ' · Early check-in' : ''}</span></div>}
-        <article className={`mobile-timer ${timer.running ? 'running' : ''}`}><div className="mobile-timer-top"><span>{timer.running ? 'TRACKING NOW' : current && timer.reason !== 'manual-stop' ? 'PAUSED' : 'READY TO START'}</span><small>{timer.syncing ? 'Syncing…' : timer.pending ? 'Waiting to sync' : 'Synced'}</small></div><div className="mobile-time-ring" style={{ '--progress': `${progress}%` }}><div><strong>{humanDuration(todaySeconds)}</strong><span>tracked today</span></div></div><p>{timer.running ? current?.taskNote || 'General work' : taskId ? tasks.find(task => task.id === taskId)?.title : current?.taskNote || 'General work'}</p><button className="btn primary" disabled={busy || (!timer.running && (!checkin.covered || (outdated && update.required)))} onClick={() => act(async () => { if (timer.running) await native('pause'); else await native('start', { taskId: taskId ? `bmos:${taskId}` : note ? '' : current?.taskId || '', taskNote: tasks.find(task => task.id === taskId)?.title || note || current?.taskNote || 'General work' }); await refresh(); })}>{busy ? 'Please wait…' : timer.running ? 'Pause tracking' : current && timer.reason !== 'manual-stop' ? 'Resume tracking' : 'Start tracking'}</button>{(timer.error || timer.syncError) && <p className="form-error">{timer.error || timer.syncError}</p>}</article>
+        <CheckInGate locked={!checkin.covered && !timer.running} onCheckIn={recordCheckIn}><article className={`mobile-timer ${timer.running ? 'running' : ''}`}><div className="mobile-timer-top"><span>{timer.running ? 'TRACKING NOW' : current && timer.reason !== 'manual-stop' ? 'PAUSED' : 'READY TO START'}</span><small>{timer.syncing ? 'Syncing…' : timer.pending ? 'Waiting to sync' : 'Synced'}</small></div><div className="mobile-time-ring" style={{ '--progress': `${progress}%` }}><div><strong>{humanDuration(todaySeconds)}</strong><span>tracked today</span></div></div><p>{timer.running ? current?.taskNote || 'General work' : taskId ? tasks.find(task => task.id === taskId)?.title : current?.taskNote || 'General work'}</p><button className="btn primary" disabled={busy || (!timer.running && (!checkin.covered || (outdated && update.required)))} onClick={() => act(async () => { if (timer.running) await native('pause'); else return startTracking(); await refresh(); })}>{busy ? 'Please wait…' : timer.running ? 'Pause tracking' : current && timer.reason !== 'manual-stop' ? 'Resume tracking' : 'Start tracking'}</button>{(timer.error || timer.syncError) && <p className="form-error">{timer.error || timer.syncError}</p>}</article></CheckInGate>
         <div className="mobile-day-grid"><article><span>Today</span><strong>{humanDuration(todaySeconds)}</strong><small>Work time</small></article><article><span>Tasks</span><strong>{openTasks.length}</strong><small>To do</small></article><article><span>Progress</span><strong>{targetHours > 0 ? `${progress}%` : '—'}</strong><small>{targetHours > 0 ? 'Daily target' : 'No target set'}</small></article></div>
         {!timer.running && <label className="mobile-note">Work note<input value={note} onChange={event => { setNote(event.target.value); if (event.target.value) setTaskId(''); }} placeholder="What are you working on?" maxLength={300} /></label>}
-        <div className="mobile-section-title"><div><span className="mobile-eyebrow">UP NEXT</span><h2>Assigned tasks</h2></div><button onClick={() => setTab('tasks')}>View all</button></div><div className="mobile-home-tasks">{openTasks.slice(0, 3).map(task => <button key={task.id} onClick={() => { setTab('tasks'); }}><span><strong>{task.title}</strong><small>{task.context || task.priority || 'Assigned task'}</small></span><span aria-hidden="true">›</span></button>)}{!openTasks.length && <p>No tasks waiting. You can track general work.</p>}</div>
+        <CheckInGate locked={!checkin.covered} onCheckIn={recordCheckIn}><div><div className="mobile-section-title"><div><span className="mobile-eyebrow">UP NEXT</span><h2>Assigned tasks</h2></div><button onClick={() => setTab('tasks')}>View all</button></div><div className="mobile-home-tasks">{openTasks.slice(0, 3).map(task => <button key={task.id} onClick={() => { setTab('tasks'); }}><span><strong>{task.title}</strong><small>{task.context || task.priority || 'Assigned task'}</small></span><span aria-hidden="true">›</span></button>)}{!openTasks.length && <p>No tasks waiting. You can track general work.</p>}</div></div></CheckInGate>
       </section>}
-      {tab === 'tasks' && <TaskScreen tasks={tasks} taskId={taskId} setTaskId={setTaskId} timer={timer} busy={busy} act={act} load={load} setTab={setTab} checkedIn={checkin.covered} />}
+      {tab === 'tasks' && <CheckInGate className="page-gate" locked={!checkin.covered} onCheckIn={recordCheckIn}><TaskScreen tasks={tasks} taskId={taskId} setTaskId={setTaskId} timer={timer} busy={busy} act={act} load={load} setTab={setTab} checkedIn={checkin.covered} /></CheckInGate>}
       {tab === 'checkins' && <MobileCheckIns attendance={attendance} work={policy?.work} onCheckIn={performCheckIn} busy={busy} notice={checkInNotice} />}
       {tab === 'activity' && <section className="mobile-page"><div className="mobile-page-intro"><span className="mobile-eyebrow">YOUR RECORD</span><h1>My activity</h1></div><ActivityHistory daily={activity?.daily || []} targetHours={activity?.dailyTargetHours ?? 0} selectedDay={selectedDay} onSelect={setSelectedDay} /><h2>{selectedDay}</h2>{(activity?.sessions || []).filter(row => (row.dutyDate || dhakaDay(row.startedAt)) === selectedDay).map(row => <article className="mobile-task" key={row.id}><strong>{row.taskTitle || row.note || 'General work'}</strong><p>{dhakaTime(row.startedAt)} · {humanDuration(row.activeSeconds)}</p></article>)}</section>}
       {tab === 'team' && canViewEmployees && <div className="mobile-admin-screen"><Employees /></div>}

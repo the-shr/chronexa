@@ -18,6 +18,7 @@ const TABS = [
   { id: 'tracker', label: 'Tracker' },
   { id: 'tasks', label: 'My Tasks' },
   { id: 'activity', label: 'My Activity' },
+  { id: 'checkins', label: 'Check-ins' },
 ];
 
 export default function App() {
@@ -59,7 +60,7 @@ function Application({ update, account, refreshAccount }) {
     refresh();
     const interval = setInterval(refresh, 60000);
     return () => { live = false; clearInterval(interval); };
-  }, [account?.user?.id]);
+  }, [account?.user?.id, snapshot?.state]);
   const checkIn = async () => { const data = await window.api.attendance.checkIn(); setAttendance(data); return data; };
 
   useEffect(() => {
@@ -175,7 +176,7 @@ function Application({ update, account, refreshAccount }) {
         {preview && tab !== 'employees' && <p className="role-preview-note">Preview mode is read only. Your own tracking and settings are shown where a role has personal pages.</p>}
         <div style={preview && tab !== 'employees' ? { pointerEvents: 'none' } : undefined}>
           {tab === 'tracker' && <Home snapshot={snapshot} tasks={tasks} account={account} profile={profile} attendance={attendance} onCheckIn={checkIn} onOpenCheckIns={() => setTab('checkins')} onOpenTasks={() => setTab('tasks')} />}
-          {tab === 'tasks' && <Tasks tasks={tasks} snapshot={snapshot} account={account} attendance={attendance} />}
+          {tab === 'tasks' && <Tasks tasks={tasks} snapshot={snapshot} account={account} attendance={attendance} onCheckIn={checkIn} />}
           {tab === 'checkins' && <CheckIns attendance={attendance} onCheckIn={checkIn} />}
           {tab === 'activity' && <Activity snapshot={snapshot} onOpenCheckIns={() => setTab('checkins')} />}
           {tab === 'employees' && canViewEmployees && <Employees key={`${previewId}:${previewMemberId}`} previewUserIds={previewPm ? [...new Set([...(preview.trackingConfigured ? preview.trackingUserIds : []), previewMemberId].filter(Boolean))] : null} />}

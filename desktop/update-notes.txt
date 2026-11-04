@@ -1,1 +1,1 @@
-Overnight work now counts toward the duty date when the shift began, even after midnight. Check-in appears above the tracker and disappears after you check in; split shifts request a check-in for each duty period. The Android floating timer defaults to On and shows a clear prompt when display-over-other-apps permission is needed.
+Check in from the centered prompt on Tracker or My Tasks. Starting or resuming tracking also records any missing check-in. Use the separate Check-ins page to check in early for your next duty as soon as the previous shift ends.
