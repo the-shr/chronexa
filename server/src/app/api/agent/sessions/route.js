@@ -76,6 +76,9 @@ export async function POST(request) {
   if (data.externalTaskId && data.endedAt) {
     const synced = await syncTaskSession(device.user.email, data.externalTaskId, { id: session.id, ...data });
     if (synced.error) return Response.json({ error: synced.error }, { status: 502 });
+    // The time is already saved in Chronexa. Reassignment/deletion is permanent
+    // for this mirror attempt; retrying must not keep the device queue stuck.
+    if (synced.skipped) return Response.json({ ok: true, id: session.id, taskMirror: synced.skipped });
   }
 
   return Response.json({ ok: true, id: session.id });

@@ -189,7 +189,7 @@ export async function submitTask(email, taskId, completionNote, delayReason) {
 export async function syncTaskSession(email, taskId, session) {
   if (!configured()) return { error: 'The hub is not configured' };
   try {
-    const { ok, data } = await call(`/api/ecosystem/tasks/${encodeURIComponent(taskId)}/timer`, {
+    const { ok, status, data } = await call(`/api/ecosystem/tasks/${encodeURIComponent(taskId)}/timer`, {
       method: 'POST',
       body: {
         email,
@@ -201,6 +201,7 @@ export async function syncTaskSession(email, taskId, session) {
         stopReason: session.stopReason,
       },
     });
+    if (status === 404 && data?.error === 'Assigned task not found.') return { skipped: 'TASK_NO_LONGER_ASSIGNED' };
     return ok ? { ok: true, id: data.id } : { error: data?.error || 'The hub rejected the tracked session' };
   } catch {
     return { error: 'The hub could not be reached' };
