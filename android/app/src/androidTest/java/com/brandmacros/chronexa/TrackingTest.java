@@ -35,7 +35,7 @@ public class TrackingTest {
   }catch(Exception e){throw new RuntimeException(e);}});
  }
  @Before public void isolate()throws Exception{Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{if(TrackingService.instance!=null)TrackingService.instance.pause("manual");c.stopService(new Intent(c,TrackingService.class));});for(int i=0;i<50&&TrackingService.instance!=null;i++)Thread.sleep(100);c.getSharedPreferences("private",0).edit().clear().commit();File[] oldCaptures=new File(c.getFilesDir(),"outbox").listFiles();if(oldCaptures!=null)for(File capture:oldCaptures)capture.delete();UiDevice device=UiDevice.getInstance(InstrumentationRegistry.getInstrumentation());device.wakeUp();device.pressMenu();}
- @After public void cleanup()throws Exception{Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{if(TrackingService.instance!=null)TrackingService.instance.pause("manual");c.stopService(new Intent(c,TrackingService.class));});UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).wakeUp();}
+ @After public void cleanup()throws Exception{Api.testTransport=null;Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();InstrumentationRegistry.getInstrumentation().runOnMainSync(()->{if(TrackingService.instance!=null)TrackingService.instance.pause("manual");c.stopService(new Intent(c,TrackingService.class));});UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).wakeUp();}
  @Test public void encryptedStoreAndCrashRecovery()throws Exception{
   Context c=InstrumentationRegistry.getInstrumentation().getTargetContext();Store.save(c,"account",new JSONObject());Store.save(c,"history",new JSONObject());
   JSONObject session=new JSONObject().put("id","offline-recovery-test").put("startedAt","2026-10-24T01:00:00Z").put("activeSeconds",17);
@@ -50,7 +50,18 @@ public class TrackingTest {
   Store.save(c,"policy",new JSONObject("{\"version\":\"test\",\"screenshots\":{\"enabled\":true,\"intervalMinutes\":1,\"quality\":65},\"recording\":{\"enabled\":true,\"mode\":\"interval\",\"intervalMinutes\":10,\"durationSeconds\":3}}"));
   if(Build.VERSION.SDK_INT>=33)instrumentation.getUiAutomation().grantRuntimePermission(c.getPackageName(),android.Manifest.permission.POST_NOTIFICATIONS);
   MainActivity activity=(MainActivity)instrumentation.startActivitySync(new Intent(c,MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-  instrumentation.runOnMainSync(()->{try{activity.startRequest="test";activity.startPayload=new JSONObject().put("taskNote","Emulator lifecycle test");activity.startActivityForResult(activity.captureIntent(),31);}catch(Exception e){throw new RuntimeException(e);}});
+  Api.testTransport=(path,method,body)->{
+   if(path.equals("/api/agent/attendance"))return new JSONObject().put("recentPunches",new JSONArray().put(new JSONObject().put("checkedInAt",TrackingService.iso(System.currentTimeMillis()))));
+   return new JSONObject();
+  };
+  JSONObject policy=Store.read(c,"policy");
+  instrumentation.runOnMainSync(()->{try{
+   activity.startRequest="test";
+   activity.startPayload=new JSONObject().put("taskNote","Emulator lifecycle test");
+   activity.startAttendancePolicy=policy;
+   activity.startNeedsCapture=true;
+   activity.requestCapture();
+  }catch(Exception e){throw new RuntimeException(e);}});
   UiDevice device=UiDevice.getInstance(instrumentation);UiObject2 button=device.wait(Until.findObject(By.text(java.util.regex.Pattern.compile("(?i)start now|start recording|start sharing|share screen|share|start"))),15000);
   if(button==null)button=device.findObject(By.res("android:id/button1"));
   if(button==null){java.io.ByteArrayOutputStream hierarchy=new java.io.ByteArrayOutputStream();device.dumpWindowHierarchy(hierarchy);fail("Android screen-sharing consent missing: "+hierarchy.toString("UTF-8"));}button.click();
