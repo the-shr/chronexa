@@ -1,1 +1,1 @@
-Check in from the centered prompt on Tracker or My Tasks. Starting or resuming tracking also records any missing check-in. Use the separate Check-ins page to check in early for your next duty as soon as the previous shift ends.
+Chronexa now verifies attendance before showing the check-in button. Reopening the app no longer asks you to check in again while your current duty period is being verified.

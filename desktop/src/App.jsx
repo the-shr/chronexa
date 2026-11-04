@@ -56,7 +56,7 @@ function Application({ update, account, refreshAccount }) {
 
   useEffect(() => {
     let live = true;
-    const refresh = () => window.api.attendance.today().then(data => { if (live) setAttendance(data); }).catch(() => {});
+    const refresh = () => window.api.attendance.today().then(data => { if (live) setAttendance(data); }).catch(() => { if (live) setAttendance(current => current ?? { unavailable: true }); });
     refresh();
     const interval = setInterval(refresh, 60000);
     return () => { live = false; clearInterval(interval); };

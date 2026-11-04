@@ -17,6 +17,7 @@ export default function CheckInCard({ attendance, work, onCheckIn, onHistory, co
     } catch (error) { setNotice(error.message || 'Check-in failed.'); }
     finally { setBusy(false); }
   }
+  if (!attendance || attendance.unavailable) return <p role="status">{attendance?.unavailable ? "Could not verify attendance. Retrying…" : "Checking attendance…"}</p>;
   if (compact) return <div className="checkin-prompt"><button className="btn primary" type="button" disabled={busy} onClick={checkIn}>{busy ? 'Checking in…' : 'Check in'}</button><span>{notice || (state.expected ? `Duty starts ${state.expected}` : 'Check in before tracking')}{state.delta < 0 && !notice ? ' · Early check-in' : ''}</span></div>;
   return <section className="card attendance-card">
     <div className="attendance-copy"><span className="card-kicker">Attendance</span><h2>{state.covered ? 'Checked in' : 'Ready to check in'}</h2><p>{state.expected ? `Duty starts ${state.expected}` : 'No duty time set'}{latest ? ` · Last check-in ${dhakaClock(latest.checkedInAt)} (${detail.label})` : ''}</p>{!state.covered && state.delta < 0 && <small>Early check-in will be recorded.</small>}{notice && <small role="status">{notice}</small>}</div>

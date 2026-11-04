@@ -50,7 +50,7 @@ export default function Tasks({ tasks, snapshot, account, attendance, onCheckIn 
     await window.api.tracker.start({ taskId: task.id, taskNote: task.title });
   });
 
-  return <CheckInGate className="page-gate" locked={!checkInState(attendance?.recentPunches || attendance?.punches || [], settings?.work).covered} onCheckIn={onCheckIn}><section className="my-tasks-page" aria-label="My Tasks">
+  return <CheckInGate className="page-gate" locked={!checkInState(attendance?.recentPunches || attendance?.punches || [], settings?.work).covered} attendance={attendance} onCheckIn={onCheckIn}><section className="my-tasks-page" aria-label="My Tasks">
     <header className="my-tasks-head"><h1>My Tasks</h1><span className="my-tasks-total">{all.length} tasks</span></header>
     <div className="my-tasks-toolbar"><div className="my-tasks-filters" role="group" aria-label="Filter tasks">{FILTERS.map(([id, label]) => <button key={id} type="button" aria-pressed={filter === id} onClick={() => { setFilter(id); setPage(1); }}>{label}<span>{id === 'all' ? all.length : all.filter(task => task.status === id).length}</span></button>)}</div><input type="search" aria-label="Search my tasks" placeholder="Search tasks" value={query} onChange={event => { setQuery(event.target.value); setPage(1); }} /></div>
     {error && <p className="form-error" role="alert">{error}</p>}

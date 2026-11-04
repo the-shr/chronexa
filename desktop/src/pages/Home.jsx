@@ -57,8 +57,8 @@ export default function Home({ snapshot, tasks, account, profile, attendance, on
         </div>
 
         <ProgressCard rows={daily} weekSeconds={weekSeconds} countIdle={countIdle} settings={settings} />
-        <CheckInGate className="tracker-gate" locked={!checkedIn && snapshot.state !== 'running'} onCheckIn={onCheckIn}><TrackerCard snapshot={snapshot} settings={settings} busy={busy} onAction={run} checkedIn={checkedIn} /></CheckInGate>
-        <CheckInGate className="tasks-gate" locked={!checkedIn} onCheckIn={onCheckIn}><TaskHubCard tasks={tasks} snapshot={snapshot} account={account} busy={busy} onAction={run} onOpenTasks={onOpenTasks} checkedIn={checkedIn} /></CheckInGate>
+        <CheckInGate className="tracker-gate" locked={!checkedIn && snapshot.state !== 'running'} attendance={attendance} onCheckIn={onCheckIn}><TrackerCard snapshot={snapshot} settings={settings} busy={busy} onAction={run} checkedIn={checkedIn} /></CheckInGate>
+        <CheckInGate className="tasks-gate" locked={!checkedIn} attendance={attendance} onCheckIn={onCheckIn}><TaskHubCard tasks={tasks} snapshot={snapshot} account={account} busy={busy} onAction={run} onOpenTasks={onOpenTasks} checkedIn={checkedIn} /></CheckInGate>
         <div className="right-col">
           {checkedIn && <DeadlinePulseCard tasks={tasks} />}
           <TodayBreakdownCard snapshot={snapshot} settings={settings} />
